@@ -37,7 +37,7 @@ const EventCard = ({
     <div className="glass-card hover-glow animate-fade-in p-6 w-full">
       {/* Header with status badge */}
       <div className="flex justify-between items-start mb-4">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center text-2xl">
+        <div className="w-16 h-16 rounded-2xl bg-primary/20 flex items-center justify-center text-2xl">
           {image}
         </div>
         {status && (

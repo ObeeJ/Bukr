@@ -62,11 +62,11 @@ const Explore = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-glow">EventFlow</h1>
+          <h1 className="text-3xl font-bold text-glow">Bukr</h1>
           <p className="text-muted-foreground mt-1">Discover amazing events</p>
         </div>
         <Button variant="ghost" size="icon" className="rounded-full">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+          <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
             <span className="text-sm font-bold">👤</span>
           </div>
         </Button>

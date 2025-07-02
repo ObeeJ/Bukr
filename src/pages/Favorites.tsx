@@ -33,7 +33,7 @@ const Favorites = () => {
     <div className="min-h-screen pt-8 pb-24 px-4">
       {/* Header */}
       <div className="text-center mb-8">
-        <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+        <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-primary/20 flex items-center justify-center">
           <Heart className="w-8 h-8 text-primary fill-primary" />
         </div>
         <h1 className="text-3xl font-bold text-glow mb-2">Favorites</h1>
