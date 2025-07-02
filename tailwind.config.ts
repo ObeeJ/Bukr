@@ -19,6 +19,7 @@ export default {
 		},
 		extend: {
 			fontFamily: {
+				'sans': ['Neue Machina', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
 				'neue-machina': ['Neue Machina', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
 			},
 			colors: {
