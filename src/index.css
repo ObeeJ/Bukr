@@ -120,12 +120,11 @@
 
 @layer base {
   * {
-    @apply border-border;
+    @apply border-border font-neue-machina;
   }
 
   body {
-    @apply bg-background text-foreground;
-    font-family: 'Neue Machina', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    @apply bg-background text-foreground font-neue-machina;
     min-height: 100vh;
   }
 }
