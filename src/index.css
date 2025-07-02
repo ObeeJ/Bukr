@@ -2,41 +2,70 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* Bukr Event Booking App Design System - Purple/Blue Glass Morphism Theme */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Core Background - Deep purple to blue gradient */
+    --background: 260 60% 8%;
+    --foreground: 210 40% 98%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    /* Glass Morphism Cards */
+    --card: 260 40% 15%;
+    --card-foreground: 210 40% 98%;
+    --glass: 260 30% 20%;
+    --glass-border: 260 40% 25%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    /* Popover/Modal */
+    --popover: 260 50% 12%;
+    --popover-foreground: 210 40% 98%;
 
-    --primary: 222.2 47.4% 11.2%;
+    /* Primary - Vibrant Purple */
+    --primary: 270 70% 60%;
     --primary-foreground: 210 40% 98%;
+    --primary-glow: 270 80% 70%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Secondary - Blue accent */
+    --secondary: 220 70% 55%;
+    --secondary-foreground: 210 40% 98%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* Muted elements */
+    --muted: 260 20% 25%;
+    --muted-foreground: 215 20% 70%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Accent - Bright blue */
+    --accent: 200 80% 60%;
+    --accent-foreground: 210 40% 98%;
 
-    --destructive: 0 84.2% 60.2%;
+    /* Status colors */
+    --success: 120 60% 50%;
+    --success-foreground: 120 100% 95%;
+    --warning: 35 100% 60%;
+    --warning-foreground: 35 100% 10%;
+    --destructive: 0 70% 60%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    /* UI Elements */
+    --border: 260 30% 25%;
+    --input: 260 40% 20%;
+    --ring: 270 70% 60%;
 
-    --radius: 0.5rem;
+    /* Design tokens */
+    --radius: 1rem;
+    
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(270 70% 60%) 0%, hsl(240 70% 65%) 50%, hsl(200 80% 60%) 100%);
+    --gradient-card: linear-gradient(135deg, hsl(260 40% 15% / 0.8) 0%, hsl(240 35% 20% / 0.6) 100%);
+    --gradient-glass: linear-gradient(135deg, hsl(260 30% 20% / 0.4) 0%, hsl(240 25% 25% / 0.2) 100%);
+    
+    /* Shadows */
+    --shadow-glow: 0 0 30px hsl(270 70% 60% / 0.3);
+    --shadow-card: 0 8px 32px hsl(260 60% 8% / 0.4);
+    --shadow-glass: 0 8px 32px hsl(260 60% 8% / 0.2);
+    
+    /* Animations */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-spring: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 
     --sidebar-background: 0 0% 98%;
 
@@ -101,5 +130,97 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    background: var(--gradient-primary);
+    min-height: 100vh;
+  }
+}
+
+@layer components {
+  /* Glass Morphism Card */
+  .glass-card {
+    @apply backdrop-blur-md bg-gradient-to-br from-glass/40 to-glass/20 border border-glass-border/30 rounded-3xl shadow-[var(--shadow-glass)];
+  }
+  
+  /* Primary Glass Card */
+  .glass-card-primary {
+    @apply backdrop-blur-md bg-gradient-to-br from-primary/20 to-accent/10 border border-primary/30 rounded-3xl shadow-[var(--shadow-glow)];
+  }
+  
+  /* Interactive Hover Effects */
+  .hover-glow {
+    @apply transition-all duration-300 hover:shadow-[var(--shadow-glow)] hover:scale-[1.02];
+  }
+  
+  /* Status Badge */
+  .status-badge {
+    @apply px-3 py-1 rounded-full text-xs font-medium backdrop-blur-sm;
+  }
+  
+  .status-confirmed {
+    @apply bg-success/20 text-success-foreground border border-success/30;
+  }
+  
+  .status-expired {
+    @apply bg-muted/20 text-muted-foreground border border-muted/30;
+  }
+  
+  .status-trending {
+    @apply bg-warning/20 text-warning-foreground border border-warning/30;
+  }
+  
+  /* Smooth Animations */
+  .animate-fade-in {
+    animation: fadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .animate-scale-in {
+    animation: scaleIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+  
+  .animate-slide-up {
+    animation: slideUp 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+
+@layer utilities {
+  .text-glow {
+    text-shadow: 0 0 20px hsl(var(--primary) / 0.5);
+  }
+  
+  .border-glow {
+    box-shadow: 0 0 0 1px hsl(var(--primary) / 0.3), 0 0 20px hsl(var(--primary) / 0.2);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
