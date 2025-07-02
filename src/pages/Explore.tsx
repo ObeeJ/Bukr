@@ -1,9 +1,13 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Search, Filter, MapPin, Calendar, TrendingUp } from "lucide-react";
 import EventCard from "@/components/EventCard";
 import CreateEventModal from "@/components/CreateEventModal";
-import { Search, Plus } from "lucide-react";
+import WeatherWidget from "@/components/WeatherWidget";
+import { MotionDiv, MotionH1, MotionP, fadeInUp, scaleIn, staggerContainer, hoverScale } from "@/components/ui/motion";
+import { motion } from "framer-motion";
 
 const Explore = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -49,6 +53,18 @@ const Explore = () => {
       category: "Theater",
       status: "confirmed" as const,
       image: "🎭"
+    },
+    {
+      id: "4",
+      title: "Food & Wine Festival",
+      location: "Brooklyn Bridge Park",
+      date: "7/25/2025",
+      time: "12:00",
+      price: 65,
+      rating: 4.7,
+      attendees: 800,
+      category: "Food",
+      image: "🍷"
     }
   ];
 
@@ -58,74 +74,140 @@ const Explore = () => {
   );
 
   return (
-    <div className="min-h-screen pt-8 pb-24 px-4">
+    <motion.div 
+      className="min-h-screen pt-8 pb-24 px-4"
+      variants={staggerContainer}
+      initial="initial"
+      animate="animate"
+    >
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <MotionDiv 
+        className="flex items-center justify-between mb-8"
+        variants={fadeInUp}
+      >
         <div>
-          <h1 className="text-3xl font-bold text-glow">Bukr</h1>
-          <p className="text-muted-foreground mt-1">Discover amazing events</p>
+          <MotionH1 
+            className="text-4xl font-bold text-glow text-display"
+            variants={scaleIn}
+          >
+            Bukr
+          </MotionH1>
+          <MotionP 
+            className="text-muted-foreground mt-1 text-body"
+            variants={fadeInUp}
+          >
+            Discover amazing events
+          </MotionP>
         </div>
-        <Button variant="ghost" size="icon" className="rounded-full">
-          <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
-            <span className="text-sm font-bold">👤</span>
-          </div>
-        </Button>
-      </div>
+        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+          <Button variant="ghost" size="icon" className="rounded-full">
+            <div className="w-12 h-12 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center backdrop-blur-xl">
+              <span className="text-base font-bold">👤</span>
+            </div>
+          </Button>
+        </motion.div>
+      </MotionDiv>
 
-      {/* Search Bar */}
-      <div className="relative mb-6">
-        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-        <Input 
-          placeholder="Search events, locations..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-12 glass-card border-glass-border bg-glass/20 backdrop-blur-sm h-14 text-foreground placeholder:text-muted-foreground"
-        />
-      </div>
+      {/* Weather Widget */}
+      <MotionDiv 
+        className="mb-8"
+        variants={fadeInUp}
+      >
+        <WeatherWidget date="Today" location="New York" />
+      </MotionDiv>
+
+      {/* Search and Filter */}
+      <MotionDiv 
+        className="flex gap-4 mb-6"
+        variants={fadeInUp}
+      >
+        <div className="relative flex-1">
+          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
+          <Input 
+            type="text"
+            placeholder="Search events..."
+            className="pl-12 glass-card border-glass-border/40 text-body placeholder:text-body"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <Button variant="glass" size="icon" className="hover-glow">
+          <Filter className="w-5 h-5" />
+        </Button>
+      </MotionDiv>
 
       {/* Categories */}
-      <div className="flex gap-3 mb-8 overflow-x-auto pb-2">
+      <MotionDiv 
+        className="flex gap-3 mb-8 overflow-x-auto pb-2"
+        variants={fadeInUp}
+      >
         {categories.map((category) => (
-          <Button
-            key={category}
-            variant={selectedCategory === category ? "glow" : "glass"}
-            size="sm"
-            onClick={() => setSelectedCategory(category)}
-            className="whitespace-nowrap"
-          >
-            {category}
-          </Button>
+          <motion.div key={category} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+            <Badge
+              variant={selectedCategory === category ? "default" : "outline"}
+              className={`cursor-pointer whitespace-nowrap transition-all duration-300 text-caption px-4 py-2 ${
+                selectedCategory === category 
+                  ? "bg-primary text-primary-foreground shadow-[var(--shadow-glow)]" 
+                  : "hover:bg-primary/10 hover:border-primary/40"
+              }`}
+              onClick={() => setSelectedCategory(category)}
+            >
+              {category}
+            </Badge>
+          </motion.div>
         ))}
-      </div>
+      </MotionDiv>
 
-      {/* Create Event Button */}
-      <CreateEventModal
-        trigger={
-          <Button variant="outline" className="w-full mb-6 h-14">
-            <Plus className="w-5 h-5 mr-2" />
-            Create New Event
-          </Button>
-        }
-      />
+      {/* Featured Events Header */}
+      <MotionDiv 
+        className="flex items-center justify-between mb-6"
+        variants={fadeInUp}
+      >
+        <div className="flex items-center gap-3">
+          <TrendingUp className="w-6 h-6 text-primary" />
+          <h2 className="text-2xl font-bold text-display">Featured Events</h2>
+        </div>
+        <CreateEventModal
+          trigger={
+            <Button variant="glow" size="lg" className="gap-3">
+              <Calendar className="w-5 h-5" />
+              Create Event
+            </Button>
+          }
+        />
+      </MotionDiv>
 
       {/* Events Grid */}
-      <div className="space-y-6">
+      <MotionDiv 
+        className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
+        variants={staggerContainer}
+      >
         {filteredEvents.map((event, index) => (
-          <div key={event.id} className="animate-slide-up" style={{ animationDelay: `${index * 0.1}s` }}>
+          <motion.div 
+            key={event.id} 
+            variants={fadeInUp}
+            custom={index}
+            whileHover={{ y: -8, transition: { duration: 0.3 } }}
+          >
             <EventCard 
               {...event}
               onBook={() => console.log(`Booking ${event.title}`)}
             />
-          </div>
+          </motion.div>
         ))}
-      </div>
+      </MotionDiv>
 
       {filteredEvents.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">No events found matching your criteria.</p>
-        </div>
+        <MotionDiv 
+          className="text-center py-12"
+          variants={fadeInUp}
+        >
+          <MotionP className="text-muted-foreground text-body">
+            No events found matching your criteria.
+          </MotionP>
+        </MotionDiv>
       )}
-    </div>
+    </motion.div>
   );
 };
 
