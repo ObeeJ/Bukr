@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Calendar, Clock, Users, Minus, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import ExcitementRating from "./ExcitementRating";
 
 interface BookingModalProps {
   event: {
@@ -21,7 +22,8 @@ interface BookingModalProps {
 const BookingModal = ({ event, trigger }: BookingModalProps) => {
   const [quantity, setQuantity] = useState(1);
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
-  const [step, setStep] = useState<"details" | "seats" | "confirm">("details");
+  const [step, setStep] = useState<"rating" | "details" | "seats" | "confirm">("rating");
+  const [excitementRating, setExcitementRating] = useState(0);
 
   // Mock seat data - in real app this would come from API
   const seatRows = ['A', 'B', 'C', 'D', 'E'];
@@ -121,6 +123,7 @@ const BookingModal = ({ event, trigger }: BookingModalProps) => {
       <DialogContent className="glass-card border-glass-border max-w-md mx-4 max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-center text-foreground">
+            {step === "rating" && "Rate Your Excitement"}
             {step === "details" && "Event Details"}
             {step === "seats" && "Select Seats"}
             {step === "confirm" && "Confirm Booking"}
@@ -152,6 +155,29 @@ const BookingModal = ({ event, trigger }: BookingModalProps) => {
               </div>
             </div>
           </div>
+
+          {step === "rating" && (
+            <div className="space-y-6">
+              <ExcitementRating 
+                value={excitementRating}
+                onRatingChange={setExcitementRating}
+              />
+              
+              <div className="flex gap-3">
+                <Button variant="outline" className="flex-1">
+                  Cancel
+                </Button>
+                <Button 
+                  variant="glow" 
+                  className="flex-1"
+                  onClick={() => setStep("details")}
+                  disabled={excitementRating === 0}
+                >
+                  Continue
+                </Button>
+              </div>
+            </div>
+          )}
 
           {step === "details" && (
             <div className="space-y-6">

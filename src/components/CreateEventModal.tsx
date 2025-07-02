@@ -6,14 +6,17 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Calendar, MapPin, DollarSign, Users, Video } from "lucide-react";
+import { Calendar, MapPin, DollarSign, Users, Video, Wifi } from "lucide-react";
+import WeatherDisplay, { getWeatherPrediction } from "./WeatherDisplay";
 
 interface CreateEventModalProps {
   trigger: React.ReactNode;
 }
 
 const CreateEventModal = ({ trigger }: CreateEventModalProps) => {
-  const [isVirtual, setIsVirtual] = useState(false);
+  const [eventType, setEventType] = useState<"physical" | "virtual" | "hybrid">("physical");
+  const [weatherPrediction, setWeatherPrediction] = useState<any>(null);
+  const [loadingWeather, setLoadingWeather] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -27,11 +30,29 @@ const CreateEventModal = ({ trigger }: CreateEventModalProps) => {
     requiresSeats: false
   });
 
+  const handleDateTimeChange = async (field: "date" | "time", value: string) => {
+    const newFormData = { ...formData, [field]: value };
+    setFormData(newFormData);
+    
+    // Fetch weather prediction if we have both date and time for physical/hybrid events
+    if (eventType !== "virtual" && newFormData.date && newFormData.time && newFormData.location) {
+      setLoadingWeather(true);
+      try {
+        const weather = await getWeatherPrediction(newFormData.date, newFormData.location);
+        setWeatherPrediction(weather);
+      } catch (error) {
+        console.error("Failed to fetch weather:", error);
+      } finally {
+        setLoadingWeather(false);
+      }
+    }
+  };
+
   const categories = ["Music", "Theater", "Conference", "Sports", "Art", "Food", "Other"];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Creating event:", { ...formData, isVirtual });
+    console.log("Creating event:", { ...formData, eventType, weatherPrediction });
     // In real app, this would make an API call
   };
 
@@ -46,23 +67,32 @@ const CreateEventModal = ({ trigger }: CreateEventModalProps) => {
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Event Type Toggle */}
+          {/* Event Type Selection */}
           <div className="space-y-3">
             <Label className="text-foreground">Event Type</Label>
-            <div className="flex items-center gap-4 glass-card p-4">
-              <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm">Physical</span>
-              </div>
-              <Switch
-                checked={isVirtual}
-                onCheckedChange={setIsVirtual}
-              />
-              <div className="flex items-center gap-2">
-                <Video className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm">Virtual</span>
-              </div>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { value: "physical", icon: MapPin, label: "Physical" },
+                { value: "virtual", icon: Video, label: "Virtual" },
+                { value: "hybrid", icon: Wifi, label: "Hybrid" }
+              ].map(({ value, icon: Icon, label }) => (
+                <Button
+                  key={value}
+                  type="button"
+                  variant={eventType === value ? "glow" : "outline"}
+                  className="flex flex-col h-16 gap-1"
+                  onClick={() => setEventType(value as any)}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span className="text-xs">{label}</span>
+                </Button>
+              ))}
             </div>
+            {eventType === "hybrid" && (
+              <p className="text-xs text-muted-foreground">
+                Hybrid events have both physical and virtual attendance options
+              </p>
+            )}
           </div>
 
           {/* Basic Information */}
@@ -116,7 +146,7 @@ const CreateEventModal = ({ trigger }: CreateEventModalProps) => {
                 id="date"
                 type="date"
                 value={formData.date}
-                onChange={(e) => setFormData({...formData, date: e.target.value})}
+                onChange={(e) => handleDateTimeChange("date", e.target.value)}
                 className="glass-card border-glass-border bg-glass/20"
                 required
               />
@@ -127,27 +157,29 @@ const CreateEventModal = ({ trigger }: CreateEventModalProps) => {
                 id="time"
                 type="time"
                 value={formData.time}
-                onChange={(e) => setFormData({...formData, time: e.target.value})}
+                onChange={(e) => handleDateTimeChange("time", e.target.value)}
                 className="glass-card border-glass-border bg-glass/20"
                 required
               />
             </div>
           </div>
 
-          {/* Location or Virtual Link */}
-          {isVirtual ? (
-            <div>
-              <Label htmlFor="virtualLink" className="text-foreground">Virtual Meeting Link</Label>
-              <Input
-                id="virtualLink"
-                value={formData.virtualLink}
-                onChange={(e) => setFormData({...formData, virtualLink: e.target.value})}
-                placeholder="https://zoom.us/j/..."
-                className="glass-card border-glass-border bg-glass/20"
-                required
-              />
+          {/* Weather Prediction */}
+          {eventType !== "virtual" && weatherPrediction && (
+            <div className="glass-card p-4 space-y-2">
+              <Label className="text-foreground">Weather Forecast</Label>
+              <WeatherDisplay weather={weatherPrediction} size="md" />
             </div>
-          ) : (
+          )}
+          
+          {loadingWeather && eventType !== "virtual" && (
+            <div className="glass-card p-4 animate-pulse">
+              <p className="text-sm text-muted-foreground">Loading weather forecast...</p>
+            </div>
+          )}
+
+          {/* Location and/or Virtual Link */}
+          {eventType !== "virtual" && (
             <div>
               <Label htmlFor="location" className="text-foreground">Venue Location</Label>
               <Input
@@ -155,6 +187,22 @@ const CreateEventModal = ({ trigger }: CreateEventModalProps) => {
                 value={formData.location}
                 onChange={(e) => setFormData({...formData, location: e.target.value})}
                 placeholder="Enter venue address"
+                className="glass-card border-glass-border bg-glass/20"
+                required
+              />
+            </div>
+          )}
+          
+          {eventType !== "physical" && (
+            <div>
+              <Label htmlFor="virtualLink" className="text-foreground">
+                {eventType === "hybrid" ? "Live Stream Link" : "Virtual Meeting Link"}
+              </Label>
+              <Input
+                id="virtualLink"
+                value={formData.virtualLink}
+                onChange={(e) => setFormData({...formData, virtualLink: e.target.value})}
+                placeholder="https://zoom.us/j/..."
                 className="glass-card border-glass-border bg-glass/20"
                 required
               />
@@ -192,7 +240,7 @@ const CreateEventModal = ({ trigger }: CreateEventModalProps) => {
           </div>
 
           {/* Seat Selection Option for Physical Events */}
-          {!isVirtual && (
+          {eventType !== "virtual" && (
             <div className="flex items-center justify-between glass-card p-4">
               <div>
                 <Label className="text-foreground">Requires Seat Selection</Label>
@@ -213,7 +261,7 @@ const CreateEventModal = ({ trigger }: CreateEventModalProps) => {
               Cancel
             </Button>
             <Button type="submit" variant="glow" className="flex-1">
-              Create Event
+              Create {eventType.charAt(0).toUpperCase() + eventType.slice(1)} Event
             </Button>
           </div>
         </form>

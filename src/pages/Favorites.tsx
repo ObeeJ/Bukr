@@ -13,7 +13,12 @@ const Favorites = () => {
       rating: 4.7,
       attendees: 300,
       category: "Music",
-      image: "🎷"
+      image: "🎷",
+      weather: {
+        condition: "cloudy" as const,
+        temperature: 70,
+        description: "Overcast"
+      }
     },
     {
       id: "2",
@@ -25,7 +30,12 @@ const Favorites = () => {
       rating: 4.5,
       attendees: 150,
       category: "Art",
-      image: "🖼️"
+      image: "🖼️",
+      weather: {
+        condition: "sunny" as const,
+        temperature: 75,
+        description: "Clear skies"
+      }
     }
   ];
 
@@ -46,7 +56,14 @@ const Favorites = () => {
           <div key={event.id} className="animate-slide-up" style={{ animationDelay: `${index * 0.1}s` }}>
             <EventCard 
               {...event}
+              isFavorite={true}
               onBook={() => console.log(`Booking ${event.title}`)}
+              onFavoriteToggle={(eventId, isFavorite) => {
+                if (!isFavorite) {
+                  console.log(`Removed ${eventId} from favorites`);
+                  // In real app, this would remove from favorites list
+                }
+              }}
             />
           </div>
         ))}

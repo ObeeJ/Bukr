@@ -23,7 +23,12 @@ const Explore = () => {
       attendees: 1250,
       category: "Music",
       status: "trending" as const,
-      image: "🎵"
+      image: "🎵",
+      weather: {
+        condition: "sunny" as const,
+        temperature: 78,
+        description: "Clear skies"
+      }
     },
     {
       id: "2",
@@ -35,7 +40,12 @@ const Explore = () => {
       rating: 4.6,
       attendees: 500,
       category: "Conference",
-      image: "💻"
+      image: "💻",
+      weather: {
+        condition: "cloudy" as const,
+        temperature: 72,
+        description: "Partly cloudy"
+      }
     },
     {
       id: "3",
@@ -48,7 +58,12 @@ const Explore = () => {
       attendees: 200,
       category: "Theater",
       status: "confirmed" as const,
-      image: "🎭"
+      image: "🎭",
+      weather: {
+        condition: "rainy" as const,
+        temperature: 65,
+        description: "Light rain"
+      }
     }
   ];
 
@@ -115,6 +130,9 @@ const Explore = () => {
             <EventCard 
               {...event}
               onBook={() => console.log(`Booking ${event.title}`)}
+              onFavoriteToggle={(eventId, isFavorite) => 
+                console.log(`${isFavorite ? 'Added to' : 'Removed from'} favorites:`, eventId)
+              }
             />
           </div>
         ))}

@@ -3,6 +3,8 @@ import { Badge } from "@/components/ui/badge";
 import { MapPin, Clock, Users, Star, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 import BookingModal from "./BookingModal";
+import FavoriteButton from "./FavoriteButton";
+import WeatherDisplay from "./WeatherDisplay";
 
 interface EventCardProps {
   id: string;
@@ -18,9 +20,17 @@ interface EventCardProps {
   image: string;
   onBook?: () => void;
   showBookButton?: boolean;
+  weather?: {
+    condition: "sunny" | "cloudy" | "rainy" | "snowy" | "stormy";
+    temperature: number;
+    description: string;
+  };
+  isFavorite?: boolean;
+  onFavoriteToggle?: (eventId: string, isFavorite: boolean) => void;
 }
 
 const EventCard = ({ 
+  id,
   title, 
   location, 
   date, 
@@ -31,25 +41,35 @@ const EventCard = ({
   status, 
   image, 
   onBook,
-  showBookButton = true 
+  showBookButton = true,
+  weather,
+  isFavorite = false,
+  onFavoriteToggle
 }: EventCardProps) => {
   return (
     <div className="glass-card hover-glow animate-fade-in p-6 w-full">
-      {/* Header with status badge */}
+      {/* Header with status badge and favorite button */}
       <div className="flex justify-between items-start mb-4">
         <div className="w-16 h-16 rounded-2xl bg-primary/20 flex items-center justify-center text-2xl">
           {image}
         </div>
-        {status && (
-          <Badge className={cn(
-            "status-badge",
-            status === "confirmed" && "status-confirmed",
-            status === "expired" && "status-expired", 
-            status === "trending" && "status-trending"
-          )}>
-            {status.toUpperCase()}
-          </Badge>
-        )}
+        <div className="flex items-start gap-2">
+          <FavoriteButton
+            eventId={id}
+            initialFavorite={isFavorite}
+            onToggle={onFavoriteToggle}
+          />
+          {status && (
+            <Badge className={cn(
+              "status-badge",
+              status === "confirmed" && "status-confirmed",
+              status === "expired" && "status-expired", 
+              status === "trending" && "status-trending"
+            )}>
+              {status.toUpperCase()}
+            </Badge>
+          )}
+        </div>
       </div>
 
       {/* Event Details */}
@@ -72,15 +92,20 @@ const EventCard = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-4 text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <Users className="w-4 h-4" />
-            <span className="text-sm">{attendees} left</span>
+        <div className="flex items-center justify-between text-muted-foreground">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4" />
+              <span className="text-sm">{attendees} left</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Star className="w-4 h-4 text-warning fill-warning" />
+              <span className="text-sm">{rating}</span>
+            </div>
           </div>
-          <div className="flex items-center gap-1">
-            <Star className="w-4 h-4 text-warning fill-warning" />
-            <span className="text-sm">{rating}</span>
-          </div>
+          {weather && (
+            <WeatherDisplay weather={weather} size="sm" showDescription={false} />
+          )}
         </div>
 
         {/* Price and Book Button */}
