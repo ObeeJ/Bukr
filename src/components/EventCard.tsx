@@ -37,7 +37,7 @@ const EventCard = ({
     <div className="glass-card hover-glow animate-fade-in p-6 w-full">
       {/* Header with status badge */}
       <div className="flex justify-between items-start mb-4">
-        <div className="w-16 h-16 rounded-2xl bg-primary/20 border border-primary/30 flex items-center justify-center text-2xl backdrop-blur-sm">
+        <div className="w-16 h-16 rounded-2xl bg-primary/20 flex items-center justify-center text-2xl">
           {image}
         </div>
         {status && (
@@ -54,11 +54,11 @@ const EventCard = ({
 
       {/* Event Details */}
       <div className="space-y-3">
-        <h3 className="text-xl font-bold text-foreground text-display">{title}</h3>
+        <h3 className="text-xl font-bold text-foreground">{title}</h3>
         
         <div className="flex items-center gap-2 text-muted-foreground">
           <MapPin className="w-4 h-4" />
-          <span className="text-sm text-body">{location}</span>
+          <span className="text-sm">{location}</span>
         </div>
         
         <div className="flex items-center gap-4 text-muted-foreground">
@@ -85,7 +85,7 @@ const EventCard = ({
 
         {/* Price and Book Button */}
         <div className="flex items-center justify-between pt-4">
-          <div className="text-2xl font-bold text-foreground text-display">${price}</div>
+          <div className="text-2xl font-bold text-foreground">${price}</div>
           {showBookButton && (
             <BookingModal
               event={{ title, location, date, time, price, image }}
