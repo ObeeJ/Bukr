@@ -3,6 +3,9 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Landing from "./pages/Landing";
+import SignIn from "./pages/SignIn";
+import SignUp from "./pages/SignUp";
 import Explore from "./pages/Explore";
 import Favorites from "./pages/Favorites";
 import MyEvents from "./pages/MyEvents";
@@ -20,13 +23,21 @@ const App = () => (
       <BrowserRouter>
         <div className="relative">
           <Routes>
-            <Route path="/" element={<Explore />} />
+            <Route path="/" element={<Landing />} />
+            <Route path="/signin" element={<SignIn />} />
+            <Route path="/signup" element={<SignUp />} />
+            <Route path="/app" element={<Explore />} />
             <Route path="/favorites" element={<Favorites />} />
             <Route path="/events" element={<MyEvents />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
-          <BottomNavigation />
+          <Routes>
+            <Route path="/app" element={<BottomNavigation />} />
+            <Route path="/favorites" element={<BottomNavigation />} />
+            <Route path="/events" element={<BottomNavigation />} />
+            <Route path="/profile" element={<BottomNavigation />} />
+          </Routes>
         </div>
       </BrowserRouter>
     </TooltipProvider>

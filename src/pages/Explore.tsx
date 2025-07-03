@@ -4,9 +4,6 @@ import { Input } from "@/components/ui/input";
 import EventCard from "@/components/EventCard";
 import CreateEventModal from "@/components/CreateEventModal";
 import FlierUpload from "@/components/FlierUpload";
-import AnimatedLogo from "@/components/three/AnimatedLogo";
-import ParticleBackground from "@/components/three/ParticleBackground";
-import FloatingElements from "@/components/three/FloatingElements";
 import { Search, Plus, Upload } from "lucide-react";
 
 const Explore = () => {
@@ -78,14 +75,12 @@ const Explore = () => {
 
   return (
     <div className="min-h-screen pt-8 pb-24 px-4 relative">
-      {/* Three.js Background */}
-      <ParticleBackground />
-      <FloatingElements />
-      
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
-          <AnimatedLogo size={50} />
+          <div className="w-12 h-12 rounded-2xl bg-primary/20 flex items-center justify-center animate-float">
+            <span className="text-2xl">🎯</span>
+          </div>
           <div>
             <h1 className="text-3xl font-bold text-glow">Bukr</h1>
             <p className="text-muted-foreground mt-1">Discover amazing events</p>

@@ -1,7 +1,6 @@
 import { Heart } from "lucide-react";
 import EventCard from "@/components/EventCard";
 import EmptyState from "@/components/EmptyState";
-import ParticleBackground from "@/components/three/ParticleBackground";
 
 const Favorites = () => {
   const favoriteEvents = [
@@ -43,9 +42,6 @@ const Favorites = () => {
 
   return (
     <div className="min-h-screen pt-8 pb-24 px-4 relative">
-      {/* Three.js Background */}
-      <ParticleBackground />
-      
       {/* Header */}
       <div className="text-center mb-8">
         <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-primary/20 flex items-center justify-center animate-float">

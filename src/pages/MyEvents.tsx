@@ -2,7 +2,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Download, Share } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
-import ParticleBackground from "@/components/three/ParticleBackground";
 
 const MyEvents = () => {
   const myEvents = [
@@ -43,9 +42,6 @@ const MyEvents = () => {
 
   return (
     <div className="min-h-screen pt-8 pb-24 px-4 relative">
-      {/* Three.js Background */}
-      <ParticleBackground />
-      
       {/* Header */}
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold text-glow mb-2">My Events</h1>
