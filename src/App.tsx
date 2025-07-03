@@ -11,6 +11,8 @@ import Favorites from "./pages/Favorites";
 import MyEvents from "./pages/MyEvents";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
+import CreateEvent from "./pages/CreateEvent";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 import BottomNavigation from "./components/BottomNavigation";
 
 const queryClient = new QueryClient();
@@ -30,6 +32,8 @@ const App = () => (
             <Route path="/favorites" element={<Favorites />} />
             <Route path="/events" element={<MyEvents />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/create-event" element={<CreateEvent />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <Routes>
@@ -37,6 +41,7 @@ const App = () => (
             <Route path="/favorites" element={<BottomNavigation />} />
             <Route path="/events" element={<BottomNavigation />} />
             <Route path="/profile" element={<BottomNavigation />} />
+            <Route path="/create-event" element={<BottomNavigation />} />
           </Routes>
         </div>
       </BrowserRouter>

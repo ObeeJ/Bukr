@@ -1,16 +1,33 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Users, Calendar, Star, Globe } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { ArrowRight, Users, Calendar, Star, Globe, Send } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
+import AnimatedLogo from "@/components/AnimatedLogo";
 
 const Landing = () => {
+  const { toast } = useToast();
+  const [contactForm, setContactForm] = useState({ email: "", message: "" });
+
   const companies = [
-    { name: "TechCorp", logo: "🏢" },
-    { name: "EventHub", logo: "🎯" },
-    { name: "MusicLive", logo: "🎵" },
-    { name: "ArtSpace", logo: "🎨" },
-    { name: "SportMax", logo: "⚽" },
-    { name: "ConferencePro", logo: "💼" }
+    { name: "LiveNation", logo: "🎤" },
+    { name: "Eventbrite", logo: "🎟️" },
+    { name: "Coachella", logo: "🎪" },
+    { name: "TED", logo: "💡" },
+    { name: "SXSW", logo: "🎸" },
+    { name: "Comic-Con", logo: "🦸‍♂️" }
   ];
+
+  const handleContactSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    toast({
+      title: "Message Sent!",
+      description: "We'll get back to you within 24 hours.",
+    });
+    setContactForm({ email: "", message: "" });
+  };
 
   const upcomingEvents = [
     { title: "Tech Summit 2025", attendees: "2.5K", image: "💻" },
@@ -27,7 +44,7 @@ const Landing = () => {
           <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
             <span className="text-xl font-bold">🎯</span>
           </div>
-          <span className="text-2xl font-bold text-glow">Bukr</span>
+          <AnimatedLogo size="md" />
         </div>
         <div className="hidden md:flex items-center gap-8">
           <Link to="/about" className="text-muted-foreground hover:text-foreground transition-colors">About</Link>
@@ -46,12 +63,16 @@ const Landing = () => {
       {/* Hero Section */}
       <section className="text-center py-20 px-4">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-6xl md:text-8xl font-bold text-glow mb-6 animate-fade-in">
-            Book Amazing
-            <span className="block bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              Events
-            </span>
-          </h1>
+          <div className="mb-8 animate-fade-in">
+            <AnimatedLogo size="lg" className="mb-6" />
+          </div>
+          
+          <div className="mb-6 animate-slide-up">
+            <h2 className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent animate-pulse">
+              Make Every Moment Count!
+            </h2>
+          </div>
+          
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto animate-slide-up">
             Discover, book, and experience the world's most incredible events. 
             From concerts to conferences, we make event booking seamless and exciting.
@@ -61,7 +82,10 @@ const Landing = () => {
             <Button 
               variant="glow" 
               size="lg" 
-              className="px-12 py-6 text-xl group animate-scale-in hover-glow transition-all duration-500"
+              className="px-12 py-6 text-xl group animate-scale-in hover-glow transition-all duration-500 hover:scale-110 hover:shadow-[0_0_40px_hsl(var(--primary)/0.6)] transform-gpu"
+              style={{
+                transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+              }}
             >
               Use Bukr
               <ArrowRight className="ml-3 w-6 h-6 group-hover:translate-x-1 transition-transform duration-300" />
@@ -172,7 +196,7 @@ const Landing = () => {
               <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
                 <span className="text-lg font-bold">🎯</span>
               </div>
-              <span className="text-xl font-bold">Bukr</span>
+              <AnimatedLogo size="md" />
             </div>
             <p className="text-muted-foreground">
               Making event booking seamless and exciting worldwide.
@@ -181,25 +205,46 @@ const Landing = () => {
           <div>
             <h4 className="font-semibold mb-4">Product</h4>
             <div className="space-y-2 text-muted-foreground">
-              <div>Features</div>
-              <div>Pricing</div>
-              <div>API</div>
+              <div className="hover:text-foreground transition-colors cursor-pointer">API (Coming Soon)</div>
             </div>
           </div>
           <div>
             <h4 className="font-semibold mb-4">Company</h4>
             <div className="space-y-2 text-muted-foreground">
-              <Link to="/about" className="block hover:text-foreground transition-colors">About</Link>
-              <Link to="/contact" className="block hover:text-foreground transition-colors">Contact</Link>
-              <div>Careers</div>
+              <div className="hover:text-foreground transition-colors cursor-pointer">About</div>
+              <Link to="/privacy-policy" className="block hover:text-foreground transition-colors">Privacy & Policy</Link>
             </div>
           </div>
           <div>
-            <h4 className="font-semibold mb-4">Support</h4>
-            <div className="space-y-2 text-muted-foreground">
-              <div>Help Center</div>
-              <div>Privacy Policy</div>
-              <div>Terms of Service</div>
+            <h4 className="font-semibold mb-4">Contact</h4>
+            <div className="space-y-4">
+              <div className="text-muted-foreground">
+                <a href="mailto:support@bukr.app" className="text-primary hover:text-primary-glow transition-colors">
+                  support@bukr.app
+                </a>
+              </div>
+              <form onSubmit={handleContactSubmit} className="space-y-3">
+                <Input
+                  type="email"
+                  placeholder="Your email"
+                  value={contactForm.email}
+                  onChange={(e) => setContactForm({...contactForm, email: e.target.value})}
+                  className="glass-card border-glass-border bg-glass/20 text-sm"
+                  required
+                />
+                <Textarea
+                  placeholder="Your message"
+                  value={contactForm.message}
+                  onChange={(e) => setContactForm({...contactForm, message: e.target.value})}
+                  className="glass-card border-glass-border bg-glass/20 text-sm"
+                  rows={3}
+                  required
+                />
+                <Button type="submit" variant="outline" size="sm" className="w-full">
+                  <Send className="w-3 h-3 mr-2" />
+                  Send Message
+                </Button>
+              </form>
             </div>
           </div>
         </div>

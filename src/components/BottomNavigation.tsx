@@ -1,13 +1,14 @@
 import { Link, useLocation } from "react-router-dom";
-import { Search, Heart, Calendar, User } from "lucide-react";
+import { Search, Heart, Calendar, User, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const BottomNavigation = () => {
   const location = useLocation();
 
   const navItems = [
-    { icon: Search, label: "Explore", path: "/" },
+    { icon: Search, label: "Explore", path: "/app" },
     { icon: Heart, label: "Favorites", path: "/favorites" },
+    { icon: Plus, label: "Create", path: "/create-event" },
     { icon: Calendar, label: "My Events", path: "/events" },
     { icon: User, label: "Profile", path: "/profile" },
   ];
