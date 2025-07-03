@@ -53,12 +53,7 @@ const EventCard = ({
         <div className="w-16 h-16 rounded-2xl bg-primary/20 flex items-center justify-center text-2xl">
           {image}
         </div>
-        <div className="flex items-start gap-2">
-          <FavoriteButton
-            eventId={id}
-            initialFavorite={isFavorite}
-            onToggle={onFavoriteToggle}
-          />
+        <div className="flex items-center gap-2">
           {status && (
             <Badge className={cn(
               "status-badge",
@@ -69,6 +64,11 @@ const EventCard = ({
               {status.toUpperCase()}
             </Badge>
           )}
+          <FavoriteButton
+            eventId={id}
+            initialFavorite={isFavorite}
+            onToggle={onFavoriteToggle}
+          />
         </div>
       </div>
 

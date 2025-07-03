@@ -30,15 +30,11 @@ const CreateEventModal = ({ trigger }: CreateEventModalProps) => {
     requiresSeats: false
   });
 
-  const handleDateTimeChange = async (field: "date" | "time", value: string) => {
-    const newFormData = { ...formData, [field]: value };
-    setFormData(newFormData);
-    
-    // Fetch weather prediction if we have both date and time for physical/hybrid events
-    if (eventType !== "virtual" && newFormData.date && newFormData.time && newFormData.location) {
+  const fetchWeatherIfReady = async (updatedFormData: typeof formData) => {
+    if (eventType !== "virtual" && updatedFormData.date && updatedFormData.time && updatedFormData.location) {
       setLoadingWeather(true);
       try {
-        const weather = await getWeatherPrediction(newFormData.date, newFormData.location);
+        const weather = await getWeatherPrediction(updatedFormData.date, updatedFormData.location);
         setWeatherPrediction(weather);
       } catch (error) {
         console.error("Failed to fetch weather:", error);
@@ -46,6 +42,18 @@ const CreateEventModal = ({ trigger }: CreateEventModalProps) => {
         setLoadingWeather(false);
       }
     }
+  };
+
+  const handleDateTimeChange = async (field: "date" | "time", value: string) => {
+    const newFormData = { ...formData, [field]: value };
+    setFormData(newFormData);
+    await fetchWeatherIfReady(newFormData);
+  };
+
+  const handleLocationChange = async (value: string) => {
+    const newFormData = { ...formData, location: value };
+    setFormData(newFormData);
+    await fetchWeatherIfReady(newFormData);
   };
 
   const categories = ["Music", "Theater", "Conference", "Sports", "Art", "Food", "Other"];
@@ -185,7 +193,7 @@ const CreateEventModal = ({ trigger }: CreateEventModalProps) => {
               <Input
                 id="location"
                 value={formData.location}
-                onChange={(e) => setFormData({...formData, location: e.target.value})}
+                onChange={(e) => handleLocationChange(e.target.value)}
                 placeholder="Enter venue address"
                 className="glass-card border-glass-border bg-glass/20"
                 required
