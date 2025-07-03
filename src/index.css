@@ -130,19 +130,60 @@
 }
 
 @layer components {
-  /* Glass Morphism Card */
+  /* Enhanced Glass Morphism Cards */
   .glass-card {
-    @apply backdrop-blur-md bg-glass/40 border border-glass-border/30 rounded-3xl shadow-[var(--shadow-glass)];
+    @apply backdrop-blur-xl bg-glass/30 border border-glass-border/20 rounded-3xl shadow-[var(--shadow-glass)];
+    background: linear-gradient(135deg, 
+      hsl(var(--glass) / 0.08), 
+      hsl(var(--glass) / 0.03)
+    );
   }
   
   /* Primary Glass Card */
   .glass-card-primary {
-    @apply backdrop-blur-md bg-primary/20 border border-primary/30 rounded-3xl shadow-[var(--shadow-glow)];
+    @apply backdrop-blur-xl bg-primary/15 border border-primary/25 rounded-3xl shadow-[var(--shadow-glow)];
+    background: linear-gradient(135deg, 
+      hsl(var(--primary) / 0.15), 
+      hsl(var(--primary) / 0.08)
+    );
+  }
+
+  /* Expired Card Style */
+  .glass-card-expired {
+    @apply backdrop-blur-xl bg-muted/20 border border-muted/20 rounded-3xl;
+    background: linear-gradient(135deg, 
+      hsl(var(--muted) / 0.12), 
+      hsl(var(--muted) / 0.06)
+    );
+    filter: grayscale(0.6) opacity(0.7);
+    position: relative;
+  }
+
+  .glass-card-expired::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(45deg, 
+      transparent 40%, 
+      hsl(var(--destructive) / 0.1) 42%, 
+      hsl(var(--destructive) / 0.1) 44%, 
+      transparent 46%
+    );
+    border-radius: inherit;
+    pointer-events: none;
   }
   
   /* Interactive Hover Effects */
   .hover-glow {
-    @apply transition-all duration-300 hover:shadow-[var(--shadow-glow)] hover:scale-[1.02];
+    @apply transition-all duration-500 hover:shadow-[var(--shadow-glow)] hover:scale-[1.02];
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .hover-glow:hover {
+    background: linear-gradient(135deg, 
+      hsl(var(--glass) / 0.12), 
+      hsl(var(--glass) / 0.06)
+    );
   }
   
   /* Status Badge */
@@ -152,27 +193,35 @@
   
   .status-confirmed {
     @apply bg-success/20 text-success-foreground border border-success/30;
+    box-shadow: 0 0 15px hsl(var(--success) / 0.3);
   }
   
   .status-expired {
-    @apply bg-muted/20 text-muted-foreground border border-muted/30;
+    @apply bg-muted/30 text-muted-foreground border border-muted/40;
+    filter: grayscale(0.8);
   }
   
   .status-trending {
     @apply bg-warning/20 text-warning-foreground border border-warning/30;
+    box-shadow: 0 0 15px hsl(var(--warning) / 0.3);
+    animation: pulse-glow 2s ease-in-out infinite;
   }
   
-  /* Smooth Animations */
+  /* Enhanced Animations */
   .animate-fade-in {
-    animation: fadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: fadeIn 0.8s cubic-bezier(0.4, 0, 0.2, 1);
   }
   
   .animate-scale-in {
-    animation: scaleIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    animation: scaleIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   }
   
   .animate-slide-up {
-    animation: slideUp 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: slideUp 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
   }
 }
 
@@ -216,5 +265,23 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 15px hsl(var(--warning) / 0.3);
+  }
+  50% {
+    box-shadow: 0 0 25px hsl(var(--warning) / 0.5);
   }
 }

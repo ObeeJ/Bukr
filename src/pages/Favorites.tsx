@@ -1,5 +1,7 @@
 import { Heart } from "lucide-react";
 import EventCard from "@/components/EventCard";
+import EmptyState from "@/components/EmptyState";
+import ParticleBackground from "@/components/three/ParticleBackground";
 
 const Favorites = () => {
   const favoriteEvents = [
@@ -40,10 +42,13 @@ const Favorites = () => {
   ];
 
   return (
-    <div className="min-h-screen pt-8 pb-24 px-4">
+    <div className="min-h-screen pt-8 pb-24 px-4 relative">
+      {/* Three.js Background */}
+      <ParticleBackground />
+      
       {/* Header */}
       <div className="text-center mb-8">
-        <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-primary/20 flex items-center justify-center">
+        <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-primary/20 flex items-center justify-center animate-float">
           <Heart className="w-8 h-8 text-primary fill-primary" />
         </div>
         <h1 className="text-3xl font-bold text-glow mb-2">Favorites</h1>
@@ -70,10 +75,15 @@ const Favorites = () => {
       </div>
 
       {favoriteEvents.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">No favorite events yet.</p>
-          <p className="text-muted-foreground text-sm mt-2">Tap the heart icon on events to save them here.</p>
-        </div>
+        <EmptyState
+          title="No Favorites Yet"
+          description="Tap the heart icon on any event to save it here for quick access later."
+          icon="💝"
+          action={{
+            label: "Explore Events",
+            onClick: () => window.location.href = "/"
+          }}
+        />
       )}
     </div>
   );

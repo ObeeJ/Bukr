@@ -1,6 +1,8 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Download, Share } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
+import ParticleBackground from "@/components/three/ParticleBackground";
 
 const MyEvents = () => {
   const myEvents = [
@@ -40,7 +42,10 @@ const MyEvents = () => {
   ];
 
   return (
-    <div className="min-h-screen pt-8 pb-24 px-4">
+    <div className="min-h-screen pt-8 pb-24 px-4 relative">
+      {/* Three.js Background */}
+      <ParticleBackground />
+      
       {/* Header */}
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold text-glow mb-2">My Events</h1>
@@ -52,7 +57,7 @@ const MyEvents = () => {
         {myEvents.map((event, index) => (
           <div 
             key={event.id} 
-            className="glass-card hover-glow animate-fade-in p-6"
+            className={`glass-card hover-glow animate-fade-in p-6 ${event.status === 'expired' ? 'glass-card-expired' : ''}`}
             style={{ animationDelay: `${index * 0.1}s` }}
           >
             {/* Header with status */}
@@ -116,12 +121,15 @@ const MyEvents = () => {
       </div>
 
       {myEvents.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">You haven't booked any events yet.</p>
-          <Button variant="glow" className="mt-4">
-            Explore Events
-          </Button>
-        </div>
+        <EmptyState
+          title="No Events Booked"
+          description="You haven't booked any events yet. Explore amazing events and book your first ticket!"
+          icon="🎫"
+          action={{
+            label: "Explore Events",
+            onClick: () => window.location.href = "/"
+          }}
+        />
       )}
     </div>
   );

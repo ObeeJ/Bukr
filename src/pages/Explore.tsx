@@ -3,7 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import EventCard from "@/components/EventCard";
 import CreateEventModal from "@/components/CreateEventModal";
-import { Search, Plus } from "lucide-react";
+import FlierUpload from "@/components/FlierUpload";
+import AnimatedLogo from "@/components/three/AnimatedLogo";
+import ParticleBackground from "@/components/three/ParticleBackground";
+import FloatingElements from "@/components/three/FloatingElements";
+import { Search, Plus, Upload } from "lucide-react";
 
 const Explore = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -73,12 +77,19 @@ const Explore = () => {
   );
 
   return (
-    <div className="min-h-screen pt-8 pb-24 px-4">
+    <div className="min-h-screen pt-8 pb-24 px-4 relative">
+      {/* Three.js Background */}
+      <ParticleBackground />
+      <FloatingElements />
+      
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-glow">Bukr</h1>
-          <p className="text-muted-foreground mt-1">Discover amazing events</p>
+        <div className="flex items-center gap-4">
+          <AnimatedLogo size={50} />
+          <div>
+            <h1 className="text-3xl font-bold text-glow">Bukr</h1>
+            <p className="text-muted-foreground mt-1">Discover amazing events</p>
+          </div>
         </div>
         <Button variant="ghost" size="icon" className="rounded-full">
           <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
@@ -113,15 +124,28 @@ const Explore = () => {
         ))}
       </div>
 
-      {/* Create Event Button */}
-      <CreateEventModal
-        trigger={
-          <Button variant="outline" className="w-full mb-6 h-14">
-            <Plus className="w-5 h-5 mr-2" />
-            Create New Event
-          </Button>
-        }
-      />
+      {/* Create Event Options */}
+      <div className="grid grid-cols-2 gap-3 mb-6">
+        <CreateEventModal
+          trigger={
+            <Button variant="outline" className="h-14">
+              <Plus className="w-5 h-5 mr-2" />
+              Create Event
+            </Button>
+          }
+        />
+        <FlierUpload
+          trigger={
+            <Button variant="glow" className="h-14">
+              <Upload className="w-5 h-5 mr-2" />
+              Upload Flier
+            </Button>
+          }
+          onUpload={(file, data) => {
+            console.log('Flier uploaded:', file.name, data);
+          }}
+        />
+      </div>
 
       {/* Events Grid */}
       <div className="space-y-6">
@@ -139,8 +163,17 @@ const Explore = () => {
       </div>
 
       {filteredEvents.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">No events found matching your criteria.</p>
+        <div className="text-center py-12 relative">
+          <div className="glass-card p-8 max-w-md mx-auto">
+            <div className="w-24 h-24 mx-auto mb-4 animate-float">
+              <span className="text-6xl">🎭</span>
+            </div>
+            <h3 className="text-xl font-bold text-glow mb-2">No Events Found</h3>
+            <p className="text-muted-foreground mb-4">Try adjusting your search or category filters.</p>
+            <Button variant="glow" onClick={() => setSearchQuery("")}>
+              Clear Filters
+            </Button>
+          </div>
         </div>
       )}
     </div>
