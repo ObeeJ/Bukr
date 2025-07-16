@@ -1,6 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { Search, Heart, Calendar, User, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import CreateEventButton from "@/components/CreateEventButton";
 
 const BottomNavigation = () => {
   const location = useLocation();
@@ -8,7 +9,6 @@ const BottomNavigation = () => {
   const navItems = [
     { icon: Search, label: "Explore", path: "/app" },
     { icon: Heart, label: "Favorites", path: "/favorites" },
-    { icon: Plus, label: "Create", path: "/create-event" },
     { icon: Calendar, label: "My Events", path: "/events" },
     { icon: User, label: "Profile", path: "/profile" },
   ];
@@ -36,6 +36,12 @@ const BottomNavigation = () => {
             </Link>
           );
         })}
+        <CreateEventButton 
+          variant="ghost" 
+          size="sm" 
+          compact={true}
+          className="flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all duration-300 text-muted-foreground hover:text-foreground hover:bg-glass/20 h-auto"
+        />
       </div>
     </nav>
   );

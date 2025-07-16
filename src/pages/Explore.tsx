@@ -2,9 +2,10 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import EventCard from "@/components/EventCard";
-import CreateEventModal from "@/components/CreateEventModal";
 import FlierUpload from "@/components/FlierUpload";
-import { Search, Plus, Upload } from "lucide-react";
+import { Search, Upload } from "lucide-react";
+import AnimatedLogo from "@/components/AnimatedLogo";
+import CreateEventButton from "@/components/CreateEventButton";
 
 const Explore = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -78,11 +79,8 @@ const Explore = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-primary/20 flex items-center justify-center animate-float">
-            <span className="text-2xl">🎯</span>
-          </div>
           <div>
-            <h1 className="text-3xl font-bold text-glow">Bukr</h1>
+            <AnimatedLogo size="lg" clickable={true} />
             <p className="text-muted-foreground mt-1">Discover amazing events</p>
           </div>
         </div>
@@ -121,14 +119,7 @@ const Explore = () => {
 
       {/* Create Event Options */}
       <div className="grid grid-cols-2 gap-3 mb-6">
-        <CreateEventModal
-          trigger={
-            <Button variant="outline" className="h-14">
-              <Plus className="w-5 h-5 mr-2" />
-              Create Event
-            </Button>
-          }
-        />
+        <CreateEventButton variant="outline" className="h-14" />
         <FlierUpload
           trigger={
             <Button variant="glow" className="h-14">

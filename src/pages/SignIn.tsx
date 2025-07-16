@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { Link } from "react-router-dom";
+import AnimatedLogo from "@/components/AnimatedLogo";
 
 const SignIn = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -31,8 +32,8 @@ const SignIn = () => {
         <div className="glass-card p-8 space-y-6">
           {/* Header */}
           <div className="text-center space-y-2">
-            <div className="w-16 h-16 mx-auto rounded-2xl bg-primary/20 flex items-center justify-center mb-4">
-              <span className="text-2xl">🎯</span>
+            <div className="mb-4">
+              <AnimatedLogo size="md" />
             </div>
             <h1 className="text-3xl font-bold text-glow">Welcome Back</h1>
             <p className="text-muted-foreground">Sign in to your Bukr account</p>
@@ -127,11 +128,18 @@ const SignIn = () => {
           </div>
 
           {/* Sign Up Link */}
-          <div className="text-center">
-            <span className="text-muted-foreground">Don't have an account? </span>
-            <Link to="/signup" className="text-primary hover:text-primary-glow transition-colors font-medium">
-              Sign up
-            </Link>
+          <div className="text-center space-y-2">
+            <div>
+              <span className="text-muted-foreground">Don't have an account? </span>
+              <Link to="/signup" className="text-primary hover:text-primary-glow transition-colors font-medium">
+                Sign up
+              </Link>
+            </div>
+            <div>
+              <Link to="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                New here? View Landing Page
+              </Link>
+            </div>
           </div>
         </div>
       </div>

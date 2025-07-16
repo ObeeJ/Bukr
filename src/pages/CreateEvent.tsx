@@ -1,32 +1,46 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CalendarDays, MapPin, DollarSign, Upload } from "lucide-react";
+import { CalendarDays, MapPin, DollarSign, Upload, Video, Wifi } from "lucide-react";
 import FlierUpload from "@/components/FlierUpload";
 import { useToast } from "@/hooks/use-toast";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import AnimatedLogo from "@/components/AnimatedLogo";
 
 const CreateEvent = () => {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const [eventType, setEventType] = useState<"physical" | "virtual" | "hybrid">("physical");
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     date: "",
     time: "",
     location: "",
+    virtualLink: "",
     price: "",
     category: "General"
   });
   const { toast } = useToast();
 
+  useEffect(() => {
+    const type = searchParams.get('type') as "physical" | "virtual" | "hybrid";
+    if (type && ['physical', 'virtual', 'hybrid'].includes(type)) {
+      setEventType(type);
+    }
+  }, [searchParams]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     toast({
       title: "Event Created!",
-      description: "Your event has been successfully created and is pending review.",
+      description: `Your ${eventType} event has been successfully created.`,
     });
-    console.log("Creating event:", formData);
+    console.log("Creating event:", { ...formData, eventType });
+    setTimeout(() => navigate('/dashboard'), 1500);
   };
 
   const handleFlierUpload = (file: File, extractedData: any) => {
@@ -49,8 +63,30 @@ const CreateEvent = () => {
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-glow mb-2">Create Event</h1>
+          <AnimatedLogo size="md" clickable={true} className="mb-4" />
+          <h1 className="text-3xl font-bold text-glow mb-2">Create {eventType.charAt(0).toUpperCase() + eventType.slice(1)} Event</h1>
           <p className="text-muted-foreground">Share your amazing event with the world</p>
+          
+          {/* Event Type Selector */}
+          <div className="flex justify-center gap-2 mt-6">
+            {[
+              { value: "physical", icon: MapPin, label: "Physical" },
+              { value: "virtual", icon: Video, label: "Virtual" },
+              { value: "hybrid", icon: Wifi, label: "Hybrid" }
+            ].map(({ value, icon: Icon, label }) => (
+              <Button
+                key={value}
+                type="button"
+                variant={eventType === value ? "glow" : "outline"}
+                size="sm"
+                className="flex items-center gap-2"
+                onClick={() => setEventType(value as any)}
+              >
+                <Icon className="w-4 h-4" />
+                {label}
+              </Button>
+            ))}
+          </div>
         </div>
 
         {/* Flier Upload Section */}
@@ -136,20 +172,40 @@ const CreateEvent = () => {
                 </div>
               </div>
 
-              <div>
-                <Label htmlFor="location" className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4" />
-                  Location
-                </Label>
-                <Input
-                  id="location"
-                  value={formData.location}
-                  onChange={(e) => setFormData({...formData, location: e.target.value})}
-                  placeholder="Event location"
-                  className="glass-card border-glass-border bg-glass/20"
-                  required
-                />
-              </div>
+              {/* Location and/or Virtual Link */}
+              {eventType !== "virtual" && (
+                <div>
+                  <Label htmlFor="location" className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4" />
+                    Venue Location
+                  </Label>
+                  <Input
+                    id="location"
+                    value={formData.location}
+                    onChange={(e) => setFormData({...formData, location: e.target.value})}
+                    placeholder="Enter venue address"
+                    className="glass-card border-glass-border bg-glass/20"
+                    required
+                  />
+                </div>
+              )}
+              
+              {eventType !== "physical" && (
+                <div>
+                  <Label htmlFor="virtualLink" className="flex items-center gap-2">
+                    <Video className="w-4 h-4" />
+                    {eventType === "hybrid" ? "Live Stream Link" : "Virtual Meeting Link"}
+                  </Label>
+                  <Input
+                    id="virtualLink"
+                    value={formData.virtualLink}
+                    onChange={(e) => setFormData({...formData, virtualLink: e.target.value})}
+                    placeholder="https://zoom.us/j/..."
+                    className="glass-card border-glass-border bg-glass/20"
+                    required
+                  />
+                </div>
+              )}
 
               <div>
                 <Label htmlFor="price" className="flex items-center gap-2">
@@ -168,7 +224,7 @@ const CreateEvent = () => {
               </div>
 
               <Button type="submit" className="w-full" variant="glow" size="lg">
-                Create Event
+                Create {eventType.charAt(0).toUpperCase() + eventType.slice(1)} Event
               </Button>
             </form>
           </CardContent>

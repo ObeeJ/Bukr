@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { Edit, Bell, CreditCard, Shield, Settings, LogOut, Camera } from "lucide-react";
+import { Edit, Bell, CreditCard, Shield, Settings, LogOut, Camera, BarChart3 } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Profile = () => {
   const userStats = [
@@ -9,6 +10,7 @@ const Profile = () => {
   ];
 
   const menuItems = [
+    { icon: BarChart3, label: "Event Dashboard", description: "Monitor your events and ticket sales", path: "/dashboard" },
     { icon: Edit, label: "Edit Profile", description: "Update your personal information" },
     { icon: Bell, label: "Notifications", description: "Manage your notification preferences" },
     { icon: CreditCard, label: "Payment Methods", description: "Manage cards and payment options" },
@@ -55,29 +57,42 @@ const Profile = () => {
       <div className="space-y-4 mb-8">
         {menuItems.map((item, index) => {
           const Icon = item.icon;
-          return (
+          const content = (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+                  <Icon className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground">{item.label}</h3>
+                  <p className="text-sm text-muted-foreground">{item.description}</p>
+                </div>
+              </div>
+              <div className="text-muted-foreground">
+                →
+              </div>
+            </div>
+          );
+          
+          return item.path ? (
+            <Link
+              key={item.label}
+              to={item.path}
+              className="glass-card hover-glow p-4 cursor-pointer animate-fade-in block"
+              style={{ animationDelay: `${index * 0.05}s` }}
+            >
+              {content}
+            </Link>
+          ) : (
             <div 
               key={item.label}
               className="glass-card hover-glow p-4 cursor-pointer animate-fade-in"
               style={{ animationDelay: `${index * 0.05}s` }}
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
-                    <Icon className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-foreground">{item.label}</h3>
-                    <p className="text-sm text-muted-foreground">{item.description}</p>
-                  </div>
-                </div>
-                <div className="text-muted-foreground">
-                  →
-                </div>
-              </div>
+              {content}
             </div>
           );
-        })}
+        })
       </div>
 
       {/* Sign Out */}
