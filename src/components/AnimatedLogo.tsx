@@ -15,7 +15,7 @@ const AnimatedLogo = ({ size = 'md', className = '', clickable = false }: Animat
   };
 
   const logoContent = (
-    <div className={`font-bold italic ${sizeClasses[size]} ${className} animate-logo-load`}>
+    <div className={`font-bold italic ${sizeClasses[size]} ${className} animate-logo-load logo`}>
       <span className="text-glow">Bukr</span>
       <span className="text-primary inline-block ml-0.5 text-[0.6em] relative -top-1 animate-dot-bounce" style={{ borderRadius: '50%' }}>●</span>
     </div>
