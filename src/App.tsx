@@ -17,6 +17,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import NotFound from "./pages/NotFound";
 import BottomNavigation from "./components/BottomNavigation";
 import MobileGuard from "./components/MobileGuard";
+import Tickets from "./pages/Tickets";
 
 const queryClient = new QueryClient();
 
@@ -56,6 +57,11 @@ const AppRoutes = () => {
       <Route path="/events" element={
         <ProtectedRoute>
           <MyEvents />
+        </ProtectedRoute>
+      } />
+      <Route path="/tickets" element={
+        <ProtectedRoute>
+          <Tickets />
         </ProtectedRoute>
       } />
       <Route path="/profile" element={

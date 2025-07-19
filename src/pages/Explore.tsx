@@ -174,12 +174,12 @@ const Explore = () => {
   return (
     <div className="container mx-auto px-4 py-8 pb-24">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
-        <div className="flex items-center gap-3">
-          <AnimatedLogo size="sm" />
-          <div>
-            <h1 className="text-3xl font-bold mb-2">Explore Events</h1>
-            <p className="text-muted-foreground">Discover and book amazing events</p>
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <AnimatedLogo size="sm" />
           </div>
+          <h1 className="text-3xl font-bold mb-2">Explore Events</h1>
+          <p className="text-muted-foreground">Discover and book amazing events</p>
         </div>
       </div>
 
