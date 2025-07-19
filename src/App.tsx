@@ -2,7 +2,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import Landing from "./pages/Landing";
 import SignIn from "./pages/SignIn";
 import SignUp from "./pages/SignUp";
@@ -19,6 +20,65 @@ import MobileGuard from "./components/MobileGuard";
 
 const queryClient = new QueryClient();
 
+// Protected route component
+const ProtectedRoute = ({ children, requiredUserType }: { children: JSX.Element, requiredUserType?: 'user' | 'organizer' }) => {
+  const { isAuthenticated, user } = useAuth();
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/signin" replace />;
+  }
+  
+  if (requiredUserType && user?.userType !== requiredUserType) {
+    return <Navigate to="/app" replace />;
+  }
+  
+  return children;
+};
+
+const AppRoutes = () => {
+  const { isAuthenticated, user } = useAuth();
+  
+  return (
+    <Routes>
+      <Route path="/" element={<Landing />} />
+      <Route path="/signin" element={<SignIn />} />
+      <Route path="/signup" element={<SignUp />} />
+      <Route path="/app" element={
+        <ProtectedRoute>
+          <Explore />
+        </ProtectedRoute>
+      } />
+      <Route path="/favorites" element={
+        <ProtectedRoute>
+          <Favorites />
+        </ProtectedRoute>
+      } />
+      <Route path="/events" element={
+        <ProtectedRoute>
+          <MyEvents />
+        </ProtectedRoute>
+      } />
+      <Route path="/profile" element={
+        <ProtectedRoute>
+          <Profile />
+        </ProtectedRoute>
+      } />
+      <Route path="/create-event" element={
+        <ProtectedRoute requiredUserType="organizer">
+          <CreateEvent />
+        </ProtectedRoute>
+      } />
+      <Route path="/dashboard" element={
+        <ProtectedRoute requiredUserType="organizer">
+          <EventDashboard />
+        </ProtectedRoute>
+      } />
+      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -26,22 +86,12 @@ const App = () => (
       <Sonner />
       <MobileGuard>
         <BrowserRouter>
-        <div className="relative">
-          <Routes>
-            <Route path="/" element={<Landing />} />
-            <Route path="/signin" element={<SignIn />} />
-            <Route path="/signup" element={<SignUp />} />
-            <Route path="/app" element={<Explore />} />
-            <Route path="/favorites" element={<Favorites />} />
-            <Route path="/events" element={<MyEvents />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/create-event" element={<CreateEvent />} />
-            <Route path="/dashboard" element={<EventDashboard />} />
-            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-          <BottomNavigation />
-        </div>
+          <AuthProvider>
+            <div className="relative">
+              <AppRoutes />
+              <BottomNavigation />
+            </div>
+          </AuthProvider>
         </BrowserRouter>
       </MobileGuard>
     </TooltipProvider>

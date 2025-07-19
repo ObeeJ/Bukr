@@ -1,167 +1,175 @@
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import EventCard from "@/components/EventCard";
-import FlierUpload from "@/components/FlierUpload";
-import { Search, Upload } from "lucide-react";
-import AnimatedLogo from "@/components/AnimatedLogo";
-import CreateEventButton from "@/components/CreateEventButton";
+import React, { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Search, Filter, Calendar, Music, Code, Palette, Utensils, Trophy, Heart } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Explore = () => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
+  const { user } = useAuth();
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const categories = ["All", "Music", "Theater", "Conference", "Sports"];
+  const categories = [
+    { id: 'all', name: 'All', icon: Calendar },
+    { id: 'music', name: 'Music', icon: Music },
+    { id: 'tech', name: 'Tech', icon: Code },
+    { id: 'art', name: 'Art', icon: Palette },
+    { id: 'food', name: 'Food', icon: Utensils },
+    { id: 'sports', name: 'Sports', icon: Trophy },
+  ];
 
-  const sampleEvents = [
-    {
-      id: "1",
-      title: "Summer Music Festival",
-      location: "Central Park, NYC",
-      date: "7/15/2025",
-      time: "18:00",
-      price: 89,
-      rating: 4.8,
-      attendees: 1250,
-      category: "Music",
-      status: "trending" as const,
-      image: "🎵",
-      weather: {
-        condition: "sunny" as const,
-        temperature: 78,
-        description: "Clear skies"
-      }
+  const events = [
+    { 
+      id: 1, 
+      title: 'Summer Music Festival', 
+      date: 'July 15, 2023', 
+      time: '6:00 PM', 
+      location: 'Central Park, NY',
+      price: '$50',
+      category: 'music',
+      emoji: '🎵'
     },
-    {
-      id: "2",
-      title: "Tech Conference 2025",
-      location: "Convention Center",
-      date: "7/20/2025", 
-      time: "09:00",
-      price: 150,
-      rating: 4.6,
-      attendees: 500,
-      category: "Conference",
-      image: "💻",
-      weather: {
-        condition: "cloudy" as const,
-        temperature: 72,
-        description: "Partly cloudy"
-      }
+    { 
+      id: 2, 
+      title: 'Tech Conference 2023', 
+      date: 'August 20, 2023', 
+      time: '9:00 AM', 
+      location: 'Convention Center, SF',
+      price: '$150',
+      category: 'tech',
+      emoji: '💻'
     },
-    {
-      id: "3",
-      title: "Broadway Musical",
-      location: "Times Square Theater",
-      date: "7/8/2025",
-      time: "20:00", 
-      price: 125,
-      rating: 4.9,
-      attendees: 200,
-      category: "Theater",
-      status: "confirmed" as const,
-      image: "🎭",
-      weather: {
-        condition: "rainy" as const,
-        temperature: 65,
-        description: "Light rain"
-      }
+    { 
+      id: 3, 
+      title: 'Art Exhibition', 
+      date: 'September 10, 2023', 
+      time: '10:00 AM', 
+      location: 'Modern Art Gallery, LA',
+      price: '$25',
+      category: 'art',
+      emoji: '🎨'
+    },
+    { 
+      id: 4, 
+      title: 'Food Festival', 
+      date: 'October 5, 2023', 
+      time: '12:00 PM', 
+      location: 'Downtown, Chicago',
+      price: '$35',
+      category: 'food',
+      emoji: '🍕'
+    },
+    { 
+      id: 5, 
+      title: 'Sports Championship', 
+      date: 'November 12, 2023', 
+      time: '3:00 PM', 
+      location: 'Stadium, Dallas',
+      price: '$75',
+      category: 'sports',
+      emoji: '🏆'
+    },
+    { 
+      id: 6, 
+      title: 'Comedy Night', 
+      date: 'December 3, 2023', 
+      time: '8:00 PM', 
+      location: 'Comedy Club, NYC',
+      price: '$45',
+      category: 'music',
+      emoji: '😂'
     }
   ];
 
-  const filteredEvents = sampleEvents.filter(event => 
-    (selectedCategory === "All" || event.category === selectedCategory) &&
-    event.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredEvents = (category: string) => {
+    let filtered = events;
+    
+    if (category !== 'all') {
+      filtered = filtered.filter(event => event.category === category);
+    }
+    
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(event => 
+        event.title.toLowerCase().includes(query) || 
+        event.location.toLowerCase().includes(query)
+      );
+    }
+    
+    return filtered;
+  };
 
   return (
-    <div className="min-h-screen pt-8 pb-24 px-4 relative">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-4">
-          <div>
-            <AnimatedLogo size="lg" clickable={true} />
-            <p className="text-muted-foreground mt-1">Discover amazing events</p>
-          </div>
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">Explore Events</h1>
+          <p className="text-muted-foreground">Discover and book amazing events</p>
         </div>
-        <Button variant="ghost" size="icon" className="rounded-full">
-          <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
-            <span className="text-sm font-bold">👤</span>
-          </div>
-        </Button>
       </div>
 
-      {/* Search Bar */}
-      <div className="relative mb-6">
-        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-        <Input 
-          placeholder="Search events, locations..."
+      <div className="relative mb-8">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
+        <Input
+          className="pl-10 glass-card border-glass-border bg-glass/20"
+          placeholder="Search events, venues, cities..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-12 glass-card border-glass-border bg-glass/20 backdrop-blur-sm h-14 text-foreground placeholder:text-muted-foreground"
         />
       </div>
 
-      {/* Categories */}
-      <div className="flex gap-3 mb-8 overflow-x-auto pb-2">
-        {categories.map((category) => (
-          <Button
-            key={category}
-            variant={selectedCategory === category ? "glow" : "glass"}
-            size="sm"
-            onClick={() => setSelectedCategory(category)}
-            className="whitespace-nowrap"
-          >
-            {category}
-          </Button>
-        ))}
-      </div>
+      <Tabs defaultValue="all" className="w-full">
+        <TabsList className="flex overflow-x-auto pb-2 mb-8 glass-card">
+          {categories.map(category => (
+            <TabsTrigger key={category.id} value={category.id} className="flex items-center gap-2">
+              <category.icon className="w-4 h-4" />
+              <span>{category.name}</span>
+            </TabsTrigger>
+          ))}
+        </TabsList>
 
-      {/* Create Event Options */}
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        <CreateEventButton variant="outline" className="h-14" />
-        <FlierUpload
-          trigger={
-            <Button variant="glow" className="h-14">
-              <Upload className="w-5 h-5 mr-2" />
-              Upload Flier
-            </Button>
-          }
-          onUpload={(file, data) => {
-            console.log('Flier uploaded:', file.name, data);
-          }}
-        />
-      </div>
-
-      {/* Events Grid */}
-      <div className="space-y-6">
-        {filteredEvents.map((event, index) => (
-          <div key={event.id} className="animate-slide-up" style={{ animationDelay: `${index * 0.1}s` }}>
-            <EventCard 
-              {...event}
-              onBook={() => console.log(`Booking ${event.title}`)}
-              onFavoriteToggle={(eventId, isFavorite) => 
-                console.log(`${isFavorite ? 'Added to' : 'Removed from'} favorites:`, eventId)
-              }
-            />
-          </div>
-        ))}
-      </div>
-
-      {filteredEvents.length === 0 && (
-        <div className="text-center py-12 relative">
-          <div className="glass-card p-8 max-w-md mx-auto">
-            <div className="w-24 h-24 mx-auto mb-4 animate-float">
-              <span className="text-6xl">🎭</span>
+        {categories.map(category => (
+          <TabsContent key={category.id} value={category.id} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredEvents(category.id).map((event) => (
+                <Card key={event.id} className="glass-card">
+                  <CardHeader>
+                    <CardTitle>{event.title}</CardTitle>
+                    <CardDescription>{event.date} • {event.time}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="aspect-video bg-gradient-to-br from-primary/20 to-accent/20 rounded-md flex items-center justify-center mb-4">
+                      <span className="text-6xl">{event.emoji}</span>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">
+                        <span className="font-medium">Location:</span> {event.location}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        <span className="font-medium">Price:</span> {event.price}
+                      </p>
+                    </div>
+                  </CardContent>
+                  <CardFooter className="flex justify-between">
+                    <Button variant="outline" className="flex items-center gap-2">
+                      <Heart className="w-4 h-4" />
+                      Save
+                    </Button>
+                    <Button variant="glow">Book Now</Button>
+                  </CardFooter>
+                </Card>
+              ))}
             </div>
-            <h3 className="text-xl font-bold text-glow mb-2">No Events Found</h3>
-            <p className="text-muted-foreground mb-4">Try adjusting your search or category filters.</p>
-            <Button variant="glow" onClick={() => setSearchQuery("")}>
-              Clear Filters
-            </Button>
-          </div>
-        </div>
-      )}
+            
+            {filteredEvents(category.id).length === 0 && (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">No events found. Try a different search.</p>
+              </div>
+            )}
+          </TabsContent>
+        ))}
+      </Tabs>
     </div>
   );
 };

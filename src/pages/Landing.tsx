@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowRight } from "lucide-react";
-import { Link } from "react-router-dom";
+import { ArrowRight, LogOut, Plus, Calendar, Search } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import AnimatedLogo from "@/components/AnimatedLogo";
 import AuthModal from "@/components/AuthModal";
 import PopularEvents from "@/components/PopularEvents";
@@ -9,6 +10,8 @@ import BrandMarquee from "@/components/BrandMarquee";
 
 const Landing = () => {
   const [authModal, setAuthModal] = useState({ isOpen: false, tab: "signin" as "signin" | "signup" });
+  const { isAuthenticated, user, logout } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
@@ -16,18 +19,52 @@ const Landing = () => {
       <nav className="flex justify-between items-center p-6 glass-card m-4 rounded-2xl">
         <AnimatedLogo size="md" clickable={true} />
         <div className="flex gap-3">
-          <Button 
-            variant="ghost" 
-            onClick={() => setAuthModal({ isOpen: true, tab: "signin" })}
-          >
-            Sign In
-          </Button>
-          <Button 
-            variant="glow"
-            onClick={() => setAuthModal({ isOpen: true, tab: "signup" })}
-          >
-            Sign Up
-          </Button>
+          {isAuthenticated ? (
+            <>
+              {user?.userType === 'organizer' ? (
+                <Button 
+                  variant="glow"
+                  onClick={() => navigate('/create-event')}
+                  className="flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create Event
+                </Button>
+              ) : (
+                <Button 
+                  variant="glow"
+                  onClick={() => navigate('/app')}
+                  className="flex items-center gap-2"
+                >
+                  <Search className="w-4 h-4" />
+                  Explore Events
+                </Button>
+              )}
+              <Button 
+                variant="ghost" 
+                onClick={() => logout()}
+                className="flex items-center gap-2"
+              >
+                <LogOut className="w-4 h-4" />
+                Sign Out
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button 
+                variant="ghost" 
+                onClick={() => setAuthModal({ isOpen: true, tab: "signin" })}
+              >
+                Sign In
+              </Button>
+              <Button 
+                variant="glow"
+                onClick={() => setAuthModal({ isOpen: true, tab: "signup" })}
+              >
+                Sign Up
+              </Button>
+            </>
+          )}
         </div>
       </nav>
 
@@ -49,18 +86,50 @@ const Landing = () => {
             From concerts to conferences, we make event booking seamless and exciting.
           </p>
           
-          <Button 
-            onClick={() => setAuthModal({ isOpen: true, tab: "signin" })}
-            variant="glow" 
-            size="lg" 
-            className="px-12 py-6 text-xl group animate-scale-in button-glow transition-all duration-500 hover:scale-110 transform-gpu"
-            style={{
-              transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
-            }}
-          >
-            <span className="font-medium logo">Use Bukr</span>
-            <ArrowRight className="ml-3 w-6 h-6 group-hover:translate-x-1 transition-transform duration-300" />
-          </Button>
+          {isAuthenticated ? (
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              {user?.userType === 'organizer' ? (
+                <Button 
+                  onClick={() => navigate('/dashboard')}
+                  variant="glow" 
+                  size="lg" 
+                  className="px-8 py-6 text-xl group animate-scale-in button-glow transition-all duration-500 hover:scale-110 transform-gpu"
+                  style={{
+                    transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+                  }}
+                >
+                  <Calendar className="mr-3 w-6 h-6" />
+                  <span className="font-medium logo">Manage Events</span>
+                </Button>
+              ) : (
+                <Button 
+                  onClick={() => navigate('/app')}
+                  variant="glow" 
+                  size="lg" 
+                  className="px-8 py-6 text-xl group animate-scale-in button-glow transition-all duration-500 hover:scale-110 transform-gpu"
+                  style={{
+                    transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+                  }}
+                >
+                  <Search className="mr-3 w-6 h-6" />
+                  <span className="font-medium logo">Find Events</span>
+                </Button>
+              )}
+            </div>
+          ) : (
+            <Button 
+              onClick={() => setAuthModal({ isOpen: true, tab: "signin" })}
+              variant="glow" 
+              size="lg" 
+              className="px-12 py-6 text-xl group animate-scale-in button-glow transition-all duration-500 hover:scale-110 transform-gpu"
+              style={{
+                transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+              }}
+            >
+              <span className="font-medium logo">Use Bukr</span>
+              <ArrowRight className="ml-3 w-6 h-6 group-hover:translate-x-1 transition-transform duration-300" />
+            </Button>
+          )}
 
           {/* Stats */}
           <div className="grid md:grid-cols-3 gap-8 mt-16 max-w-2xl mx-auto">

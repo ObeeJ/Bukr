@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Eye, EyeOff, User, Building } from "lucide-react";
 import AnimatedLogo from "./AnimatedLogo";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -23,14 +25,32 @@ const AuthModal = ({ isOpen, onClose, defaultTab = "signin" }: AuthModalProps) =
     orgName: "",
     phone: ""
   });
+  const { login } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = (type: "signin" | "signup") => {
-    console.log(`${type}:`, { ...formData, userType });
-    if (type === "signup" && userType === "organizer") {
-      const organizerId = `ORG-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      console.log("Generated Organizer ID:", organizerId);
-    }
+    // In a real app, we would validate and make API calls here
+    const userId = `USER-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Create user object
+    const userData = {
+      id: userId,
+      name: formData.name || 'Demo User', // Default name for signin
+      email: formData.email,
+      userType: userType,
+      orgName: userType === 'organizer' ? formData.orgName : undefined
+    };
+    
+    // Login the user
+    login(userData);
     onClose();
+    
+    // Navigate to appropriate dashboard
+    if (userType === 'organizer') {
+      navigate('/dashboard');
+    } else {
+      navigate('/app');
+    }
   };
 
   return (
