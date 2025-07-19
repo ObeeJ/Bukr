@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAuth } from '@/contexts/AuthContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import AnimatedLogo from '@/components/AnimatedLogo';
 
 const Favorites = () => {
   const { user } = useAuth();
@@ -116,6 +117,13 @@ const Favorites = () => {
     setEventDetailsOpen(true);
   };
 
+  const handleBookNow = (event: any) => {
+    // In a real app, this would navigate to a booking page
+    alert(`Booking ${event.title} for ${event.price}`);
+    // Could navigate to a booking page
+    // navigate(`/book/${event.id}`);
+  };
+
   const renderStars = (rating: number) => {
     return (
       <div className="flex items-center">
@@ -133,9 +141,12 @@ const Favorites = () => {
   return (
     <div className="container mx-auto px-4 py-8 pb-24">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">Favorite Events</h1>
-          <p className="text-muted-foreground">Events you've saved for later</p>
+        <div className="flex items-center gap-3">
+          <AnimatedLogo size="sm" />
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Favorite Events</h1>
+            <p className="text-muted-foreground">Events you've saved for later</p>
+          </div>
         </div>
       </div>
 
@@ -213,7 +224,14 @@ const Favorites = () => {
                     </Tooltip>
                   </TooltipProvider>
                 </div>
-                <Button variant="glow" size="sm">Book Now</Button>
+                <Button 
+                  variant="glow" 
+                  size="sm" 
+                  className="logo font-medium"
+                  onClick={() => handleBookNow(event)}
+                >
+                  Book Now
+                </Button>
               </CardFooter>
             </Card>
           ))}
@@ -223,7 +241,7 @@ const Favorites = () => {
           <div className="text-6xl mb-4">❤️</div>
           <h2 className="text-2xl font-medium mb-2">No favorites yet</h2>
           <p className="text-muted-foreground mb-6">Save events you're interested in to find them here</p>
-          <Button variant="glow" onClick={() => window.location.href = '/app'}>Explore Events</Button>
+          <Button variant="glow" className="logo font-medium" onClick={() => window.location.href = '/app'}>Explore Events</Button>
         </div>
       )}
 
@@ -270,7 +288,13 @@ const Favorites = () => {
                   <Share2 className="w-5 h-5" />
                 </Button>
               </div>
-              <Button variant="glow">Book Now</Button>
+              <Button 
+                variant="glow" 
+                className="logo font-medium"
+                onClick={() => handleBookNow(selectedEvent)}
+              >
+                Book Now
+              </Button>
             </div>
           </DialogContent>
         )}

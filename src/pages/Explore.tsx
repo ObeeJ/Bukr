@@ -8,12 +8,15 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAuth } from '@/contexts/AuthContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import AnimatedLogo from '@/components/AnimatedLogo';
+import { useNavigate } from 'react-router-dom';
 
 const Explore = () => {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
+  const navigate = useNavigate();
 
   const categories = [
     { id: 'all', name: 'All', icon: Calendar },
@@ -107,11 +110,13 @@ const Explore = () => {
   
   const toggleFavorite = (eventId: number) => {
     setFavorites(prev => {
-      if (prev.includes(eventId)) {
-        return prev.filter(id => id !== eventId);
-      } else {
-        return [...prev, eventId];
-      }
+      const newFavorites = prev.includes(eventId)
+        ? prev.filter(id => id !== eventId)
+        : [...prev, eventId];
+      
+      // Save to localStorage
+      localStorage.setItem('bukr_favorites', JSON.stringify(newFavorites));
+      return newFavorites;
     });
   };
   
@@ -145,6 +150,13 @@ const Explore = () => {
     setEventDetailsOpen(true);
   };
 
+  const handleBookNow = (event: any) => {
+    // In a real app, this would navigate to a booking page
+    alert(`Booking ${event.title} for ${event.price}`);
+    // Could navigate to a booking page
+    // navigate(`/book/${event.id}`);
+  };
+
   const renderStars = (rating: number) => {
     return (
       <div className="flex items-center">
@@ -162,9 +174,12 @@ const Explore = () => {
   return (
     <div className="container mx-auto px-4 py-8 pb-24">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">Explore Events</h1>
-          <p className="text-muted-foreground">Discover and book amazing events</p>
+        <div className="flex items-center gap-3">
+          <AnimatedLogo size="sm" />
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Explore Events</h1>
+            <p className="text-muted-foreground">Discover and book amazing events</p>
+          </div>
         </div>
       </div>
 
@@ -183,7 +198,7 @@ const Explore = () => {
           {categories.map(category => (
             <TabsTrigger key={category.id} value={category.id} className="flex items-center gap-2 py-3 px-4">
               <category.icon className="w-4 h-4" />
-              <span className="font-medium">{category.name}</span>
+              <span className="font-medium logo">{category.name}</span>
             </TabsTrigger>
           ))}
         </TabsList>
@@ -263,7 +278,14 @@ const Explore = () => {
                         </Tooltip>
                       </TooltipProvider>
                     </div>
-                    <Button variant="glow" size="sm">Book Now</Button>
+                    <Button 
+                      variant="glow" 
+                      size="sm" 
+                      className="logo font-medium"
+                      onClick={() => handleBookNow(event)}
+                    >
+                      Book Now
+                    </Button>
                   </CardFooter>
                 </Card>
               ))}
@@ -321,7 +343,13 @@ const Explore = () => {
                   <Share2 className="w-5 h-5" />
                 </Button>
               </div>
-              <Button variant="glow">Book Now</Button>
+              <Button 
+                variant="glow" 
+                className="logo font-medium"
+                onClick={() => handleBookNow(selectedEvent)}
+              >
+                Book Now
+              </Button>
             </div>
           </DialogContent>
         )}

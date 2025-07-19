@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar, BarChart, Settings, Plus, Users, Edit, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import AnimatedLogo from '@/components/AnimatedLogo';
 
 const OrganizerDashboard = () => {
   const { user } = useAuth();
@@ -47,15 +48,18 @@ const OrganizerDashboard = () => {
   ];
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8 pb-24">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">Organizer Dashboard</h1>
-          <p className="text-muted-foreground">{user?.orgName || user?.name}</p>
+        <div className="flex items-center gap-3">
+          <AnimatedLogo size="sm" />
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Organizer Dashboard</h1>
+            <p className="text-muted-foreground">{user?.orgName || user?.name}</p>
+          </div>
         </div>
         <Button 
           variant="glow" 
-          className="mt-4 md:mt-0 flex items-center gap-2"
+          className="mt-4 md:mt-0 flex items-center gap-2 logo font-medium"
           onClick={() => navigate('/create-event')}
         >
           <Plus className="w-4 h-4" />
@@ -94,15 +98,15 @@ const OrganizerDashboard = () => {
 
       <Tabs defaultValue="events" className="w-full">
         <TabsList className="grid w-full grid-cols-3 mb-8">
-          <TabsTrigger value="events" className="flex items-center gap-2">
+          <TabsTrigger value="events" className="flex items-center gap-2 logo font-medium">
             <Calendar className="w-4 h-4" />
             <span>Events</span>
           </TabsTrigger>
-          <TabsTrigger value="analytics" className="flex items-center gap-2">
+          <TabsTrigger value="analytics" className="flex items-center gap-2 logo font-medium">
             <BarChart className="w-4 h-4" />
             <span>Analytics</span>
           </TabsTrigger>
-          <TabsTrigger value="settings" className="flex items-center gap-2">
+          <TabsTrigger value="settings" className="flex items-center gap-2 logo font-medium">
             <Settings className="w-4 h-4" />
             <span>Settings</span>
           </TabsTrigger>
@@ -136,11 +140,11 @@ const OrganizerDashboard = () => {
                   </div>
                 </CardContent>
                 <CardFooter className="flex justify-between">
-                  <Button variant="outline" className="flex items-center gap-2">
+                  <Button variant="outline" className="flex items-center gap-2 logo font-medium">
                     <Edit className="w-4 h-4" />
                     Edit
                   </Button>
-                  <Button variant="glow" className="flex items-center gap-2">
+                  <Button variant="glow" className="flex items-center gap-2 logo font-medium">
                     <Users className="w-4 h-4" />
                     Attendees
                   </Button>
@@ -181,7 +185,7 @@ const OrganizerDashboard = () => {
               </div>
             </CardContent>
             <CardFooter>
-              <Button variant="outline">Edit Organization</Button>
+              <Button variant="outline" className="logo font-medium">Edit Organization</Button>
             </CardFooter>
           </Card>
         </TabsContent>

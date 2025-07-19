@@ -1,10 +1,13 @@
 import { Link, useLocation, useMatch } from "react-router-dom";
-import { Search, Heart, Calendar, User, Plus } from "lucide-react";
+import { Search, Heart, Calendar, User, Plus, LayoutDashboard } from "lucide-react";
 import { cn } from "@/lib/utils";
 import CreateEventButton from "@/components/CreateEventButton";
+import { useAuth } from "@/contexts/AuthContext";
+import AnimatedLogo from "./AnimatedLogo";
 
 const BottomNavigation = () => {
   const location = useLocation();
+  const { user } = useAuth();
   
   // Only show bottom navigation on app routes
   const shouldShow = ["/app", "/favorites", "/events", "/profile", "/create-event", "/dashboard"].some(
@@ -13,12 +16,20 @@ const BottomNavigation = () => {
   
   if (!shouldShow) return null;
 
-  const navItems = [
+  // Base navigation items
+  let navItems = [
     { icon: Search, label: "Explore", path: "/app" },
     { icon: Heart, label: "Favorites", path: "/favorites" },
     { icon: Calendar, label: "My Events", path: "/events" },
-    { icon: User, label: "Profile", path: "/profile" },
   ];
+  
+  // Add Dashboard for organizers
+  if (user?.userType === 'organizer') {
+    navItems.push({ icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" });
+  }
+  
+  // Add Profile for all users
+  navItems.push({ icon: User, label: "Profile", path: "/profile" });
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border border-border/30 mx-4 mb-4 rounded-2xl animate-slide-up shadow-lg">
@@ -39,16 +50,18 @@ const BottomNavigation = () => {
               )}
             >
               <Icon className="w-5 h-5" />
-              <span className="text-xs font-medium">{item.label}</span>
+              <span className="text-xs font-medium logo">{item.label}</span>
             </Link>
           );
         })}
-        <CreateEventButton 
-          variant="ghost" 
-          size="sm" 
-          compact={true}
-          className="flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all duration-300 text-muted-foreground hover:text-foreground hover:bg-glass/20 h-auto"
-        />
+        {user?.userType === 'organizer' && (
+          <CreateEventButton 
+            variant="ghost" 
+            size="sm" 
+            compact={true}
+            className="flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all duration-300 text-muted-foreground hover:text-foreground hover:bg-glass/20 h-auto"
+          />
+        )}
       </div>
     </nav>
   );

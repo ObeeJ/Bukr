@@ -4,34 +4,38 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar, Ticket, Heart, User } from 'lucide-react';
+import AnimatedLogo from '@/components/AnimatedLogo';
 
 const UserDashboard = () => {
   const { user } = useAuth();
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8 pb-24">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">Welcome, {user?.name}!</h1>
-          <p className="text-muted-foreground">Manage your events and tickets</p>
+        <div className="flex items-center gap-3">
+          <AnimatedLogo size="sm" />
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Welcome, {user?.name}!</h1>
+            <p className="text-muted-foreground">Manage your events and tickets</p>
+          </div>
         </div>
       </div>
 
       <Tabs defaultValue="upcoming" className="w-full">
         <TabsList className="grid w-full grid-cols-4 mb-8">
-          <TabsTrigger value="upcoming" className="flex items-center gap-2">
+          <TabsTrigger value="upcoming" className="flex items-center gap-2 logo font-medium">
             <Calendar className="w-4 h-4" />
             <span className="hidden sm:inline">Upcoming</span>
           </TabsTrigger>
-          <TabsTrigger value="tickets" className="flex items-center gap-2">
+          <TabsTrigger value="tickets" className="flex items-center gap-2 logo font-medium">
             <Ticket className="w-4 h-4" />
             <span className="hidden sm:inline">My Tickets</span>
           </TabsTrigger>
-          <TabsTrigger value="favorites" className="flex items-center gap-2">
+          <TabsTrigger value="favorites" className="flex items-center gap-2 logo font-medium">
             <Heart className="w-4 h-4" />
             <span className="hidden sm:inline">Favorites</span>
           </TabsTrigger>
-          <TabsTrigger value="profile" className="flex items-center gap-2">
+          <TabsTrigger value="profile" className="flex items-center gap-2 logo font-medium">
             <User className="w-4 h-4" />
             <span className="hidden sm:inline">Profile</span>
           </TabsTrigger>
@@ -54,8 +58,8 @@ const UserDashboard = () => {
                   </p>
                 </CardContent>
                 <CardFooter className="flex justify-between">
-                  <Button variant="outline">View Details</Button>
-                  <Button variant="glow">View Tickets</Button>
+                  <Button variant="outline" className="logo font-medium">View Details</Button>
+                  <Button variant="glow" className="logo font-medium">View Tickets</Button>
                 </CardFooter>
               </Card>
             ))}
@@ -79,8 +83,8 @@ const UserDashboard = () => {
                   </p>
                 </CardContent>
                 <CardFooter className="flex justify-between">
-                  <Button variant="outline">View Details</Button>
-                  <Button variant="glow">View Ticket</Button>
+                  <Button variant="outline" className="logo font-medium">View Details</Button>
+                  <Button variant="glow" className="logo font-medium">View Ticket</Button>
                 </CardFooter>
               </Card>
             ))}
@@ -101,8 +105,8 @@ const UserDashboard = () => {
                   </div>
                 </CardContent>
                 <CardFooter className="flex justify-between">
-                  <Button variant="outline">View Details</Button>
-                  <Button variant="glow">Book Now</Button>
+                  <Button variant="outline" className="logo font-medium">View Details</Button>
+                  <Button variant="glow" className="logo font-medium">Book Now</Button>
                 </CardFooter>
               </Card>
             ))}
@@ -128,7 +132,7 @@ const UserDashboard = () => {
               </div>
             </CardContent>
             <CardFooter>
-              <Button variant="outline">Edit Profile</Button>
+              <Button variant="outline" className="logo font-medium">Edit Profile</Button>
             </CardFooter>
           </Card>
         </TabsContent>
