@@ -58,7 +58,7 @@ const Landing = () => {
               transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
             }}
           >
-            <span className="font-semibold logo">Use Bukr</span>
+            <span className="font-medium logo">Use Bukr</span>
             <ArrowRight className="ml-3 w-6 h-6 group-hover:translate-x-1 transition-transform duration-300" />
           </Button>
 
