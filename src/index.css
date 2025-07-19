@@ -6,25 +6,24 @@
   /* Typography */
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Clash Display', sans-serif;
-    font-weight: 700;
+    font-weight: 600;
   }
 
   body, p, span, button, input, textarea, select {
-    font-family: 'Clash Grotesk', sans-serif;
+    font-family: 'Satoshi', sans-serif;
     font-weight: 400;
   }
 
-  /* Small text uses Clash Grotesk for better legibility */
+  /* Small text uses Satoshi for better legibility */
   .text-xs, .text-sm {
-    font-family: 'Clash Grotesk', sans-serif;
+    font-family: 'Satoshi', sans-serif;
   }
 
   /* Logo uses Clash Display */
   .logo, .brand {
     font-family: 'Clash Display', sans-serif;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    -webkit-text-stroke: 0.45px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
   }
 }
 
