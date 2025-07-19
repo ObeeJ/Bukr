@@ -44,7 +44,7 @@ const Landing = () => {
             </h2>
           </div>
           
-          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto animate-slide-up">
+          <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto animate-slide-up font-montserrat">
             Discover, book, and experience the world's most incredible events. 
             From concerts to conferences, we make event booking seamless and exciting.
           </p>
@@ -58,7 +58,7 @@ const Landing = () => {
               transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
             }}
           >
-            <span className="font-medium">Use Bukr</span>
+            <span className="font-semibold">Use Bukr</span>
             <ArrowRight className="ml-3 w-6 h-6 group-hover:translate-x-1 transition-transform duration-300" />
           </Button>
 
