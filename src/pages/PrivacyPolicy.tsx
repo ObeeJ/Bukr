@@ -1,86 +1,113 @@
-import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
+import AnimatedLogo from "@/components/AnimatedLogo";
 
 const PrivacyPolicy = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 px-4 py-8">
-      {/* Header */}
-      <div className="max-w-4xl mx-auto mb-8">
-        <Link to="/">
-          <Button variant="ghost" className="mb-6">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Home
-          </Button>
-        </Link>
-        
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-glow mb-4">Privacy Policy</h1>
-          <p className="text-muted-foreground">Last updated: January 2025</p>
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 py-8 px-4">
+      <div className="max-w-3xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center gap-4 mb-8">
+          <Link to="/">
+            <Button variant="ghost" size="icon" className="rounded-full">
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+          </Link>
+          <AnimatedLogo size="md" />
         </div>
-      </div>
 
-      {/* Content */}
-      <div className="max-w-4xl mx-auto glass-card p-8">
-        <div className="prose prose-invert max-w-none">
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-foreground mb-4">Information We Collect</h2>
-            <p className="text-muted-foreground mb-4">
-              At Bukr, we collect information you provide directly to us, such as when you create an account, 
-              book events, or contact us for support.
-            </p>
-            <ul className="list-disc pl-6 text-muted-foreground space-y-2">
-              <li>Account information (name, email, password)</li>
-              <li>Event booking history and preferences</li>
-              <li>Payment information (processed securely by our payment partners)</li>
-              <li>Communication preferences and support messages</li>
-            </ul>
-          </section>
+        <div className="glass-card p-8">
+          <h1 className="text-3xl font-bold text-glow mb-8">Privacy Policy</h1>
+          
+          <div className="space-y-6 text-foreground">
+            <section>
+              <h2 className="text-xl font-bold mb-3">1. Introduction</h2>
+              <p className="text-muted-foreground">
+                Welcome to Bukr. We respect your privacy and are committed to protecting your personal data. 
+                This privacy policy will inform you about how we look after your personal data when you visit 
+                our website and tell you about your privacy rights and how the law protects you.
+              </p>
+            </section>
 
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-foreground mb-4">How We Use Your Information</h2>
-            <p className="text-muted-foreground mb-4">
-              We use the information we collect to provide, maintain, and improve our services:
-            </p>
-            <ul className="list-disc pl-6 text-muted-foreground space-y-2">
-              <li>Process event bookings and payments</li>
-              <li>Send booking confirmations and event updates</li>
-              <li>Provide customer support</li>
-              <li>Improve our platform and user experience</li>
-              <li>Recommend relevant events based on your preferences</li>
-            </ul>
-          </section>
+            <section>
+              <h2 className="text-xl font-bold mb-3">2. Data We Collect</h2>
+              <p className="text-muted-foreground mb-3">
+                We may collect, use, store and transfer different kinds of personal data about you which we have grouped together as follows:
+              </p>
+              <ul className="list-disc pl-6 space-y-2 text-muted-foreground">
+                <li>Identity Data: name, username, or similar identifier</li>
+                <li>Contact Data: email address, phone number</li>
+                <li>Technical Data: internet protocol address, login data, browser type</li>
+                <li>Profile Data: your preferences, feedback, and survey responses</li>
+                <li>Usage Data: information about how you use our website and services</li>
+                <li>Marketing Data: your preferences in receiving marketing from us</li>
+              </ul>
+            </section>
 
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-foreground mb-4">Information Sharing</h2>
-            <p className="text-muted-foreground mb-4">
-              We do not sell, trade, or otherwise transfer your personal information to third parties except:
-            </p>
-            <ul className="list-disc pl-6 text-muted-foreground space-y-2">
-              <li>With event organizers for booking purposes</li>
-              <li>With payment processors to complete transactions</li>
-              <li>When required by law or to protect our rights</li>
-              <li>With your explicit consent</li>
-            </ul>
-          </section>
+            <section>
+              <h2 className="text-xl font-bold mb-3">3. How We Use Your Data</h2>
+              <p className="text-muted-foreground mb-3">
+                We will only use your personal data when the law allows us to. Most commonly, we will use your personal data in the following circumstances:
+              </p>
+              <ul className="list-disc pl-6 space-y-2 text-muted-foreground">
+                <li>To register you as a new customer</li>
+                <li>To process and deliver your orders</li>
+                <li>To manage our relationship with you</li>
+                <li>To improve our website, products/services, marketing</li>
+                <li>To recommend products or services that may interest you</li>
+              </ul>
+            </section>
 
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-foreground mb-4">Data Security</h2>
-            <p className="text-muted-foreground mb-4">
-              We implement appropriate security measures to protect your personal information against 
-              unauthorized access, alteration, disclosure, or destruction.
-            </p>
-          </section>
+            <section>
+              <h2 className="text-xl font-bold mb-3">4. Data Security</h2>
+              <p className="text-muted-foreground">
+                We have put in place appropriate security measures to prevent your personal data from being 
+                accidentally lost, used, or accessed in an unauthorized way, altered, or disclosed. We limit 
+                access to your personal data to those employees, agents, contractors, and other third parties 
+                who have a business need to know.
+              </p>
+            </section>
 
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-foreground mb-4">Contact Us</h2>
-            <p className="text-muted-foreground">
-              If you have any questions about this Privacy Policy, please contact us at:{" "}
-              <a href="mailto:support@bukr.app" className="text-primary hover:text-primary-glow">
-                support@bukr.app
-              </a>
-            </p>
-          </section>
+            <section>
+              <h2 className="text-xl font-bold mb-3">5. Your Legal Rights</h2>
+              <p className="text-muted-foreground mb-3">
+                Under certain circumstances, you have rights under data protection laws in relation to your personal data, including the right to:
+              </p>
+              <ul className="list-disc pl-6 space-y-2 text-muted-foreground">
+                <li>Request access to your personal data</li>
+                <li>Request correction of your personal data</li>
+                <li>Request erasure of your personal data</li>
+                <li>Object to processing of your personal data</li>
+                <li>Request restriction of processing your personal data</li>
+                <li>Request transfer of your personal data</li>
+                <li>Right to withdraw consent</li>
+              </ul>
+            </section>
+
+            <section>
+              <h2 className="text-xl font-bold mb-3">6. Contact Us</h2>
+              <p className="text-muted-foreground">
+                If you have any questions about this privacy policy or our privacy practices, please contact us at:
+                <br />
+                <a href="mailto:privacy@bukr.app" className="text-primary hover:text-primary-glow transition-colors">
+                  privacy@bukr.app
+                </a>
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-xl font-bold mb-3">7. Changes to This Policy</h2>
+              <p className="text-muted-foreground">
+                We may update our privacy policy from time to time. We will notify you of any changes by posting 
+                the new privacy policy on this page and updating the "Last Updated" date.
+              </p>
+            </section>
+
+            <div className="pt-4 text-sm text-muted-foreground">
+              Last Updated: June 15, 2025
+            </div>
+          </div>
         </div>
       </div>
     </div>

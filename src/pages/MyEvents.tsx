@@ -1,9 +1,17 @@
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Download, Share } from "lucide-react";
+import { Download, Share, QrCode, Eye } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
+import TicketScanner from "@/components/TicketScanner";
+import AnimatedLogo from "@/components/AnimatedLogo";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 const MyEvents = () => {
+  const [ticketScannerOpen, setTicketScannerOpen] = useState(false);
+  const [ticketPreviewOpen, setTicketPreviewOpen] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState<any>(null);
+  
   const myEvents = [
     {
       id: "1",
@@ -97,19 +105,32 @@ const MyEvents = () => {
 
             {/* Action Buttons */}
             <div className="flex gap-3">
-              <Button variant="glow" className="flex-1">
-                <div className="w-4 h-4 mr-2 grid grid-cols-2 gap-0.5">
-                  <div className="w-1.5 h-1.5 bg-current rounded-sm"></div>
-                  <div className="w-1.5 h-1.5 bg-current rounded-sm"></div>
-                  <div className="w-1.5 h-1.5 bg-current rounded-sm"></div>
-                  <div className="w-1.5 h-1.5 bg-current rounded-sm"></div>
-                </div>
+              <Button 
+                variant="glow" 
+                className="flex-1"
+                onClick={() => {
+                  setSelectedTicket(event);
+                  setTicketPreviewOpen(true);
+                }}
+              >
+                <Eye className="w-4 h-4 mr-2" />
                 View Ticket
               </Button>
               {event.status === "confirmed" && (
-                <Button variant="outline" size="icon">
-                  <Share className="w-4 h-4" />
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="icon"
+                    onClick={() => {
+                      setTicketScannerOpen(true);
+                    }}
+                  >
+                    <QrCode className="w-4 h-4" />
+                  </Button>
+                  <Button variant="outline" size="icon">
+                    <Share className="w-4 h-4" />
+                  </Button>
+                </div>
               )}
             </div>
           </div>
@@ -127,6 +148,58 @@ const MyEvents = () => {
           }}
         />
       )}
+
+      {/* Ticket Scanner Modal */}
+      <TicketScanner 
+        isOpen={ticketScannerOpen}
+        onClose={() => setTicketScannerOpen(false)}
+        onScanComplete={(ticketId, isValid) => {
+          console.log('Scanned ticket:', ticketId, isValid);
+        }}
+      />
+
+      {/* Ticket Preview Modal */}
+      <Dialog open={ticketPreviewOpen} onOpenChange={setTicketPreviewOpen}>
+        <DialogContent className="glass-card border-glass-border max-w-md mx-4">
+          {selectedTicket && (
+            <div className="space-y-6">
+              <div className="text-center">
+                <AnimatedLogo size="sm" />
+                <h3 className="text-xl font-bold mt-2">{selectedTicket.title}</h3>
+                <p className="text-muted-foreground">{selectedTicket.date} • {selectedTicket.time}</p>
+              </div>
+              
+              <div className="bg-white p-6 rounded-xl">
+                <div className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center mb-4">
+                  {/* This would be a real QR code in production */}
+                  <div className="w-48 h-48 grid grid-cols-5 grid-rows-5 gap-1">
+                    {Array.from({ length: 25 }).map((_, i) => (
+                      <div 
+                        key={i} 
+                        className={`bg-black ${Math.random() > 0.5 ? 'opacity-100' : 'opacity-0'}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <div className="text-center text-black">
+                  <p className="font-mono font-bold">{selectedTicket.ticketNumber}</p>
+                  <p className="text-sm text-gray-500 mt-1">Seats: {selectedTicket.seats}</p>
+                </div>
+              </div>
+              
+              <div className="flex gap-3">
+                <Button variant="outline" className="flex-1" onClick={() => setTicketPreviewOpen(false)}>
+                  Close
+                </Button>
+                <Button variant="glow" className="flex-1">
+                  <Download className="w-4 h-4 mr-2" />
+                  Download
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

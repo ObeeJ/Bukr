@@ -10,11 +10,12 @@ import Explore from "./pages/Explore";
 import Favorites from "./pages/Favorites";
 import MyEvents from "./pages/MyEvents";
 import Profile from "./pages/Profile";
-import NotFound from "./pages/NotFound";
 import CreateEvent from "./pages/CreateEvent";
-import PrivacyPolicy from "./pages/PrivacyPolicy";
 import EventDashboard from "./pages/EventDashboard";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import NotFound from "./pages/NotFound";
 import BottomNavigation from "./components/BottomNavigation";
+import MobileGuard from "./components/MobileGuard";
 
 const queryClient = new QueryClient();
 
@@ -23,7 +24,8 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+      <MobileGuard>
+        <BrowserRouter>
         <div className="relative">
           <Routes>
             <Route path="/" element={<Landing />} />
@@ -38,16 +40,10 @@ const App = () => (
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
-          <Routes>
-            <Route path="/app" element={<BottomNavigation />} />
-            <Route path="/favorites" element={<BottomNavigation />} />
-            <Route path="/events" element={<BottomNavigation />} />
-            <Route path="/profile" element={<BottomNavigation />} />
-            <Route path="/create-event" element={<BottomNavigation />} />
-            <Route path="/dashboard" element={<BottomNavigation />} />
-          </Routes>
+          <BottomNavigation />
         </div>
-      </BrowserRouter>
+        </BrowserRouter>
+      </MobileGuard>
     </TooltipProvider>
   </QueryClientProvider>
 );

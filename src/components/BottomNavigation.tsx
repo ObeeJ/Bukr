@@ -1,10 +1,17 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useMatch } from "react-router-dom";
 import { Search, Heart, Calendar, User, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import CreateEventButton from "@/components/CreateEventButton";
 
 const BottomNavigation = () => {
   const location = useLocation();
+  
+  // Only show bottom navigation on app routes
+  const shouldShow = ["/app", "/favorites", "/events", "/profile", "/create-event", "/dashboard"].some(
+    route => location.pathname === route
+  );
+  
+  if (!shouldShow) return null;
 
   const navItems = [
     { icon: Search, label: "Explore", path: "/app" },
@@ -14,7 +21,7 @@ const BottomNavigation = () => {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 glass-card mx-4 mb-4 rounded-2xl">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 glass-card mx-4 mb-4 rounded-2xl animate-slide-up">
       <div className="flex items-center justify-around py-3">
         {navItems.map((item) => {
           const Icon = item.icon;

@@ -5,10 +5,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CalendarDays, MapPin, DollarSign, Upload, Video, Wifi } from "lucide-react";
-import FlierUpload from "@/components/FlierUpload";
 import { useToast } from "@/hooks/use-toast";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import AnimatedLogo from "@/components/AnimatedLogo";
+import FlierUploader from "@/components/FlierUploader";
 
 const CreateEvent = () => {
   const [searchParams] = useSearchParams();
@@ -24,6 +24,7 @@ const CreateEvent = () => {
     price: "",
     category: "General"
   });
+  const [flierFile, setFlierFile] = useState<File | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -94,21 +95,19 @@ const CreateEvent = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-foreground">
               <Upload className="w-5 h-5 text-primary" />
-              Quick Upload from Flier
+              Event Flier
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground mb-4">
-              Have an existing event flier? Upload it and we'll extract the details automatically.
+              Upload your event flier image. This will be displayed to attendees.
             </p>
-            <FlierUpload
-              trigger={
-                <Button variant="outline" className="w-full">
-                  <Upload className="w-4 h-4 mr-2" />
-                  Upload Event Flier
-                </Button>
-              }
-              onUpload={handleFlierUpload}
+            <FlierUploader 
+              onFileChange={(file) => {
+                setFlierFile(file);
+                // Extract data from image if possible
+                handleFlierUpload(file, {});
+              }} 
             />
           </CardContent>
         </Card>

@@ -231,6 +231,10 @@
   .animate-dot-bounce {
     animation: dotBounce 2s ease-in-out infinite;
   }
+
+  .animate-marquee {
+    animation: marquee 20s linear infinite;
+  }
 }
 
 @layer utilities {
@@ -314,5 +318,14 @@
   }
   50% {
     transform: scale(1.2) rotate(180deg);
+  }
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
   }
 }
