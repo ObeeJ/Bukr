@@ -28,7 +28,7 @@ const BrandMarquee = () => {
               className="flex-shrink-0 flex items-center gap-3 text-muted-foreground hover:text-foreground transition-colors"
             >
               <span className="text-2xl">{brand.logo}</span>
-              <span className="font-medium whitespace-nowrap">{brand.name}</span>
+              <span className="font-medium whitespace-nowrap watermark">{brand.name}</span>
             </div>
           ))}
         </div>

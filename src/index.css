@@ -6,24 +6,41 @@
   /* Typography */
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Clash Display', sans-serif;
-    font-weight: 600;
+    font-weight: 400; /* One weight down from medium */
   }
 
-  body, p, span, button, input, textarea, select {
-    font-family: 'Satoshi', sans-serif;
+  h1 {
+    font-weight: 700; /* Keep h1 bold */
+  }
+
+  body, p, span, input, textarea, select {
+    font-family: 'Montserrat', sans-serif;
     font-weight: 400;
   }
 
-  /* Small text uses Satoshi for better legibility */
+  /* Buttons use Clash Display */
+  button {
+    font-family: 'Clash Display', sans-serif;
+    font-weight: 400;
+  }
+
+  /* Small text uses Montserrat for better legibility */
   .text-xs, .text-sm {
-    font-family: 'Satoshi', sans-serif;
+    font-family: 'Montserrat', sans-serif;
   }
 
   /* Logo uses Clash Display */
   .logo, .brand {
     font-family: 'Clash Display', sans-serif;
-    font-weight: 600;
+    font-weight: 500; /* Medium weight for logo */
     letter-spacing: -0.01em;
+  }
+  
+  /* Watermark uses Clash Display */
+  .watermark {
+    font-family: 'Clash Display', sans-serif;
+    font-weight: 600; /* Semibold for watermark */
+    opacity: 0.8;
   }
 }
 
@@ -264,11 +281,15 @@
 
 @layer utilities {
   .text-glow {
-    text-shadow: 0 0 20px hsl(var(--primary) / 0.5);
+    text-shadow: 0 0 12px hsl(var(--primary) / 0.3);
   }
   
   .border-glow {
-    box-shadow: 0 0 0 1px hsl(var(--primary) / 0.3), 0 0 20px hsl(var(--primary) / 0.2);
+    box-shadow: 0 0 0 1px hsl(var(--primary) / 0.3), 0 0 15px hsl(var(--primary) / 0.2);
+  }
+  
+  .font-montserrat {
+    font-family: 'Montserrat', sans-serif;
   }
 }
 
@@ -326,14 +347,14 @@
 @keyframes logoLoad {
   0% {
     opacity: 0;
-    transform: translateX(-30px) skewX(-10deg);
+    transform: translateX(-30px);
   }
   60% {
-    transform: translateX(5px) skewX(-5deg);
+    transform: translateX(5px);
   }
   100% {
     opacity: 1;
-    transform: translateX(0) skewX(-15deg);
+    transform: translateX(0);
   }
 }
 

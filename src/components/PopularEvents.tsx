@@ -31,7 +31,7 @@ const PopularEvents = () => {
   return (
     <section className="py-16 px-4 overflow-hidden">
       <div className="max-w-6xl mx-auto">
-        <h2 className="text-4xl font-bold text-center mb-12 text-glow">
+        <h2 className="text-4xl font-medium text-center mb-12 text-glow watermark">
           Popular Events
         </h2>
         
@@ -49,8 +49,8 @@ const PopularEvents = () => {
               <div className="aspect-video bg-gradient-to-br from-primary/20 to-accent/20 rounded-2xl flex items-center justify-center mb-4">
                 <span className="text-6xl">{event.image}</span>
               </div>
-              <h3 className="text-xl font-bold text-foreground mb-2">{event.title}</h3>
-              <p className="text-muted-foreground">{event.date}</p>
+              <h3 className="text-xl font-medium text-foreground mb-2">{event.title}</h3>
+              <p className="text-muted-foreground font-montserrat">{event.date}</p>
             </div>
           ))}
         </div>

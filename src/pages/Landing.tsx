@@ -39,7 +39,7 @@ const Landing = () => {
           </div>
           
           <div className="mb-6 animate-slide-up">
-            <h2 className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent animate-pulse">
+            <h2 className="text-3xl md:text-5xl font-medium bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent animate-pulse watermark">
               Make Every Moment Count!
             </h2>
           </div>
@@ -58,23 +58,23 @@ const Landing = () => {
               transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
             }}
           >
-            <span className="font-medium logo">Use Bukr</span>
+            <span className="font-medium">Use Bukr</span>
             <ArrowRight className="ml-3 w-6 h-6 group-hover:translate-x-1 transition-transform duration-300" />
           </Button>
 
           {/* Stats */}
           <div className="grid md:grid-cols-3 gap-8 mt-16 max-w-2xl mx-auto">
             <div className="glass-card p-6 text-center hover-glow">
-              <div className="text-3xl font-bold text-primary mb-2">1M+</div>
-              <div className="text-muted-foreground">Events Booked</div>
+              <div className="text-3xl font-semibold text-primary mb-2 watermark">1M+</div>
+              <div className="text-muted-foreground font-montserrat">Events Booked</div>
             </div>
             <div className="glass-card p-6 text-center hover-glow">
-              <div className="text-3xl font-bold text-primary mb-2">500K+</div>
-              <div className="text-muted-foreground">Happy Users</div>
+              <div className="text-3xl font-semibold text-primary mb-2 watermark">500K+</div>
+              <div className="text-muted-foreground font-montserrat">Happy Users</div>
             </div>
             <div className="glass-card p-6 text-center hover-glow">
-              <div className="text-3xl font-bold text-primary mb-2">50+</div>
-              <div className="text-muted-foreground">Countries</div>
+              <div className="text-3xl font-semibold text-primary mb-2 watermark">50+</div>
+              <div className="text-muted-foreground font-montserrat">Countries</div>
             </div>
           </div>
         </div>
