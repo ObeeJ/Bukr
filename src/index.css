@@ -23,6 +23,8 @@
   .logo, .brand {
     font-family: 'Clash Display', sans-serif;
     font-weight: 700;
+    letter-spacing: -0.02em;
+    -webkit-text-stroke: 0.45px;
   }
 }
 
