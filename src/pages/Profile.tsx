@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Edit, Bell, CreditCard, Shield, Settings, LogOut, Camera, BarChart3, ArrowLeft } from "lucide-react";
+import { Edit, Bell, Shield, Settings, LogOut, Camera, BarChart3, ArrowLeft } from "lucide-react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -40,7 +40,6 @@ const Profile = () => {
     const baseItems = [
       { icon: Edit, label: "Edit Profile", description: "Update your personal information", action: () => setActiveDialog("edit-profile") },
       { icon: Bell, label: "Notifications", description: "Manage your notification preferences", action: () => setActiveDialog("notifications") },
-      { icon: CreditCard, label: "Payment Methods", description: "Manage cards and payment options", action: () => setActiveDialog("payment") },
       { icon: Shield, label: "Privacy & Security", description: "Control your privacy settings", action: () => setActiveDialog("privacy") },
       { icon: Settings, label: "Settings", description: "App preferences and more", action: () => setActiveDialog("settings") },
     ];
@@ -62,6 +61,10 @@ const Profile = () => {
       const reader = new FileReader();
       reader.onloadend = () => {
         setProfileImage(reader.result as string);
+        toast({
+          title: "Profile picture updated",
+          description: "Your profile picture has been updated successfully.",
+        });
       };
       reader.readAsDataURL(file);
     }
@@ -102,20 +105,6 @@ const Profile = () => {
     setTimeout(() => {
       setIsProcessing(false);
       setActiveDialog("new-password");
-    }, 1000);
-  };
-
-  const handlePaystackIntegration = () => {
-    setIsProcessing(true);
-    
-    // Simulate Paystack integration
-    setTimeout(() => {
-      setIsProcessing(false);
-      toast({
-        title: "Card Added",
-        description: "Your payment method has been added successfully.",
-      });
-      setActiveDialog(null);
     }, 1000);
   };
 
@@ -365,36 +354,6 @@ const Profile = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Payment Methods Dialog */}
-      <Dialog open={activeDialog === "payment"} onOpenChange={() => setActiveDialog(null)}>
-        <DialogContent className="glass-card border-glass-border max-w-md mx-4">
-          <DialogHeader>
-            <DialogTitle>Payment Methods</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="glass-card p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-6 bg-blue-600 rounded-md flex items-center justify-center text-white text-xs font-bold">VISA</div>
-                <div>
-                  <p className="font-medium">•••• 4242</p>
-                  <p className="text-xs text-muted-foreground">Expires 12/25</p>
-                </div>
-              </div>
-              <Button variant="ghost" size="sm">Remove</Button>
-            </div>
-            <Button 
-              variant="outline" 
-              className="w-full logo font-medium"
-              onClick={handlePaystackIntegration}
-              disabled={isProcessing}
-            >
-              <CreditCard className="w-4 h-4 mr-2" />
-              {isProcessing ? "Processing..." : "Add Paystack Card"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
       {/* Privacy & Security Dialog */}
       <Dialog open={activeDialog === "privacy"} onOpenChange={() => setActiveDialog(null)}>
         <DialogContent className="glass-card border-glass-border max-w-md mx-4">
@@ -495,13 +454,6 @@ const Profile = () => {
             <DialogTitle>App Settings</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="font-medium">Dark Mode</h4>
-                <p className="text-sm text-muted-foreground">Toggle dark/light theme</p>
-              </div>
-              <Switch defaultChecked />
-            </div>
             <div className="flex items-center justify-between">
               <div>
                 <h4 className="font-medium">Push Notifications</h4>

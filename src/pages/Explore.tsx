@@ -10,12 +10,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import AnimatedLogo from '@/components/AnimatedLogo';
 import { useNavigate } from 'react-router-dom';
+import BookingFlow from '@/components/BookingFlow';
 
 const Explore = () => {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
+  const [bookingFlowOpen, setBookingFlowOpen] = useState(false);
   const navigate = useNavigate();
 
   const categories = [
@@ -151,10 +153,9 @@ const Explore = () => {
   };
 
   const handleBookNow = (event: any) => {
-    // In a real app, this would navigate to a booking page
-    alert(`Booking ${event.title} for ${event.price}`);
-    // Could navigate to a booking page
-    // navigate(`/book/${event.id}`);
+    setSelectedEvent(event);
+    setEventDetailsOpen(false);
+    setBookingFlowOpen(true);
   };
 
   const renderStars = (rating: number) => {
@@ -240,10 +241,10 @@ const Explore = () => {
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              className={favorites.includes(event.id) ? "text-red-500" : ""}
+                              className={favorites.includes(event.id) ? "text-primary" : ""}
                               onClick={() => toggleFavorite(event.id)}
                             >
-                              <Heart className={`w-5 h-5 ${favorites.includes(event.id) ? "fill-red-500" : ""}`} />
+                              <Heart className={`w-5 h-5 ${favorites.includes(event.id) ? "fill-primary" : ""}`} />
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
@@ -334,10 +335,10 @@ const Explore = () => {
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  className={favorites.includes(selectedEvent.id) ? "text-red-500" : ""}
+                  className={favorites.includes(selectedEvent.id) ? "text-primary" : ""}
                   onClick={() => toggleFavorite(selectedEvent.id)}
                 >
-                  <Heart className={`w-5 h-5 ${favorites.includes(selectedEvent.id) ? "fill-red-500" : ""}`} />
+                  <Heart className={`w-5 h-5 ${favorites.includes(selectedEvent.id) ? "fill-primary" : ""}`} />
                 </Button>
                 <Button variant="ghost" size="icon">
                   <Share2 className="w-5 h-5" />
@@ -354,6 +355,15 @@ const Explore = () => {
           </DialogContent>
         )}
       </Dialog>
+
+      {/* Booking Flow */}
+      {selectedEvent && (
+        <BookingFlow 
+          isOpen={bookingFlowOpen} 
+          onClose={() => setBookingFlowOpen(false)} 
+          event={selectedEvent} 
+        />
+      )}
     </div>
   );
 };

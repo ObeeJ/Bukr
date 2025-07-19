@@ -186,10 +186,10 @@ const Favorites = () => {
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="text-red-500"
+                          className="text-primary"
                           onClick={() => toggleFavorite(event.id)}
                         >
-                          <Heart className="w-5 h-5 fill-red-500" />
+                          <Heart className="w-5 h-5 fill-primary" />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
@@ -279,10 +279,10 @@ const Favorites = () => {
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  className="text-red-500"
+                  className="text-primary"
                   onClick={() => toggleFavorite(selectedEvent.id)}
                 >
-                  <Heart className="w-5 h-5 fill-red-500" />
+                  <Heart className="w-5 h-5 fill-primary" />
                 </Button>
                 <Button variant="ghost" size="icon">
                   <Share2 className="w-5 h-5" />
