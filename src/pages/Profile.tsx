@@ -1,50 +1,178 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Edit, Bell, CreditCard, Shield, Settings, LogOut, Camera, BarChart3 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Edit, Bell, CreditCard, Shield, Settings, LogOut, Camera, BarChart3, ArrowLeft } from "lucide-react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/components/ui/use-toast";
+import AnimatedLogo from "@/components/AnimatedLogo";
 
 const Profile = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user, logout } = useAuth();
+  const { toast } = useToast();
   const [activeDialog, setActiveDialog] = useState<string | null>(null);
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [previousPath, setPreviousPath] = useState<string>("/app");
   
+  useEffect(() => {
+    // Store the previous path when navigating to this page
+    const referrer = document.referrer;
+    if (referrer && !referrer.includes("/profile")) {
+      const url = new URL(referrer);
+      setPreviousPath(url.pathname);
+    }
+  }, []);
+
   const userStats = [
-    { label: "Events", value: "15" },
-    { label: "Favorites", value: "2" },
-    { label: "Rating", value: "4.9" }
+    { label: "Tickets", value: "4" },
+    { label: "Favorites", value: "7" },
+    { label: "Events", value: "12" }
   ];
 
-  const menuItems = [
-    { icon: BarChart3, label: "Event Dashboard", description: "Monitor your events and ticket sales", path: "/dashboard" },
-    { icon: Edit, label: "Edit Profile", description: "Update your personal information", action: () => setActiveDialog("edit-profile") },
-    { icon: Bell, label: "Notifications", description: "Manage your notification preferences", action: () => setActiveDialog("notifications") },
-    { icon: CreditCard, label: "Payment Methods", description: "Manage cards and payment options", action: () => setActiveDialog("payment") },
-    { icon: Shield, label: "Privacy & Security", description: "Control your privacy settings", action: () => setActiveDialog("privacy") },
-    { icon: Settings, label: "Settings", description: "App preferences and more", action: () => setActiveDialog("settings") },
-  ];
+  // Filter menu items based on user type
+  const getMenuItems = () => {
+    const baseItems = [
+      { icon: Edit, label: "Edit Profile", description: "Update your personal information", action: () => setActiveDialog("edit-profile") },
+      { icon: Bell, label: "Notifications", description: "Manage your notification preferences", action: () => setActiveDialog("notifications") },
+      { icon: CreditCard, label: "Payment Methods", description: "Manage cards and payment options", action: () => setActiveDialog("payment") },
+      { icon: Shield, label: "Privacy & Security", description: "Control your privacy settings", action: () => setActiveDialog("privacy") },
+      { icon: Settings, label: "Settings", description: "App preferences and more", action: () => setActiveDialog("settings") },
+    ];
+    
+    // Add organizer-specific items
+    if (user?.userType === 'organizer') {
+      return [
+        { icon: BarChart3, label: "Event Dashboard", description: "Monitor your events and ticket sales", path: "/dashboard" },
+        ...baseItems
+      ];
+    }
+    
+    return baseItems;
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfileImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSaveChanges = () => {
+    setIsProcessing(true);
+    
+    // Simulate API call
+    setTimeout(() => {
+      setIsProcessing(false);
+      setActiveDialog(null);
+      toast({
+        title: "Profile updated",
+        description: "Your changes have been saved successfully.",
+      });
+    }, 1000);
+  };
+
+  const handlePasswordChange = () => {
+    setIsProcessing(true);
+    
+    // Simulate OTP sending
+    setTimeout(() => {
+      setIsProcessing(false);
+      toast({
+        title: "OTP Sent",
+        description: "A verification code has been sent to your email.",
+      });
+      setActiveDialog("otp-verification");
+    }, 1000);
+  };
+
+  const handleOtpVerification = () => {
+    setIsProcessing(true);
+    
+    // Simulate verification
+    setTimeout(() => {
+      setIsProcessing(false);
+      setActiveDialog("new-password");
+    }, 1000);
+  };
+
+  const handlePaystackIntegration = () => {
+    setIsProcessing(true);
+    
+    // Simulate Paystack integration
+    setTimeout(() => {
+      setIsProcessing(false);
+      toast({
+        title: "Card Added",
+        description: "Your payment method has been added successfully.",
+      });
+      setActiveDialog(null);
+    }, 1000);
+  };
+
+  const handleSignOut = () => {
+    logout();
+    navigate('/');
+  };
+
+  const handleGoBack = () => {
+    navigate(previousPath);
+  };
 
   return (
     <div className="min-h-screen pt-8 pb-24 px-4">
+      {/* Back Button */}
+      <div className="mb-6">
+        <Button variant="ghost" onClick={handleGoBack} className="flex items-center gap-2">
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back</span>
+        </Button>
+      </div>
+      
+      {/* Logo */}
+      <div className="flex items-center gap-2 mb-6">
+        <AnimatedLogo size="sm" />
+      </div>
+
       {/* Profile Header */}
       <div className="text-center mb-8">
         <div className="relative w-24 h-24 mx-auto mb-4">
-          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-2xl font-bold text-primary-foreground">
-            AJ
+          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-2xl font-bold text-primary-foreground overflow-hidden">
+            {profileImage ? (
+              <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
+            ) : (
+              user?.name?.charAt(0) || "U"
+            )}
           </div>
-          <Button 
-            size="icon" 
-            variant="outline" 
-            className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full"
-          >
-            <Camera className="w-4 h-4" />
-          </Button>
+          <label htmlFor="profile-upload" className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full cursor-pointer">
+            <Button 
+              size="icon" 
+              variant="outline" 
+              className="w-8 h-8 rounded-full"
+            >
+              <Camera className="w-4 h-4" />
+            </Button>
+            <input 
+              id="profile-upload" 
+              type="file" 
+              accept="image/*" 
+              className="hidden" 
+              onChange={handleImageUpload}
+            />
+          </label>
         </div>
         
-        <h1 className="text-2xl font-bold text-foreground mb-1">Alex Johnson</h1>
-        <p className="text-muted-foreground">Member since March 2024</p>
+        <h1 className="text-2xl font-bold text-foreground mb-1">{user?.name || "User"}</h1>
+        <p className="text-muted-foreground">{user?.email || "user@example.com"}</p>
       </div>
 
       {/* Stats */}
@@ -63,7 +191,7 @@ const Profile = () => {
 
       {/* Menu Items */}
       <div className="space-y-4 mb-8">
-        {menuItems.map((item, index) => {
+        {getMenuItems().map((item, index) => {
           const Icon = item.icon;
           const content = (
             <div className="flex items-center justify-between">
@@ -121,7 +249,7 @@ const Profile = () => {
       {/* Sign Out */}
       <div 
         className="glass-card hover-glow p-4 cursor-pointer"
-        onClick={() => navigate('/')}
+        onClick={handleSignOut}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -148,31 +276,51 @@ const Profile = () => {
           <div className="space-y-4">
             <div className="flex justify-center mb-4">
               <div className="relative">
-                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-2xl font-bold text-primary-foreground">
-                  AJ
+                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-2xl font-bold text-primary-foreground overflow-hidden">
+                  {profileImage ? (
+                    <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    user?.name?.charAt(0) || "U"
+                  )}
                 </div>
-                <Button 
-                  size="icon" 
-                  variant="outline" 
-                  className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full"
-                >
-                  <Camera className="w-4 h-4" />
-                </Button>
+                <label htmlFor="dialog-profile-upload" className="absolute -bottom-1 -right-1 cursor-pointer">
+                  <Button 
+                    size="icon" 
+                    variant="outline" 
+                    className="w-8 h-8 rounded-full"
+                  >
+                    <Camera className="w-4 h-4" />
+                  </Button>
+                  <input 
+                    id="dialog-profile-upload" 
+                    type="file" 
+                    accept="image/*" 
+                    className="hidden" 
+                    onChange={handleImageUpload}
+                  />
+                </label>
               </div>
             </div>
             <div>
               <Label htmlFor="name">Full Name</Label>
-              <Input id="name" defaultValue="Alex Johnson" className="glass-card border-glass-border bg-glass/20" />
+              <Input id="name" defaultValue={user?.name || ""} className="glass-card border-glass-border bg-glass/20" />
             </div>
             <div>
               <Label htmlFor="email">Email</Label>
-              <Input id="email" defaultValue="alex@example.com" className="glass-card border-glass-border bg-glass/20" />
+              <Input id="email" defaultValue={user?.email || ""} className="glass-card border-glass-border bg-glass/20" />
             </div>
             <div>
               <Label htmlFor="phone">Phone</Label>
-              <Input id="phone" defaultValue="+1 (555) 123-4567" className="glass-card border-glass-border bg-glass/20" />
+              <Input id="phone" defaultValue="" className="glass-card border-glass-border bg-glass/20" />
             </div>
-            <Button variant="glow" className="w-full">Save Changes</Button>
+            <Button 
+              variant="glow" 
+              className="w-full logo font-medium" 
+              onClick={handleSaveChanges}
+              disabled={isProcessing}
+            >
+              {isProcessing ? "Saving..." : "Save Changes"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -205,7 +353,14 @@ const Profile = () => {
               </div>
               <Switch />
             </div>
-            <Button variant="glow" className="w-full">Save Preferences</Button>
+            <Button 
+              variant="glow" 
+              className="w-full logo font-medium"
+              onClick={handleSaveChanges}
+              disabled={isProcessing}
+            >
+              {isProcessing ? "Saving..." : "Save Preferences"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -227,15 +382,20 @@ const Profile = () => {
               </div>
               <Button variant="ghost" size="sm">Remove</Button>
             </div>
-            <Button variant="outline" className="w-full">
+            <Button 
+              variant="outline" 
+              className="w-full logo font-medium"
+              onClick={handlePaystackIntegration}
+              disabled={isProcessing}
+            >
               <CreditCard className="w-4 h-4 mr-2" />
-              Add Payment Method
+              {isProcessing ? "Processing..." : "Add Paystack Card"}
             </Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Link to Privacy Policy */}
+      {/* Privacy & Security Dialog */}
       <Dialog open={activeDialog === "privacy"} onOpenChange={() => setActiveDialog(null)}>
         <DialogContent className="glass-card border-glass-border max-w-md mx-4">
           <DialogHeader>
@@ -245,13 +405,21 @@ const Profile = () => {
             <div className="glass-card p-4">
               <h4 className="font-medium mb-2">Privacy Policy</h4>
               <p className="text-sm text-muted-foreground mb-4">Review our privacy policy to understand how we handle your data.</p>
-              <Link to="/privacy-policy">
-                <Button variant="outline" size="sm">View Privacy Policy</Button>
+              <Link to="/privacy-policy" state={{ from: location.pathname }}>
+                <Button variant="outline" size="sm" className="logo font-medium">View Privacy Policy</Button>
               </Link>
             </div>
             <div className="glass-card p-4">
               <h4 className="font-medium mb-2">Change Password</h4>
-              <Button variant="outline" size="sm" className="w-full">Update Password</Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full logo font-medium"
+                onClick={handlePasswordChange}
+                disabled={isProcessing}
+              >
+                {isProcessing ? "Processing..." : "Update Password"}
+              </Button>
             </div>
             <div className="glass-card p-4">
               <h4 className="font-medium mb-2">Two-Factor Authentication</h4>
@@ -260,6 +428,62 @@ const Profile = () => {
                 <Switch />
               </div>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* OTP Verification Dialog */}
+      <Dialog open={activeDialog === "otp-verification"} onOpenChange={() => setActiveDialog(null)}>
+        <DialogContent className="glass-card border-glass-border max-w-md mx-4">
+          <DialogHeader>
+            <DialogTitle>Verify OTP</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">Enter the verification code sent to your email.</p>
+            <div className="flex justify-center gap-2">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <Input 
+                  key={i}
+                  className="w-10 h-12 text-center text-lg glass-card border-glass-border bg-glass/20" 
+                  maxLength={1}
+                />
+              ))}
+            </div>
+            <Button 
+              variant="glow" 
+              className="w-full logo font-medium"
+              onClick={handleOtpVerification}
+              disabled={isProcessing}
+            >
+              {isProcessing ? "Verifying..." : "Verify"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Password Dialog */}
+      <Dialog open={activeDialog === "new-password"} onOpenChange={() => setActiveDialog(null)}>
+        <DialogContent className="glass-card border-glass-border max-w-md mx-4">
+          <DialogHeader>
+            <DialogTitle>Set New Password</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="new-password">New Password</Label>
+              <Input id="new-password" type="password" className="glass-card border-glass-border bg-glass/20" />
+            </div>
+            <div>
+              <Label htmlFor="confirm-password">Confirm Password</Label>
+              <Input id="confirm-password" type="password" className="glass-card border-glass-border bg-glass/20" />
+            </div>
+            <Button 
+              variant="glow" 
+              className="w-full logo font-medium"
+              onClick={handleSaveChanges}
+              disabled={isProcessing}
+            >
+              {isProcessing ? "Updating..." : "Update Password"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -297,7 +521,14 @@ const Profile = () => {
                 <option value="fr">French</option>
               </select>
             </div>
-            <Button variant="glow" className="w-full">Save Settings</Button>
+            <Button 
+              variant="glow" 
+              className="w-full logo font-medium"
+              onClick={handleSaveChanges}
+              disabled={isProcessing}
+            >
+              {isProcessing ? "Saving..." : "Save Settings"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

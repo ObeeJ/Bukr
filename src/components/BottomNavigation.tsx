@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Search, Heart, Calendar, User, LayoutDashboard, Ticket, PlusCircle } from "lucide-react";
+import { Search, Heart, User, LayoutDashboard, Ticket, PlusCircle, QrCode } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -21,7 +21,7 @@ const BottomNavigation = () => {
     // Organizer navigation
     navItems = [
       { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-      { icon: Calendar, label: "My Events", path: "/events" },
+      { icon: QrCode, label: "Scan", path: "/events" },
       { icon: PlusCircle, label: "Create", path: "/create-event" },
       { icon: Search, label: "Explore", path: "/app" },
       { icon: User, label: "Profile", path: "/profile" },
@@ -31,8 +31,7 @@ const BottomNavigation = () => {
     navItems = [
       { icon: Search, label: "Explore", path: "/app" },
       { icon: Heart, label: "Favorites", path: "/favorites" },
-      { icon: Ticket, label: "My Tickets", path: "/tickets" },
-      { icon: Calendar, label: "Events", path: "/events" },
+      { icon: Ticket, label: "Tickets", path: "/tickets" },
       { icon: User, label: "Profile", path: "/profile" },
     ];
   }

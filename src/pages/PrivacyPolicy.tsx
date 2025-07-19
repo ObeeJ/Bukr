@@ -1,19 +1,34 @@
-import { Link } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import AnimatedLogo from "@/components/AnimatedLogo";
 
 const PrivacyPolicy = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  const handleGoBack = () => {
+    // Go back to the previous page if it exists in history state
+    if (location.state?.from) {
+      navigate(location.state.from);
+    } else {
+      navigate(-1); // Default fallback
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 py-8 px-4">
       <div className="max-w-3xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
-          <Link to="/">
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-          </Link>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="rounded-full"
+            onClick={handleGoBack}
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
           <AnimatedLogo size="md" />
         </div>
 
