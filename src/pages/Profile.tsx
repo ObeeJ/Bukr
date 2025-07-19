@@ -115,7 +115,7 @@ const Profile = () => {
               </div>
             );
           }
-        })
+        })}
       </div>
 
       {/* Sign Out */}
@@ -138,7 +138,6 @@ const Profile = () => {
           </div>
         </div>
       </div>
-    </div>
 
       {/* Edit Profile Dialog */}
       <Dialog open={activeDialog === "edit-profile"} onOpenChange={() => setActiveDialog(null)}>
