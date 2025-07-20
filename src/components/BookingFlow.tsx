@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Star, Download, Share2, Check, Loader2 } from "lucide-react";
+import { Star, Download, Share2, Check, Loader2, Tag } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useToast } from "@/components/ui/use-toast";
 
 interface BookingFlowProps {
   isOpen: boolean;
@@ -12,19 +13,51 @@ interface BookingFlowProps {
 }
 
 const BookingFlow = ({ isOpen, onClose, event }: BookingFlowProps) => {
+  const { toast } = useToast();
   const [step, setStep] = useState<'rating' | 'quantity' | 'payment' | 'success'>('rating');
   const [rating, setRating] = useState<number>(0);
   const [quantity, setQuantity] = useState<number>(1);
   const [isProcessing, setIsProcessing] = useState(false);
   const [ticketId, setTicketId] = useState<string>("");
+  const [promoCode, setPromoCode] = useState<string>("");
+  const [promoApplied, setPromoApplied] = useState(false);
+  const [discount, setDiscount] = useState(0);
 
   const handleRatingSubmit = () => {
     setStep('quantity');
   };
 
+  const applyPromoCode = () => {
+    setIsProcessing(true);
+    
+    // In a real app, this would validate the promo code with an API
+    setTimeout(() => {
+      setIsProcessing(false);
+      
+      // Simulate a valid promo code
+      if (promoCode.toUpperCase() === 'BUKR10' || promoCode.toUpperCase() === 'WELCOME') {
+        const discountAmount = 10; // 10% discount
+        setDiscount(discountAmount);
+        setPromoApplied(true);
+        
+        toast({
+          title: "Promo code applied",
+          description: `You got a ${discountAmount}% discount!`,
+        });
+      } else {
+        toast({
+          title: "Invalid promo code",
+          description: "The promo code you entered is invalid or expired.",
+          variant: "destructive"
+        });
+      }
+    }, 1000);
+  };
+
   const handleQuantitySubmit = () => {
     setIsProcessing(true);
-    // Simulate payment processing
+    
+    // Simulate payment processing with Paystack
     setTimeout(() => {
       setIsProcessing(false);
       // Generate a random ticket ID
@@ -69,6 +102,12 @@ const BookingFlow = ({ isOpen, onClose, event }: BookingFlowProps) => {
       </div>
     );
   };
+
+  // Calculate price with discount
+  const basePrice = parseFloat(event.price.replace('$', ''));
+  const discountAmount = basePrice * (discount / 100);
+  const finalPrice = basePrice - discountAmount;
+  const totalPrice = finalPrice * quantity;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -150,16 +189,58 @@ const BookingFlow = ({ isOpen, onClose, event }: BookingFlowProps) => {
                   </Button>
                 </div>
               </div>
-              <div className="space-y-2 mb-6">
+              
+              {/* Promo Code */}
+              <div className="mb-6">
+                <Label htmlFor="promoCode">Promo Code (Optional)</Label>
+                <div className="flex gap-2 mt-2">
+                  <Input
+                    id="promoCode"
+                    value={promoCode}
+                    onChange={(e) => setPromoCode(e.target.value)}
+                    placeholder="Enter promo code"
+                    disabled={promoApplied}
+                    className={promoApplied ? "bg-primary/10" : ""}
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={applyPromoCode}
+                    disabled={isProcessing || !promoCode || promoApplied}
+                  >
+                    {isProcessing ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : promoApplied ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      <Tag className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+                {promoApplied && (
+                  <p className="text-xs text-primary mt-1">
+                    {discount}% discount applied!
+                  </p>
+                )}
+              </div>
+              
+              <div className="space-y-2 mb-6 p-4 bg-primary/10 rounded-lg">
                 <div className="flex justify-between">
                   <span>Price per ticket:</span>
-                  <span>{event.price}</span>
+                  <span>${basePrice.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between font-bold">
+                {discount > 0 && (
+                  <div className="flex justify-between text-primary">
+                    <span>Discount ({discount}%):</span>
+                    <span>-${discountAmount.toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span>Final price per ticket:</span>
+                  <span>${finalPrice.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between font-bold pt-2 border-t border-border/30">
                   <span>Total:</span>
-                  <span>
-                    ${(parseFloat(event.price.replace('$', '')) * quantity).toFixed(2)}
-                  </span>
+                  <span>${totalPrice.toFixed(2)}</span>
                 </div>
               </div>
             </div>
@@ -219,6 +300,10 @@ const BookingFlow = ({ isOpen, onClose, event }: BookingFlowProps) => {
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Tickets:</span>
                   <span>{quantity}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Total Paid:</span>
+                  <span>${totalPrice.toFixed(2)}</span>
                 </div>
               </div>
             </div>

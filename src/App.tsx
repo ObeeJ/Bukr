@@ -19,6 +19,7 @@ import NotFound from "./pages/NotFound";
 import BottomNavigation from "./components/BottomNavigation";
 import MobileGuard from "./components/MobileGuard";
 import Tickets from "./pages/Tickets";
+import ScannerPage from "./pages/ScannerPage";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +32,25 @@ const ProtectedRoute = ({ children, requiredUserType }: { children: JSX.Element,
   }
   
   if (requiredUserType && user?.userType !== requiredUserType) {
+    return <Navigate to="/app" replace />;
+  }
+  
+  return children;
+};
+
+// Scanner route - accessible by organizers or with valid access code
+const ScannerRoute = ({ children }: { children: JSX.Element }) => {
+  const { isAuthenticated, user } = useAuth();
+  const isOrganizer = user?.userType === 'organizer';
+  
+  // If there's an access code in the URL, we'll let the scanner component handle verification
+  const hasAccessCode = window.location.hash.includes('code=');
+  
+  if (!isAuthenticated && !hasAccessCode) {
+    return <Navigate to="/signin" replace />;
+  }
+  
+  if (!isOrganizer && !hasAccessCode) {
     return <Navigate to="/app" replace />;
   }
   
@@ -79,6 +99,11 @@ const AppRoutes = () => {
         <ProtectedRoute requiredUserType="organizer">
           <EventDashboard />
         </ProtectedRoute>
+      } />
+      <Route path="/scan/:eventId" element={
+        <ScannerRoute>
+          <ScannerPage />
+        </ScannerRoute>
       } />
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
       <Route path="*" element={<NotFound />} />
