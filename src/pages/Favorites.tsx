@@ -5,11 +5,13 @@ import { Heart, Share2, Info, Star } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBooking } from '@/contexts/BookingContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import AnimatedLogo from '@/components/AnimatedLogo';
 
 const Favorites = () => {
   const { user } = useAuth();
+  const { openBooking } = useBooking();
   const [favorites, setFavorites] = useState<number[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
@@ -118,10 +120,8 @@ const Favorites = () => {
   };
 
   const handleBookNow = (event: any) => {
-    // In a real app, this would navigate to a booking page
-    alert(`Booking ${event.title} for ${event.price}`);
-    // Could navigate to a booking page
-    // navigate(`/book/${event.id}`);
+    setEventDetailsOpen(false);
+    openBooking(event);
   };
 
   const renderStars = (rating: number) => {
@@ -241,7 +241,7 @@ const Favorites = () => {
           <div className="text-6xl mb-4">❤️</div>
           <h2 className="text-2xl font-medium mb-2">No favorites yet</h2>
           <p className="text-muted-foreground mb-6">Save events you're interested in to find them here</p>
-          <Button variant="glow" className="logo font-medium" onClick={() => window.location.href = '/app'}>Explore Events</Button>
+          <Button variant="glow" className="logo font-medium" onClick={() => window.location.href = '/#/app'}>Explore Events</Button>
         </div>
       )}
 

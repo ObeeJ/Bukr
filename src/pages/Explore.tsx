@@ -10,14 +10,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import AnimatedLogo from '@/components/AnimatedLogo';
 import { useNavigate } from 'react-router-dom';
-import BookingFlow from '@/components/BookingFlow';
+import { useBooking } from '@/contexts/BookingContext';
 
 const Explore = () => {
   const { user } = useAuth();
+  const { openBooking } = useBooking();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
-  const [bookingFlowOpen, setBookingFlowOpen] = useState(false);
   const navigate = useNavigate();
 
   const categories = [
@@ -153,9 +153,8 @@ const Explore = () => {
   };
 
   const handleBookNow = (event: any) => {
-    setSelectedEvent(event);
     setEventDetailsOpen(false);
-    setBookingFlowOpen(true);
+    openBooking(event);
   };
 
   const renderStars = (rating: number) => {
@@ -355,15 +354,6 @@ const Explore = () => {
           </DialogContent>
         )}
       </Dialog>
-
-      {/* Booking Flow */}
-      {selectedEvent && (
-        <BookingFlow 
-          isOpen={bookingFlowOpen} 
-          onClose={() => setBookingFlowOpen(false)} 
-          event={selectedEvent} 
-        />
-      )}
     </div>
   );
 };

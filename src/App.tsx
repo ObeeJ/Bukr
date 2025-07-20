@@ -2,8 +2,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { BookingProvider } from "./contexts/BookingContext";
 import Landing from "./pages/Landing";
 import SignIn from "./pages/SignIn";
 import SignUp from "./pages/SignUp";
@@ -91,14 +92,16 @@ const App = () => (
       <Toaster />
       <Sonner />
       <MobileGuard>
-        <BrowserRouter>
+        <HashRouter>
           <AuthProvider>
-            <div className="relative">
-              <AppRoutes />
-              <BottomNavigation />
-            </div>
+            <BookingProvider>
+              <div className="relative">
+                <AppRoutes />
+                <BottomNavigation />
+              </div>
+            </BookingProvider>
           </AuthProvider>
-        </BrowserRouter>
+        </HashRouter>
       </MobileGuard>
     </TooltipProvider>
   </QueryClientProvider>
