@@ -35,7 +35,7 @@ interface EventContextType {
   promoCodes: PromoCode[];
   createEvent: (event: Omit<Event, 'id' | 'key'>) => string;
   updateEvent: (id: string, event: Partial<Event>) => void;
-  getEvent: (id: string) => Event | undefined;
+  getEvent: (id: string) => Event | Event[] | undefined;
   deleteEvent: (id: string) => void;
   addPromo: (eventId: string, promo: Omit<PromoCode, 'id' | 'eventId' | 'usedCount' | 'isActive'>) => string;
   getPromos: (eventId: string) => PromoCode[];
@@ -126,6 +126,9 @@ export const EventProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   const getEvent = (id: string) => {
+    if (id === 'all') {
+      return events;
+    }
     return events.find(event => event.id === id);
   };
 

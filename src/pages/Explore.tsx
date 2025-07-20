@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Event } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,7 +17,7 @@ const Explore = () => {
   const { user } = useAuth();
   const { openBooking } = useBooking();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedEvent, setSelectedEvent] = useState<any>(null);
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -25,14 +26,14 @@ const Explore = () => {
     { id: 'music', name: 'Music', icon: Music },
     { id: 'tech', name: 'Tech', icon: Code },
     { id: 'art', name: 'Art', icon: Palette },
-    { id: 'food', name: 'Food', icon: Utensils },
+    { id: 'food', name: 'Food', icon: Food },
     { id: 'sports', name: 'Sports', icon: Trophy },
   ];
 
   const [favorites, setFavorites] = useState<number[]>([]);
   const [ratings, setRatings] = useState<{[key: number]: number}>({});
 
-  const events = [
+  const events: Event[] = [
     { 
       id: 1, 
       title: 'Summer Music Festival', 
@@ -108,13 +109,14 @@ const Explore = () => {
   ];
   
   // Sort events by rating (highest first)
-  const sortedEvents = [...events].sort((a, b) => b.rating - a.rating);
+  const sortedEvents = [...events].sort((a, b) => (b.rating || 0) - (a.rating || 0));
   
-  const toggleFavorite = (eventId: number) => {
+  const toggleFavorite = (eventId: number | string) => {
+    const id = typeof eventId === 'string' ? parseInt(eventId) : eventId;
     setFavorites(prev => {
-      const newFavorites = prev.includes(eventId)
-        ? prev.filter(id => id !== eventId)
-        : [...prev, eventId];
+      const newFavorites = prev.includes(id)
+        ? prev.filter(favId => favId !== id)
+        : [...prev, id];
       
       // Save to localStorage
       localStorage.setItem('bukr_favorites', JSON.stringify(newFavorites));
@@ -122,10 +124,11 @@ const Explore = () => {
     });
   };
   
-  const rateEvent = (eventId: number, rating: number) => {
+  const rateEvent = (eventId: number | string, rating: number) => {
+    const id = typeof eventId === 'string' ? parseInt(eventId) : eventId;
     setRatings(prev => ({
       ...prev,
-      [eventId]: rating
+      [id]: rating
     }));
   };
 
@@ -147,12 +150,12 @@ const Explore = () => {
     return filtered;
   };
 
-  const openEventDetails = (event: any) => {
+  const openEventDetails = (event: Event) => {
     setSelectedEvent(event);
     setEventDetailsOpen(true);
   };
 
-  const handleBookNow = (event: any) => {
+  const handleBookNow = (event: Event) => {
     setEventDetailsOpen(false);
     openBooking(event);
   };
@@ -215,7 +218,7 @@ const Explore = () => {
                         <CardDescription className="text-sm">{event.date} • {event.time}</CardDescription>
                       </div>
                       <Badge variant="outline" className="bg-primary/10">
-                        {renderStars(event.rating)}
+                        {renderStars(event.rating || 0)}
                       </Badge>
                     </div>
                   </CardHeader>
@@ -240,14 +243,14 @@ const Explore = () => {
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              className={favorites.includes(event.id) ? "text-primary" : ""}
+                              className={favorites.includes(Number(event.id)) ? "text-primary" : ""}
                               onClick={() => toggleFavorite(event.id)}
                             >
-                              <Heart className={`w-5 h-5 ${favorites.includes(event.id) ? "fill-primary" : ""}`} />
+                              <Heart className={`w-5 h-5 ${favorites.includes(Number(event.id)) ? "fill-primary" : ""}`} />
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
-                            {favorites.includes(event.id) ? "Remove from favorites" : "Add to favorites"}
+                            {favorites.includes(Number(event.id)) ? "Remove from favorites" : "Add to favorites"}
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
@@ -314,7 +317,7 @@ const Explore = () => {
               </div>
               <div className="flex justify-between items-center mb-4">
                 <Badge variant="outline" className="bg-primary/10">
-                  {renderStars(selectedEvent.rating)}
+                  {renderStars(selectedEvent.rating || 0)}
                 </Badge>
                 <p className="text-lg font-bold text-primary">{selectedEvent.price}</p>
               </div>
@@ -334,10 +337,10 @@ const Explore = () => {
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  className={favorites.includes(selectedEvent.id) ? "text-primary" : ""}
+                  className={favorites.includes(Number(selectedEvent.id)) ? "text-primary" : ""}
                   onClick={() => toggleFavorite(selectedEvent.id)}
                 >
-                  <Heart className={`w-5 h-5 ${favorites.includes(selectedEvent.id) ? "fill-primary" : ""}`} />
+                  <Heart className={`w-5 h-5 ${favorites.includes(Number(selectedEvent.id)) ? "fill-primary" : ""}`} />
                 </Button>
                 <Button variant="ghost" size="icon">
                   <Share2 className="w-5 h-5" />

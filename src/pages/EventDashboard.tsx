@@ -4,7 +4,8 @@ import { useEvent } from '@/contexts/EventContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, BarChart, Settings, QrCode, Users, Tag, ChevronRight, Edit, Eye } from 'lucide-react';
+import { Calendar, BarChart, Settings, QrCode, Users, Tag, ChevronRight, Edit, Eye, PieChart } from 'lucide-react';
+import EventStats from '@/components/EventStats';
 import { useNavigate, useParams } from 'react-router-dom';
 import AnimatedLogo from '@/components/AnimatedLogo';
 import EventCollaborators from '@/components/EventCollaborators';
@@ -225,6 +226,12 @@ const EventDashboard = () => {
                   <Bar data={chartData} options={chartOptions} />
                 </CardContent>
               </Card>
+              
+              <EventStats 
+                eventId={selectedEvent.id} 
+                eventKey={selectedEvent.key || ''} 
+                totalTickets={selectedEvent.totalTickets} 
+              />
             </TabsContent>
 
             <TabsContent value="scan" className="space-y-4">

@@ -10,6 +10,10 @@ import { Check, X, Camera, Loader2, QrCode, Ticket } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useParams, useSearchParams } from 'react-router-dom';
 
+interface TicketScannerProps {
+  onScan?: (code: string) => void;
+}
+
 interface ScanResult {
   id: string;
   ticketId: string;
@@ -20,7 +24,7 @@ interface ScanResult {
   status: 'valid' | 'invalid' | 'used';
 }
 
-const TicketScanner = () => {
+const TicketScanner: React.FC<TicketScannerProps> = ({ onScan }) => {
   const { toast } = useToast();
   const { eventId } = useParams();
   const [searchParams] = useSearchParams();
@@ -46,6 +50,7 @@ const TicketScanner = () => {
     if (accessCode) {
       verifyAccessCode(accessCode);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessCode]);
   
   const verifyAccessCode = (code: string) => {
@@ -103,6 +108,18 @@ const TicketScanner = () => {
     // Simulate a scanned ticket ID
     const scannedTicketId = `BUKR-${Math.floor(Math.random() * 10000)}-${eventId}`;
     
+    // Create a mock QR code content
+    const mockQrContent = JSON.stringify({
+      ticketId: scannedTicketId,
+      eventKey: event.key || '',
+      userEmail: 'user@example.com'
+    });
+    
+    // Call the onScan prop if provided
+    if (onScan) {
+      onScan(mockQrContent);
+    }
+    
     // Validate the ticket
     const validationResult = validateTicket(scannedTicketId, event.key || '');
     
@@ -139,6 +156,18 @@ const TicketScanner = () => {
     if (!event) {
       setIsProcessing(false);
       return;
+    }
+    
+    // Create a mock QR code content
+    const mockQrContent = JSON.stringify({
+      ticketId: manualTicketId,
+      eventKey: event.key || '',
+      userEmail: 'user@example.com'
+    });
+    
+    // Call the onScan prop if provided
+    if (onScan) {
+      onScan(mockQrContent);
     }
     
     // Validate the ticket

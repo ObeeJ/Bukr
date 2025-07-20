@@ -13,7 +13,15 @@ import { useToast } from "@/components/ui/use-toast";
 interface BookingFlowProps {
   isOpen: boolean;
   onClose: () => void;
-  event: any;
+  event: {
+    id?: string;
+    title?: string;
+    date?: string;
+    time?: string;
+    price?: string;
+    emoji?: string;
+    key?: string;
+  };
 }
 
 const BookingFlow = ({ isOpen, onClose, event }: BookingFlowProps) => {

@@ -1,17 +1,27 @@
 import React, { createContext, useContext, useState } from 'react';
 import BookingFlow from '@/components/BookingFlow';
 
+type EventType = {
+  id?: string;
+  title?: string;
+  date?: string;
+  time?: string;
+  price?: string;
+  emoji?: string;
+  key?: string;
+};
+
 interface BookingContextType {
-  openBooking: (event: any) => void;
+  openBooking: (event: EventType) => void;
 }
 
 const BookingContext = createContext<BookingContextType | undefined>(undefined);
 
 export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isBookingOpen, setIsBookingOpen] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<any>(null);
+  const [selectedEvent, setSelectedEvent] = useState<EventType | null>(null);
 
-  const openBooking = (event: any) => {
+  const openBooking = (event: EventType) => {
     setSelectedEvent(event);
     setIsBookingOpen(true);
   };
