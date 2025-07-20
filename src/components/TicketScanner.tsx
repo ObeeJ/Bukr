@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useTicket } from '@/contexts/TicketContext';
+import { useEvent } from '@/contexts/EventContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,6 +25,9 @@ const TicketScanner = () => {
   const { eventId } = useParams();
   const [searchParams] = useSearchParams();
   const accessCode = searchParams.get('code');
+  
+  const { validateTicket, markTicketAsUsed } = useTicket();
+  const { getEvent } = useEvent();
   
   const [isScanning, setIsScanning] = useState(false);
   const [isManualEntry, setIsManualEntry] = useState(false);
@@ -91,15 +96,24 @@ const TicketScanner = () => {
   };
   
   const simulateScan = () => {
-    // Simulate a successful scan
+    // Get the current event
+    const event = getEvent(eventId || '');
+    if (!event) return;
+    
+    // Simulate a scanned ticket ID
+    const scannedTicketId = `BUKR-${Math.floor(Math.random() * 10000)}-${eventId}`;
+    
+    // Validate the ticket
+    const validationResult = validateTicket(scannedTicketId, event.key || '');
+    
     const result: ScanResult = {
       id: Math.random().toString(36).substring(2, 9),
-      ticketId: `BUKR-${Math.floor(Math.random() * 10000)}-${eventId}`,
-      eventId: eventId || '123',
-      userName: 'Alex Johnson',
-      ticketType: 'General Admission',
+      ticketId: scannedTicketId,
+      eventId: eventId || '',
+      userName: validationResult.ticket?.userName || 'Unknown User',
+      ticketType: validationResult.ticket?.ticketType || 'General Admission',
       timestamp: new Date().toISOString(),
-      status: Math.random() > 0.2 ? 'valid' : (Math.random() > 0.5 ? 'invalid' : 'used')
+      status: validationResult.isValid ? 'valid' : (validationResult.ticket?.status === 'used' ? 'used' : 'invalid')
     };
     
     setScanResult(result);
@@ -109,22 +123,36 @@ const TicketScanner = () => {
     // Add to recent scans if valid
     if (result.status === 'valid') {
       setRecentScans(prev => [result, ...prev].slice(0, 10));
+      
+      // Mark ticket as used
+      if (validationResult.ticket) {
+        markTicketAsUsed(validationResult.ticket.ticketId);
+      }
     }
   };
   
   const handleManualEntry = () => {
     setIsProcessing(true);
     
-    // In a real app, this would verify the ticket ID with an API
+    // Get the current event
+    const event = getEvent(eventId || '');
+    if (!event) {
+      setIsProcessing(false);
+      return;
+    }
+    
+    // Validate the ticket
+    const validationResult = validateTicket(manualTicketId, event.key || '');
+    
     setTimeout(() => {
       const result: ScanResult = {
         id: Math.random().toString(36).substring(2, 9),
         ticketId: manualTicketId,
-        eventId: eventId || '123',
-        userName: 'Manual Entry User',
-        ticketType: 'General Admission',
+        eventId: eventId || '',
+        userName: validationResult.ticket?.userName || 'Unknown User',
+        ticketType: validationResult.ticket?.ticketType || 'General Admission',
         timestamp: new Date().toISOString(),
-        status: Math.random() > 0.2 ? 'valid' : (Math.random() > 0.5 ? 'invalid' : 'used')
+        status: validationResult.isValid ? 'valid' : (validationResult.ticket?.status === 'used' ? 'used' : 'invalid')
       };
       
       setScanResult(result);
@@ -136,6 +164,11 @@ const TicketScanner = () => {
       // Add to recent scans if valid
       if (result.status === 'valid') {
         setRecentScans(prev => [result, ...prev].slice(0, 10));
+        
+        // Mark ticket as used
+        if (validationResult.ticket) {
+          markTicketAsUsed(validationResult.ticket.ticketId);
+        }
       }
     }, 1000);
   };

@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { BookingProvider } from "./contexts/BookingContext";
+import { EventProvider } from "./contexts/EventContext";
+import { TicketProvider } from "./contexts/TicketContext";
 import Landing from "./pages/Landing";
 import SignIn from "./pages/SignIn";
 import SignUp from "./pages/SignUp";
@@ -119,12 +121,16 @@ const App = () => (
       <MobileGuard>
         <HashRouter>
           <AuthProvider>
-            <BookingProvider>
-              <div className="relative">
-                <AppRoutes />
-                <BottomNavigation />
-              </div>
-            </BookingProvider>
+            <EventProvider>
+              <TicketProvider>
+                <BookingProvider>
+                  <div className="relative">
+                    <AppRoutes />
+                    <BottomNavigation />
+                  </div>
+                </BookingProvider>
+              </TicketProvider>
+            </EventProvider>
           </AuthProvider>
         </HashRouter>
       </MobileGuard>

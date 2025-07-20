@@ -1,4 +1,8 @@
 import React, { useState } from 'react';
+import { useEvent } from '@/contexts/EventContext';
+import { useTicket } from '@/contexts/TicketContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { v4 as uuid } from 'uuid';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Star, Download, Share2, Check, Loader2, Tag } from "lucide-react";
@@ -27,22 +31,26 @@ const BookingFlow = ({ isOpen, onClose, event }: BookingFlowProps) => {
     setStep('quantity');
   };
 
+  const { validatePromo } = useEvent();
+  const { saveTicket } = useTicket();
+  const { user } = useAuth();
+  
   const applyPromoCode = () => {
     setIsProcessing(true);
     
-    // In a real app, this would validate the promo code with an API
+    // Validate promo code using context
+    const validPromo = validatePromo(event.id, promoCode.toUpperCase());
+    
     setTimeout(() => {
       setIsProcessing(false);
       
-      // Simulate a valid promo code
-      if (promoCode.toUpperCase() === 'BUKR10' || promoCode.toUpperCase() === 'WELCOME') {
-        const discountAmount = 10; // 10% discount
-        setDiscount(discountAmount);
+      if (validPromo) {
+        setDiscount(validPromo.discountPercentage);
         setPromoApplied(true);
         
         toast({
           title: "Promo code applied",
-          description: `You got a ${discountAmount}% discount!`,
+          description: `You got a ${validPromo.discountPercentage}% discount!`,
         });
       } else {
         toast({
@@ -51,7 +59,7 @@ const BookingFlow = ({ isOpen, onClose, event }: BookingFlowProps) => {
           variant: "destructive"
         });
       }
-    }, 1000);
+    }, 500);
   };
 
   const handleQuantitySubmit = () => {
@@ -60,8 +68,25 @@ const BookingFlow = ({ isOpen, onClose, event }: BookingFlowProps) => {
     // Simulate payment processing with Paystack
     setTimeout(() => {
       setIsProcessing(false);
-      // Generate a random ticket ID
-      setTicketId(`BUKR-${Math.floor(Math.random() * 10000)}-${event.id}`);
+      
+      // Generate ticket ID and save ticket
+      const generatedTicketId = `BUKR-${Math.floor(Math.random() * 10000)}-${event.id}`;
+      setTicketId(generatedTicketId);
+      
+      // Save ticket to context
+      if (user) {
+        saveTicket({
+          ticketId: generatedTicketId,
+          eventId: event.id,
+          eventKey: event.key || uuid(),
+          userEmail: user.email || 'user@example.com',
+          userName: user.name || 'User',
+          ticketType: 'General Admission',
+          quantity: quantity,
+          price: `$${totalPrice.toFixed(2)}`
+        });
+      }
+      
       setStep('success');
     }, 2000);
   };

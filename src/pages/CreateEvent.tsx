@@ -1,234 +1,269 @@
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CalendarDays, MapPin, DollarSign, Upload, Video, Wifi } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { useSearchParams, useNavigate } from "react-router-dom";
-import AnimatedLogo from "@/components/AnimatedLogo";
-import FlierUploader from "@/components/FlierUploader";
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useEvent } from '@/contexts/EventContext';
+import { v4 as uuid } from 'uuid';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { useToast } from '@/components/ui/use-toast';
+import AnimatedLogo from '@/components/AnimatedLogo';
 
 const CreateEvent = () => {
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [eventType, setEventType] = useState<"physical" | "virtual" | "hybrid">("physical");
-  const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    date: "",
-    time: "",
-    location: "",
-    virtualLink: "",
-    price: "",
-    category: "General"
-  });
-  const [flierFile, setFlierFile] = useState<File | null>(null);
+  const { id } = useParams();
+  const { createEvent, updateEvent, getEvent } = useEvent();
   const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    location: '',
+    date: '',
+    time: '',
+    price: '',
+    category: 'music',
+    emoji: '🎵',
+    totalTickets: 100
+  });
 
   useEffect(() => {
-    const type = searchParams.get('type') as "physical" | "virtual" | "hybrid";
-    if (type && ['physical', 'virtual', 'hybrid'].includes(type)) {
-      setEventType(type);
+    // Check if we're in edit mode
+    if (id) {
+      const eventToEdit = getEvent(id);
+      if (eventToEdit) {
+        setIsEditMode(true);
+        setFormData({
+          title: eventToEdit.title,
+          description: eventToEdit.description || '',
+          location: eventToEdit.location,
+          date: eventToEdit.date,
+          time: eventToEdit.time,
+          price: eventToEdit.price,
+          category: eventToEdit.category,
+          emoji: eventToEdit.emoji,
+          totalTickets: eventToEdit.totalTickets
+        });
+      }
     }
-  }, [searchParams]);
+  }, [id, getEvent]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSelectChange = (name: string, value: string) => {
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    toast({
-      title: "Event Created!",
-      description: `Your ${eventType} event has been successfully created.`,
-    });
-    console.log("Creating event:", { ...formData, eventType });
-    setTimeout(() => navigate('/dashboard'), 1500);
+    setIsSubmitting(true);
+
+    try {
+      if (isEditMode && id) {
+        // Update existing event
+        updateEvent(id, formData);
+        toast({
+          title: "Event updated",
+          description: "Your event has been updated successfully."
+        });
+      } else {
+        // Create new event with UUID key
+        const eventId = createEvent(formData);
+        toast({
+          title: "Event created",
+          description: "Your event has been created successfully."
+        });
+      }
+
+      // Navigate back to dashboard
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 1000);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "There was an error saving your event.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleFlierUpload = (file: File, extractedData: any) => {
-    setFormData({
-      ...formData,
-      title: extractedData.title || formData.title,
-      date: extractedData.date || formData.date,
-      time: extractedData.time || formData.time,
-      location: extractedData.location || formData.location,
-      price: extractedData.price || formData.price,
-    });
-    toast({
-      title: "Flier Processed!",
-      description: "Event details have been extracted from your flier.",
-    });
-  };
+  const categoryOptions = [
+    { value: 'music', label: 'Music', emoji: '🎵' },
+    { value: 'tech', label: 'Technology', emoji: '💻' },
+    { value: 'art', label: 'Art', emoji: '🎨' },
+    { value: 'food', label: 'Food', emoji: '🍕' },
+    { value: 'sports', label: 'Sports', emoji: '🏆' }
+  ];
 
   return (
-    <div className="min-h-screen pt-8 pb-24 px-4">
-      <div className="max-w-2xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <AnimatedLogo size="md" clickable={true} className="mb-4" />
-          <h1 className="text-3xl font-bold text-glow mb-2">Create {eventType.charAt(0).toUpperCase() + eventType.slice(1)} Event</h1>
-          <p className="text-muted-foreground">Share your amazing event with the world</p>
-          
-          {/* Event Type Selector */}
-          <div className="flex justify-center gap-2 mt-6">
-            {[
-              { value: "physical", icon: MapPin, label: "Physical" },
-              { value: "virtual", icon: Video, label: "Virtual" },
-              { value: "hybrid", icon: Wifi, label: "Hybrid" }
-            ].map(({ value, icon: Icon, label }) => (
-              <Button
-                key={value}
-                type="button"
-                variant={eventType === value ? "glow" : "outline"}
-                size="sm"
-                className="flex items-center gap-2"
-                onClick={() => setEventType(value as any)}
-              >
-                <Icon className="w-4 h-4" />
-                {label}
-              </Button>
-            ))}
+    <div className="container mx-auto px-4 py-8 pb-24">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <AnimatedLogo size="sm" />
           </div>
+          <h1 className="text-3xl font-bold mb-2">
+            {isEditMode ? 'Edit Event' : 'Create Event'}
+          </h1>
+          <p className="text-muted-foreground">
+            {isEditMode ? 'Update your event details' : 'Fill in the details to create a new event'}
+          </p>
         </div>
+      </div>
 
-        {/* Flier Upload Section */}
-        <Card className="glass-card border-glass-border mb-8">
+      <Card className="glass-card max-w-2xl mx-auto">
+        <form onSubmit={handleSubmit}>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-foreground">
-              <Upload className="w-5 h-5 text-primary" />
-              Event Flier
-            </CardTitle>
+            <CardTitle>{isEditMode ? 'Edit Event' : 'Event Details'}</CardTitle>
+            <CardDescription>
+              {isEditMode 
+                ? 'Update the information for your event' 
+                : 'Enter the details for your new event'}
+            </CardDescription>
           </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground mb-4">
-              Upload your event flier image. This will be displayed to attendees.
-            </p>
-            <FlierUploader 
-              onFileChange={(file) => {
-                setFlierFile(file);
-                // Extract data from image if possible
-                handleFlierUpload(file, {});
-              }} 
-            />
-          </CardContent>
-        </Card>
-
-        {/* Manual Form */}
-        <Card className="glass-card border-glass-border">
-          <CardHeader>
-            <CardTitle className="text-foreground">Event Details</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="title">Event Title</Label>
+              <Input
+                id="title"
+                name="title"
+                value={formData.title}
+                onChange={handleChange}
+                placeholder="Enter event title"
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                name="description"
+                value={formData.description}
+                onChange={handleChange}
+                placeholder="Describe your event"
+                rows={4}
+                required
+              />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="title">Event Title</Label>
+                <Label htmlFor="location">Location</Label>
                 <Input
-                  id="title"
-                  value={formData.title}
-                  onChange={(e) => setFormData({...formData, title: e.target.value})}
-                  placeholder="Enter event title"
-                  className="glass-card border-glass-border bg-glass/20"
+                  id="location"
+                  name="location"
+                  value={formData.location}
+                  onChange={handleChange}
+                  placeholder="Event location"
                   required
                 />
               </div>
-
               <div>
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  placeholder="Describe your event"
-                  className="glass-card border-glass-border bg-glass/20"
-                  rows={4}
+                <Label htmlFor="category">Category</Label>
+                <Select
+                  value={formData.category}
+                  onValueChange={(value) => {
+                    const category = categoryOptions.find(cat => cat.value === value);
+                    if (category) {
+                      handleSelectChange('category', value);
+                      handleSelectChange('emoji', category.emoji);
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categoryOptions.map(category => (
+                      <SelectItem key={category.value} value={category.value}>
+                        {category.emoji} {category.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="date">Date</Label>
+                <Input
+                  id="date"
+                  name="date"
+                  type="text"
+                  value={formData.date}
+                  onChange={handleChange}
+                  placeholder="MM/DD/YYYY"
+                  required
                 />
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="date" className="flex items-center gap-2">
-                    <CalendarDays className="w-4 h-4" />
-                    Date
-                  </Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    value={formData.date}
-                    onChange={(e) => setFormData({...formData, date: e.target.value})}
-                    className="glass-card border-glass-border bg-glass/20"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="time">Time</Label>
-                  <Input
-                    id="time"
-                    type="time"
-                    value={formData.time}
-                    onChange={(e) => setFormData({...formData, time: e.target.value})}
-                    className="glass-card border-glass-border bg-glass/20"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Location and/or Virtual Link */}
-              {eventType !== "virtual" && (
-                <div>
-                  <Label htmlFor="location" className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4" />
-                    Venue Location
-                  </Label>
-                  <Input
-                    id="location"
-                    value={formData.location}
-                    onChange={(e) => setFormData({...formData, location: e.target.value})}
-                    placeholder="Enter venue address"
-                    className="glass-card border-glass-border bg-glass/20"
-                    required
-                  />
-                </div>
-              )}
-              
-              {eventType !== "physical" && (
-                <div>
-                  <Label htmlFor="virtualLink" className="flex items-center gap-2">
-                    <Video className="w-4 h-4" />
-                    {eventType === "hybrid" ? "Live Stream Link" : "Virtual Meeting Link"}
-                  </Label>
-                  <Input
-                    id="virtualLink"
-                    value={formData.virtualLink}
-                    onChange={(e) => setFormData({...formData, virtualLink: e.target.value})}
-                    placeholder="https://zoom.us/j/..."
-                    className="glass-card border-glass-border bg-glass/20"
-                    required
-                  />
-                </div>
-              )}
-
               <div>
-                <Label htmlFor="price" className="flex items-center gap-2">
-                  <DollarSign className="w-4 h-4" />
-                  Price
-                </Label>
+                <Label htmlFor="time">Time</Label>
+                <Input
+                  id="time"
+                  name="time"
+                  type="text"
+                  value={formData.time}
+                  onChange={handleChange}
+                  placeholder="HH:MM AM/PM"
+                  required
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="price">Ticket Price</Label>
                 <Input
                   id="price"
-                  type="number"
+                  name="price"
                   value={formData.price}
-                  onChange={(e) => setFormData({...formData, price: e.target.value})}
-                  placeholder="0"
-                  className="glass-card border-glass-border bg-glass/20"
+                  onChange={handleChange}
+                  placeholder="$0.00"
                   required
                 />
               </div>
-
-              <Button type="submit" className="w-full" variant="glow" size="lg">
-                Create {eventType.charAt(0).toUpperCase() + eventType.slice(1)} Event
-              </Button>
-            </form>
+              <div>
+                <Label htmlFor="totalTickets">Total Tickets</Label>
+                <Input
+                  id="totalTickets"
+                  name="totalTickets"
+                  type="number"
+                  value={formData.totalTickets}
+                  onChange={(e) => handleSelectChange('totalTickets', parseInt(e.target.value) || 0)}
+                  min="1"
+                  required
+                />
+              </div>
+            </div>
           </CardContent>
-        </Card>
-      </div>
+          <CardFooter className="flex justify-between">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => navigate('/dashboard')}
+              className="logo font-medium"
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              variant="glow"
+              disabled={isSubmitting}
+              className="logo font-medium"
+            >
+              {isSubmitting ? 'Saving...' : isEditMode ? 'Update Event' : 'Create Event'}
+            </Button>
+          </CardFooter>
+        </form>
+      </Card>
     </div>
   );
 };
