@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useEvent } from '@/contexts/EventContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -7,15 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Copy, Plus, Trash, Loader2, Tag } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Slider } from '@/components/ui/slider';
-
-interface PromoCode {
-  id: string;
-  code: string;
-  discountPercentage: number;
-  ticketLimit: number;
-  usedCount: number;
-  isActive: boolean;
-}
+import { PromoCode } from '@/types';
 
 interface PromoCodeManagerProps {
   eventId: string;
@@ -24,48 +17,34 @@ interface PromoCodeManagerProps {
 
 const PromoCodeManager = ({ eventId, eventName }: PromoCodeManagerProps) => {
   const { toast } = useToast();
+  const { addPromo, getPromos } = useEvent();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
   
-  // In a real app, this would be fetched from an API
-  const [promoCodes, setPromoCodes] = useState<PromoCode[]>([
-    {
-      id: '1',
-      code: 'WELCOME10',
-      discountPercentage: 10,
-      ticketLimit: 50,
-      usedCount: 12,
-      isActive: true
-    },
-    {
-      id: '2',
-      code: 'EARLYBIRD20',
-      discountPercentage: 20,
-      ticketLimit: 20,
-      usedCount: 20,
-      isActive: false
-    }
-  ]);
-  
-  const [newPromoCode, setNewPromoCode] = useState<Omit<PromoCode, 'id' | 'usedCount' | 'isActive'>>({
+  const [newPromoCode, setNewPromoCode] = useState<Omit<PromoCode, 'id' | 'eventId' | 'usedCount' | 'isActive'>>({
     code: '',
     discountPercentage: 10,
     ticketLimit: 20
   });
+
+  useEffect(() => {
+    // Get promos for this event from context
+    const eventPromos = getPromos(eventId);
+    setPromoCodes(eventPromos);
+  }, [eventId, getPromos]);
 
   const handleAddPromoCode = () => {
     setIsProcessing(true);
     
     // In a real app, this would be an API call
     setTimeout(() => {
-      const promoCode: PromoCode = {
-        ...newPromoCode,
-        id: Date.now().toString(),
-        usedCount: 0,
-        isActive: true
-      };
+      const promoId = addPromo(eventId, newPromoCode);
       
-      setPromoCodes([...promoCodes, promoCode]);
+      // Refresh the promo codes list
+      const updatedPromos = getPromos(eventId);
+      setPromoCodes(updatedPromos);
+      
       setNewPromoCode({
         code: '',
         discountPercentage: 10,
@@ -77,7 +56,7 @@ const PromoCodeManager = ({ eventId, eventName }: PromoCodeManagerProps) => {
       
       toast({
         title: "Promo code created",
-        description: `${promoCode.code} has been created successfully.`
+        description: `${newPromoCode.code} has been created successfully.`
       });
     }, 1000);
   };
@@ -119,12 +98,12 @@ const PromoCodeManager = ({ eventId, eventName }: PromoCodeManagerProps) => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Promo Codes</h2>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h2 className="text-xl sm:text-2xl font-bold">Promo Codes</h2>
         <Button 
           variant="glow" 
           onClick={() => setIsAddDialogOpen(true)}
-          className="logo font-medium"
+          className="logo font-medium w-full sm:w-auto"
         >
           <Plus className="w-4 h-4 mr-2" />
           Create Promo Code
@@ -144,51 +123,52 @@ const PromoCodeManager = ({ eventId, eventName }: PromoCodeManagerProps) => {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           {promoCodes.map(promoCode => (
             <Card key={promoCode.id} className={`glass-card ${!promoCode.isActive ? 'opacity-70' : ''}`}>
               <CardHeader>
-                <div className="flex justify-between">
-                  <div>
-                    <CardTitle>{promoCode.code}</CardTitle>
+                <div className="flex justify-between items-start">
+                  <div className="min-w-0 flex-1">
+                    <CardTitle className="truncate">{promoCode.code}</CardTitle>
                     <CardDescription>{promoCode.discountPercentage}% discount</CardDescription>
                   </div>
                   <Button 
                     variant="ghost" 
                     size="icon" 
                     onClick={() => handleRemovePromoCode(promoCode.id)}
+                    className="flex-shrink-0"
                   >
                     <Trash className="w-4 h-4 text-destructive" />
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Ticket Limit:</span>
+              <CardContent className="space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Ticket Limit:</span>
                   <span className="font-medium">{promoCode.ticketLimit}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Used:</span>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Used:</span>
                   <span className="font-medium">{promoCode.usedCount} / {promoCode.ticketLimit}</span>
                 </div>
-                <div className="w-full bg-muted rounded-full h-2 mt-1">
+                <div className="w-full bg-muted rounded-full h-2">
                   <div 
-                    className="bg-primary h-2 rounded-full" 
+                    className="bg-primary h-2 rounded-full transition-all" 
                     style={{ width: `${(promoCode.usedCount / promoCode.ticketLimit) * 100}%` }}
                   ></div>
                 </div>
-                <div className="flex justify-between mt-2">
-                  <span className="text-sm text-muted-foreground">Status:</span>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Status:</span>
                   <span className={`font-medium ${promoCode.isActive ? 'text-green-500' : 'text-red-500'}`}>
                     {promoCode.isActive ? 'Active' : 'Inactive'}
                   </span>
                 </div>
               </CardContent>
-              <CardFooter className="flex justify-between">
+              <CardFooter className="flex flex-col sm:flex-row gap-2">
                 <Button 
                   variant="outline" 
                   size="sm"
-                  className="logo font-medium"
+                  className="logo font-medium flex-1"
                   onClick={() => copyToClipboard(promoCode.code)}
                 >
                   <Copy className="w-4 h-4 mr-2" />
@@ -197,7 +177,7 @@ const PromoCodeManager = ({ eventId, eventName }: PromoCodeManagerProps) => {
                 <Button 
                   variant={promoCode.isActive ? "destructive" : "outline"} 
                   size="sm"
-                  className="logo font-medium"
+                  className="logo font-medium flex-1"
                   onClick={() => handleTogglePromoCode(promoCode.id)}
                 >
                   {promoCode.isActive ? 'Deactivate' : 'Activate'}

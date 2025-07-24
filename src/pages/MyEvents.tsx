@@ -1,338 +1,289 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Download, Share, QrCode, Eye, Users, ChevronRight } from "lucide-react";
-import EmptyState from "@/components/EmptyState";
-import AnimatedLogo from "@/components/AnimatedLogo";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Eye, Edit, Users, ChevronRight, Calendar, MapPin, DollarSign } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Link } from "react-router-dom";
-import EventCollaborators from "@/components/EventCollaborators";
+import { useEvent } from "@/contexts/EventContext";
+import { Link, useNavigate } from "react-router-dom";
+import AnimatedLogo from "@/components/AnimatedLogo";
+import EmptyState from "@/components/EmptyState";
+import { Event } from "@/types";
 
 const MyEvents = () => {
   const { user } = useAuth();
-  const [ticketPreviewOpen, setTicketPreviewOpen] = useState(false);
-  const [selectedTicket, setSelectedTicket] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<"tickets" | "events">("tickets");
+  const { events } = useEvent();
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
   
   const isOrganizer = user?.userType === 'organizer';
-  
-  const myTickets = [
-    {
-      id: "1",
-      title: "Summer Music Festival",
-      location: "Central Park, NYC",
-      date: "7/15/2025",
-      time: "18:00",
-      seats: "A-15, A-16",
-      ticketNumber: "SMF2025001",
-      status: "confirmed" as const,
-      image: "🎵"
-    },
-    {
-      id: "2", 
-      title: "Broadway Musical",
-      location: "Times Square Theater",
-      date: "7/8/2025",
-      time: "20:00",
-      seats: "Orchestra-12C, 12D",
-      ticketNumber: "BM2025002",
-      status: "confirmed" as const,
-      image: "🎭"
-    },
-    {
-      id: "3",
-      title: "Art Gallery Opening",
-      location: "MoMA",
-      date: "6/20/2025",
-      time: "19:00",
-      seats: "General Admission",
-      ticketNumber: "AG2025003",
-      status: "expired" as const,
-      image: "🎨"
-    }
-  ];
-  
-  const myOrganizerEvents = [
-    {
-      id: "101",
-      title: "Tech Conference 2023",
-      location: "Convention Center, SF",
-      date: "8/20/2023",
-      time: "9:00 AM",
-      totalTickets: 1000,
-      soldTickets: 850,
-      revenue: "$127,500",
-      status: "active" as const,
-      image: "💻"
-    },
-    {
-      id: "102",
-      title: "Music Festival",
-      location: "Central Park, NY",
-      date: "7/15/2023",
-      time: "6:00 PM",
-      totalTickets: 2000,
-      soldTickets: 1250,
-      revenue: "$62,500",
-      status: "active" as const,
-      image: "🎵"
-    },
-    {
-      id: "103",
-      title: "Art Exhibition",
-      location: "Modern Art Gallery, LA",
-      date: "9/10/2023",
-      time: "10:00 AM",
-      totalTickets: 500,
-      soldTickets: 320,
-      revenue: "$16,000",
-      status: "active" as const,
-      image: "🎨"
-    }
-  ];
+
+  useEffect(() => {
+    // Simulate loading
+    setTimeout(() => setLoading(false), 500);
+  }, []);
+
+  // Filter events for organizer or get user tickets
+  const userEvents = isOrganizer ? events : [];
+
+  // Calculate if event is active
+  const getEventStatus = (event: Event) => {
+    const now = new Date();
+    const eventDate = new Date(`${event.date} ${event.time}`);
+    const endDate = event.endDate ? new Date(event.endDate) : new Date(eventDate.getTime() + 4 * 60 * 60 * 1000); // Default 4 hours
+    
+    return {
+      isActive: now < endDate && event.status === 'active',
+      isPast: now > endDate
+    };
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen pt-8 pb-24 px-4">
+        <div className="flex items-center gap-2 mb-6">
+          <AnimatedLogo size="sm" />
+        </div>
+        <div className="animate-pulse space-y-4">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="h-32 bg-gray-200 rounded-lg"></div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!isOrganizer) {
+    return (
+      <div className="min-h-screen pt-8 pb-24 px-4">
+        <div className="flex items-center gap-2 mb-6">
+          <AnimatedLogo size="sm" />
+        </div>
+        <div className="text-center py-16">
+          <h2 className="text-2xl font-bold mb-4">Access Denied</h2>
+          <p className="text-muted-foreground mb-8">This page is only available for event organizers.</p>
+          <Button onClick={() => navigate('/app')}>Explore Events</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen pt-8 pb-24 px-4 relative">
+    <div className="min-h-screen pt-8 pb-24 px-4">
       {/* Header */}
-      <div className="flex items-center gap-2 mb-3">
+      <div className="flex items-center gap-2 mb-6">
         <AnimatedLogo size="sm" />
       </div>
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-glow mb-2">
-          {isOrganizer ? "My Events" : "My Tickets"}
-        </h1>
-        <p className="text-muted-foreground">
-          {isOrganizer 
-            ? "Manage your events and collaborators" 
-            : "Your booked tickets and past events"}
-        </p>
+      
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold mb-2">My Events</h1>
+          <p className="text-muted-foreground">Manage your events and track performance</p>
+        </div>
+        <Button 
+          variant="glow" 
+          onClick={() => navigate('/create-event')}
+          className="logo font-medium w-full sm:w-auto"
+        >
+          Create New Event
+        </Button>
       </div>
 
-      {isOrganizer ? (
-        <div className="space-y-6">
-          {myOrganizerEvents.map((event, index) => (
-            <div 
-              key={event.id} 
-              className="glass-card hover-glow animate-fade-in p-6"
-              style={{ animationDelay: `${index * 0.1}s` }}
-            >
-              {/* Header with status */}
-              <div className="flex justify-between items-start mb-4">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center text-2xl">
-                  {event.image}
-                </div>
-                <Badge className="status-badge status-confirmed">
-                  {event.status.toUpperCase()}
-                </Badge>
-              </div>
-
-              {/* Event Details */}
-              <div className="space-y-3 mb-6">
-                <h3 className="text-xl font-bold text-foreground">{event.title}</h3>
-                
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Location:</span>
-                    <p className="text-foreground font-medium">{event.location}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Date:</span>
-                    <p className="text-foreground font-medium">{event.date}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Time:</span>
-                    <p className="text-foreground font-medium">{event.time}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Tickets Sold:</span>
-                    <p className="text-foreground font-medium">{event.soldTickets}/{event.totalTickets}</p>
-                  </div>
-                </div>
-
-                <div className="pt-2 border-t border-glass-border/30">
-                  <span className="text-muted-foreground text-sm">Revenue:</span>
-                  <p className="text-foreground font-medium">{event.revenue}</p>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-3">
-                <Link to={`/scan/${event.id}`} className="flex-1">
-                  <Button 
-                    variant="glow" 
-                    className="w-full logo font-medium"
-                  >
-                    <QrCode className="w-4 h-4 mr-2" />
-                    Scan Tickets
-                  </Button>
-                </Link>
-                <Button 
-                  variant="outline" 
-                  className="flex items-center gap-2"
-                  onClick={() => {
-                    // Open collaborator management
-                    setSelectedTicket(event);
-                    setTicketPreviewOpen(true);
-                  }}
-                >
-                  <Users className="w-4 h-4" />
-                  Collaborators
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          ))}
-          
-          {myOrganizerEvents.length === 0 && (
-            <EmptyState
-              title="No Events Created"
-              description="You haven't created any events yet. Create your first event to start selling tickets!"
-              icon="🎫"
-              action={{
-                label: "Create Event",
-                onClick: () => window.location.href = "/#/create-event"
-              }}
-            />
-          )}
-        </div>
+      {userEvents.length === 0 ? (
+        <EmptyState
+          title="No Events Created"
+          description="You haven't created any events yet. Create your first event to start selling tickets!"
+          icon="🎫"
+          action={{
+            label: "Create Event",
+            onClick: () => navigate('/create-event')
+          }}
+        />
       ) : (
-        <div className="space-y-6">
-          {myTickets.map((ticket, index) => (
-            <div 
-              key={ticket.id} 
-              className={`glass-card hover-glow animate-fade-in p-6 ${ticket.status === 'expired' ? 'glass-card-expired' : ''}`}
-              style={{ animationDelay: `${index * 0.1}s` }}
-            >
-              {/* Header with status */}
-              <div className="flex justify-between items-start mb-4">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center text-2xl">
-                  {ticket.image}
-                </div>
-                <Badge className={`status-badge ${ticket.status === "confirmed" ? "status-confirmed" : "status-expired"}`}>
-                  {ticket.status.toUpperCase()}
-                </Badge>
-              </div>
-
-              {/* Event Details */}
-              <div className="space-y-3 mb-6">
-                <h3 className="text-xl font-bold text-foreground">{ticket.title}</h3>
-                
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Location:</span>
-                    <p className="text-foreground font-medium">{ticket.location}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Date:</span>
-                    <p className="text-foreground font-medium">{ticket.date}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Time:</span>
-                    <p className="text-foreground font-medium">{ticket.time}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Seats:</span>
-                    <p className="text-foreground font-medium">{ticket.seats}</p>
-                  </div>
-                </div>
-
-                <div className="pt-2 border-t border-glass-border/30">
-                  <span className="text-muted-foreground text-sm">Ticket #:</span>
-                  <p className="text-foreground font-mono font-medium">{ticket.ticketNumber}</p>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-3">
-                <Button 
-                  variant="glow" 
-                  className="flex-1 logo font-medium"
-                  onClick={() => {
-                    setSelectedTicket(ticket);
-                    setTicketPreviewOpen(true);
-                  }}
-                >
-                  <Eye className="w-4 h-4 mr-2" />
-                  View Ticket
-                </Button>
-                {ticket.status === "confirmed" && (
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="icon">
-                      <Share className="w-4 h-4" />
-                    </Button>
-                  </div>
-                )}
+        <div className="space-y-4 sm:space-y-6">
+          {/* Desktop Table View */}
+          <div className="hidden lg:block">
+            <div className="glass-card overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="border-b border-border/30">
+                    <tr>
+                      <th className="text-left p-4 font-medium">Event</th>
+                      <th className="text-left p-4 font-medium">Date & Time</th>
+                      <th className="text-left p-4 font-medium">Status</th>
+                      <th className="text-left p-4 font-medium">Tickets</th>
+                      <th className="text-left p-4 font-medium">Revenue</th>
+                      <th className="text-right p-4 font-medium">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {userEvents.map((event) => {
+                      const { isActive, isPast } = getEventStatus(event);
+                      return (
+                        <tr key={event.id} className="border-b border-border/20 hover:bg-primary/5">
+                          <td className="p-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center text-xl">
+                                {event.emoji}
+                              </div>
+                              <div>
+                                <div className="font-medium">{event.title}</div>
+                                <div className="text-sm text-muted-foreground flex items-center gap-1">
+                                  <MapPin className="w-3 h-3" />
+                                  {event.location}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <div className="flex items-center gap-1 text-sm">
+                              <Calendar className="w-4 h-4" />
+                              <span>{event.date}</span>
+                            </div>
+                            <div className="text-sm text-muted-foreground">{event.time}</div>
+                          </td>
+                          <td className="p-4">
+                            <Badge className={
+                              isActive ? 'bg-green-100 text-green-800 border-green-200' : 
+                              isPast ? 'bg-gray-100 text-gray-800 border-gray-200' :
+                              'bg-amber-100 text-amber-800 border-amber-200'
+                            }>
+                              {isActive ? 'Active' : isPast ? 'Completed' : 'Upcoming'}
+                            </Badge>
+                          </td>
+                          <td className="p-4">
+                            <div className="text-sm">
+                              <span className="font-medium">{event.soldTickets || 0}</span>
+                              <span className="text-muted-foreground">/{event.totalTickets || 0}</span>
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <div className="flex items-center gap-1 text-sm font-medium">
+                              <DollarSign className="w-3 h-3" />
+                              {event.revenue || '$0'}
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <div className="flex gap-2 justify-end">
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => navigate(`/events/${event.id}`)}
+                              >
+                                <Eye className="w-4 h-4 mr-1" />
+                                View
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => navigate(`/create-event/${event.id}`)}
+                              >
+                                <Edit className="w-4 h-4 mr-1" />
+                                Edit
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             </div>
-          ))}
-          
-          {myTickets.length === 0 && (
-            <EmptyState
-              title="No Tickets Booked"
-              description="You haven't booked any events yet. Explore amazing events and book your first ticket!"
-              icon="🎫"
-              action={{
-                label: "Explore Events",
-                onClick: () => window.location.href = "/#/app"
-              }}
-            />
-          )}
+          </div>
+
+          {/* Mobile/Tablet Card View */}
+          <div className="lg:hidden space-y-4">
+            {userEvents.map((event) => {
+              const { isActive, isPast } = getEventStatus(event);
+              return (
+                <Card key={event.id} className="glass-card">
+                  <CardHeader className="pb-3">
+                    <div className="flex justify-between items-start gap-3">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center text-xl flex-shrink-0">
+                          {event.emoji}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <CardTitle className="text-lg truncate">{event.title}</CardTitle>
+                          <CardDescription className="flex items-center gap-1">
+                            <MapPin className="w-3 h-3 flex-shrink-0" />
+                            <span className="truncate">{event.location}</span>
+                          </CardDescription>
+                        </div>
+                      </div>
+                      <Badge className={
+                        isActive ? 'bg-green-100 text-green-800 border-green-200' : 
+                        isPast ? 'bg-gray-100 text-gray-800 border-gray-200' :
+                        'bg-amber-100 text-amber-800 border-amber-200'
+                      }>
+                        {isActive ? 'Active' : isPast ? 'Completed' : 'Upcoming'}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  
+                  <CardContent className="pt-0">
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <div className="text-sm text-muted-foreground">Date & Time</div>
+                        <div className="flex items-center gap-1 text-sm font-medium">
+                          <Calendar className="w-4 h-4" />
+                          {event.date}
+                        </div>
+                        <div className="text-sm text-muted-foreground">{event.time}</div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-muted-foreground">Revenue</div>
+                        <div className="flex items-center gap-1 text-sm font-medium">
+                          <DollarSign className="w-4 h-4" />
+                          {event.revenue || '$0'}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="mb-4">
+                      <div className="text-sm text-muted-foreground mb-1">Tickets Sold</div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">
+                          {event.soldTickets || 0} / {event.totalTickets || 0}
+                        </span>
+                        <div className="w-24 bg-muted rounded-full h-2">
+                          <div 
+                            className="bg-primary h-2 rounded-full" 
+                            style={{ 
+                              width: `${((event.soldTickets || 0) / (event.totalTickets || 1)) * 100}%` 
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                  
+                  <CardFooter className="pt-0">
+                    <div className="flex gap-2 w-full">
+                      <Button 
+                        variant="outline" 
+                        className="flex-1 logo font-medium"
+                        onClick={() => navigate(`/events/${event.id}`)}
+                      >
+                        <Eye className="w-4 h-4 mr-2" />
+                        View Details
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        className="flex-1 logo font-medium"
+                        onClick={() => navigate(`/create-event/${event.id}`)}
+                      >
+                        <Edit className="w-4 h-4 mr-2" />
+                        Edit
+                      </Button>
+                    </div>
+                  </CardFooter>
+                </Card>
+              );
+            })}
+          </div>
         </div>
-      )}
-
-      {/* Collaborator Management Modal for Organizers */}
-      {isOrganizer && selectedTicket && (
-        <Dialog open={ticketPreviewOpen} onOpenChange={setTicketPreviewOpen}>
-          <DialogContent className="glass-card border-glass-border max-w-3xl mx-4">
-            <EventCollaborators 
-              eventId={selectedTicket.id} 
-              eventName={selectedTicket.title} 
-              totalTickets={selectedTicket.totalTickets} 
-            />
-          </DialogContent>
-        </Dialog>
-      )}
-
-      {/* Ticket Preview Modal for Users */}
-      {!isOrganizer && selectedTicket && (
-        <Dialog open={ticketPreviewOpen} onOpenChange={setTicketPreviewOpen}>
-          <DialogContent className="glass-card border-glass-border max-w-md mx-4">
-            <div className="space-y-6">
-              <div className="text-center">
-                <AnimatedLogo size="sm" />
-                <h3 className="text-xl font-bold mt-2">{selectedTicket.title}</h3>
-                <p className="text-muted-foreground">{selectedTicket.date} • {selectedTicket.time}</p>
-              </div>
-              
-              <div className="bg-white p-6 rounded-xl">
-                <div className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center mb-4">
-                  {/* This would be a real QR code in production */}
-                  <img 
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${selectedTicket.ticketNumber}`} 
-                    alt="Ticket QR Code" 
-                    className="w-48 h-48"
-                  />
-                </div>
-                <div className="text-center text-black">
-                  <p className="font-mono font-bold">{selectedTicket.ticketNumber}</p>
-                  <p className="text-sm text-gray-500 mt-1">Seats: {selectedTicket.seats}</p>
-                </div>
-              </div>
-              
-              <div className="flex gap-3">
-                <Button variant="outline" className="flex-1 logo font-medium" onClick={() => setTicketPreviewOpen(false)}>
-                  Close
-                </Button>
-                <Button variant="glow" className="flex-1 logo font-medium">
-                  <Download className="w-4 h-4 mr-2" />
-                  Download
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
       )}
     </div>
   );

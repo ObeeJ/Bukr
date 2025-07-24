@@ -16,6 +16,7 @@ import MyEvents from "./pages/MyEvents";
 import Profile from "./pages/Profile";
 import CreateEvent from "./pages/CreateEvent";
 import EventDashboard from "./pages/EventDashboard";
+import EventDetail from "./pages/EventDetail";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import NotFound from "./pages/NotFound";
 import BottomNavigation from "./components/BottomNavigation";
@@ -23,6 +24,7 @@ import MobileGuard from "./components/MobileGuard";
 import Tickets from "./pages/Tickets";
 import ScannerPage from "./pages/ScannerPage";
 import BookingFlow from "./components/BookingFlow";
+import PurchasePage from "./pages/PurchasePage";
 
 const queryClient = new QueryClient();
 
@@ -110,7 +112,7 @@ const AppRoutes = () => {
       } />
       <Route path="/events/:id" element={
         <ProtectedRoute>
-          <EventDashboard />
+          <EventDetail />
         </ProtectedRoute>
       } />
       <Route path="/scan/:eventId" element={
@@ -126,7 +128,7 @@ const AppRoutes = () => {
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
       <Route path="/purchase/:eventKey" element={
         <ProtectedRoute>
-          <BookingFlow isOpen={true} onClose={() => {}} event={{}} />
+          <PurchasePage />
         </ProtectedRoute>
       } />
       <Route path="*" element={<Navigate to="/" />} />

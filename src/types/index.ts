@@ -16,6 +16,8 @@ export interface Event {
   status?: 'active' | 'completed' | 'cancelled';
   image?: string;
   key?: string;
+  isActive?: boolean;
+  endDate?: string;
 }
 
 // Ticket types

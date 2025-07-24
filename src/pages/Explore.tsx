@@ -157,7 +157,7 @@ const Explore = () => {
 
   const handleBookNow = (event: Event) => {
     setEventDetailsOpen(false);
-    openBooking(event);
+    navigate(`/purchase/${event.key || event.id}`);
   };
 
   const renderStars = (rating: number) => {
