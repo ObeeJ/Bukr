@@ -28,7 +28,10 @@ const CreateEvent = () => {
     price: '',
     category: 'music',
     emoji: '🎵',
-    totalTickets: 100
+    totalTickets: 100,
+    eventType: 'physical' as 'physical' | 'virtual' | 'hybrid',
+    maxCapacity: 100,
+    sections: [{ name: 'General', rows: 10, seatsPerRow: 10, price: 50 }]
   });
 
   useEffect(() => {
@@ -192,6 +195,24 @@ const CreateEvent = () => {
                 </Select>
               </div>
             </div>
+            
+            <div>
+              <Label htmlFor="eventType">Event Type</Label>
+              <Select
+                value={formData.eventType}
+                onValueChange={(value) => handleSelectChange('eventType', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select event type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="physical">🏢 Physical Event</SelectItem>
+                  <SelectItem value="virtual">💻 Virtual Event</SelectItem>
+                  <SelectItem value="hybrid">🌐 Hybrid Event</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="date">Date</Label>
@@ -218,31 +239,124 @@ const CreateEvent = () => {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="price">Ticket Price</Label>
-                <Input
-                  id="price"
-                  name="price"
-                  value={formData.price}
-                  onChange={handleChange}
-                  placeholder="$0.00"
-                  required
-                />
+            {formData.eventType === 'physical' && (
+              <div className="space-y-4 p-4 bg-primary/10 rounded-lg">
+                <h3 className="font-medium">Seating Configuration</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="maxCapacity">Maximum Capacity</Label>
+                    <Input 
+                      id="maxCapacity" 
+                      name="maxCapacity"
+                      type="number"
+                      value={formData.maxCapacity}
+                      onChange={(e) => handleSelectChange('maxCapacity', parseInt(e.target.value) || 0)}
+                      min="1"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="price">Base Ticket Price</Label>
+                    <Input 
+                      id="price" 
+                      name="price"
+                      value={formData.price}
+                      onChange={handleChange}
+                      placeholder="$0.00"
+                      required
+                    />
+                  </div>
+                </div>
+                
+                <div className="space-y-3">
+                  <Label>Seating Sections</Label>
+                  {formData.sections.map((section, index) => (
+                    <div key={index} className="grid grid-cols-2 md:grid-cols-4 gap-2 p-3 bg-background/50 rounded">
+                      <Input 
+                        placeholder="Section name"
+                        value={section.name}
+                        onChange={(e) => {
+                          const newSections = [...formData.sections];
+                          newSections[index].name = e.target.value;
+                          setFormData(prev => ({ ...prev, sections: newSections }));
+                        }}
+                      />
+                      <Input 
+                        type="number"
+                        placeholder="Rows"
+                        value={section.rows}
+                        onChange={(e) => {
+                          const newSections = [...formData.sections];
+                          newSections[index].rows = parseInt(e.target.value) || 0;
+                          setFormData(prev => ({ ...prev, sections: newSections }));
+                        }}
+                      />
+                      <Input 
+                        type="number"
+                        placeholder="Seats/Row"
+                        value={section.seatsPerRow}
+                        onChange={(e) => {
+                          const newSections = [...formData.sections];
+                          newSections[index].seatsPerRow = parseInt(e.target.value) || 0;
+                          setFormData(prev => ({ ...prev, sections: newSections }));
+                        }}
+                      />
+                      <Input 
+                        type="number"
+                        placeholder="Price"
+                        value={section.price}
+                        onChange={(e) => {
+                          const newSections = [...formData.sections];
+                          newSections[index].price = parseInt(e.target.value) || 0;
+                          setFormData(prev => ({ ...prev, sections: newSections }));
+                        }}
+                      />
+                    </div>
+                  ))}
+                  <Button 
+                    type="button"
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      setFormData(prev => ({
+                        ...prev,
+                        sections: [...prev.sections, { name: '', rows: 0, seatsPerRow: 0, price: 0 }]
+                      }));
+                    }}
+                  >
+                    Add Section
+                  </Button>
+                </div>
               </div>
-              <div>
-                <Label htmlFor="totalTickets">Total Tickets</Label>
-                <Input
-                  id="totalTickets"
-                  name="totalTickets"
-                  type="number"
-                  value={formData.totalTickets}
-                  onChange={(e) => handleSelectChange('totalTickets', parseInt(e.target.value) || 0)}
-                  min="1"
-                  required
-                />
+            )}
+            
+            {formData.eventType !== 'physical' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="price">Ticket Price</Label>
+                  <Input 
+                    id="price" 
+                    name="price"
+                    value={formData.price}
+                    onChange={handleChange}
+                    placeholder="$0.00"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="totalTickets">Total Tickets</Label>
+                  <Input 
+                    id="totalTickets" 
+                    name="totalTickets"
+                    type="number"
+                    value={formData.totalTickets}
+                    onChange={(e) => handleSelectChange('totalTickets', parseInt(e.target.value) || 0)}
+                    min="1"
+                    required
+                  />
+                </div>
               </div>
-            </div>
+            )}
           </CardContent>
           <CardFooter className="flex justify-between">
             <Button 

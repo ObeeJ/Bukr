@@ -18,6 +18,20 @@ export interface Event {
   key?: string;
   isActive?: boolean;
   endDate?: string;
+  eventType?: 'physical' | 'virtual' | 'hybrid';
+  seats?: Seat[];
+  maxCapacity?: number;
+}
+
+// Seat types
+export interface Seat {
+  id: string;
+  section: string;
+  row: string;
+  number: string;
+  price: number;
+  isAvailable: boolean;
+  isReserved?: boolean;
 }
 
 // Ticket types
