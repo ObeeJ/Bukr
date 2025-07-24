@@ -21,6 +21,10 @@ const PurchasePage = () => {
   const { saveTicket } = useTicket();
   const { user } = useAuth();
   
+  // Get referral code from URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const referralCode = urlParams.get('ref');
+  
   const [step, setStep] = useState<'rating' | 'quantity' | 'payment' | 'success'>('rating');
   const [rating, setRating] = useState<number>(0);
   const [quantity, setQuantity] = useState<number>(1);
@@ -36,10 +40,24 @@ const PurchasePage = () => {
     const foundEvent = events.find(e => e.key === eventKey);
     if (foundEvent) {
       setEvent(foundEvent);
+      
+      // Apply referral discount if present
+      if (referralCode) {
+        // Mock collaborator discount - in real app, fetch from API
+        const collaboratorDiscount = 10; // 10% discount for referrals
+        setDiscount(collaboratorDiscount);
+        setPromoApplied(true);
+        setPromoCode(`REF-${referralCode}`);
+        
+        toast({
+          title: "Referral discount applied",
+          description: `You got a ${collaboratorDiscount}% discount from your referral!`,
+        });
+      }
     } else {
       navigate('/app');
     }
-  }, [eventKey, events, navigate]);
+  }, [eventKey, events, navigate, referralCode, toast]);
 
   const applyPromoCode = () => {
     if (!event) return;

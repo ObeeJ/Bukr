@@ -4,20 +4,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Copy, Plus, Trash, Mail, Share2, Loader2 } from 'lucide-react';
+import { Copy, Plus, Trash, Mail, Share2, Loader2, TrendingUp, DollarSign } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Slider } from '@/components/ui/slider';
-
-interface Collaborator {
-  id: string;
-  name: string;
-  email: string;
-  accountNumber: string;
-  bankName: string;
-  ticketAllocation: number;
-  discountPercentage: number;
-  uniqueCode: string;
-}
+import { Collaborator } from '@/types';
 
 interface EventCollaboratorsProps {
   eventId: string;
@@ -32,7 +22,7 @@ const EventCollaborators = ({ eventId, eventName, totalTickets }: EventCollabora
   const [selectedCollaborator, setSelectedCollaborator] = useState<Collaborator | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   
-  // In a real app, this would be fetched from an API
+  // Mock collaborators with performance data
   const [collaborators, setCollaborators] = useState<Collaborator[]>([
     {
       id: '1',
@@ -42,30 +32,49 @@ const EventCollaborators = ({ eventId, eventName, totalTickets }: EventCollabora
       bankName: 'First Bank',
       ticketAllocation: 50,
       discountPercentage: 5,
-      uniqueCode: 'JOHN-EVENT-123'
+      uniqueCode: 'JOHN-EVENT-123',
+      referralLink: `${window.origin}/purchase/${eventId}?ref=JOHN-EVENT-123`,
+      ticketsSold: 12,
+      earnings: 180
+    },
+    {
+      id: '2',
+      name: 'Jane Smith',
+      email: 'jane@example.com',
+      accountNumber: '9876543210',
+      bankName: 'Second Bank',
+      ticketAllocation: 30,
+      discountPercentage: 8,
+      uniqueCode: 'JANE-EVENT-456',
+      referralLink: `${window.origin}/purchase/${eventId}?ref=JANE-EVENT-456`,
+      ticketsSold: 8,
+      earnings: 120
     }
   ]);
   
-  const [newCollaborator, setNewCollaborator] = useState<Omit<Collaborator, 'id' | 'uniqueCode'>>({
+  const [newCollaborator, setNewCollaborator] = useState<Omit<Collaborator, 'id' | 'uniqueCode' | 'referralLink' | 'ticketsSold' | 'earnings'>>({
     name: '',
     email: '',
     accountNumber: '',
     bankName: '',
     ticketAllocation: 10,
-    discountPercentage: 0
+    discountPercentage: 10
   });
 
   const handleAddCollaborator = () => {
     setIsProcessing(true);
     
-    // In a real app, this would be an API call
     setTimeout(() => {
-      const uniqueCode = `${eventId.substring(0, 4)}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+      const uniqueCode = `${newCollaborator.name.substring(0, 4).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+      const referralLink = `${window.origin}/purchase/${eventId}?ref=${uniqueCode}`;
       
       const collaborator: Collaborator = {
         ...newCollaborator,
         id: Date.now().toString(),
-        uniqueCode
+        uniqueCode,
+        referralLink,
+        ticketsSold: 0,
+        earnings: 0
       };
       
       setCollaborators([...collaborators, collaborator]);
@@ -75,7 +84,7 @@ const EventCollaborators = ({ eventId, eventName, totalTickets }: EventCollabora
         accountNumber: '',
         bankName: '',
         ticketAllocation: 10,
-        discountPercentage: 0
+        discountPercentage: 10
       });
       
       setIsProcessing(false);
@@ -83,14 +92,13 @@ const EventCollaborators = ({ eventId, eventName, totalTickets }: EventCollabora
       
       toast({
         title: "Collaborator added",
-        description: `${collaborator.name} has been added as a collaborator.`
+        description: `${collaborator.name} has been added with referral link generated.`
       });
     }, 1000);
   };
 
   const handleRemoveCollaborator = (id: string) => {
     setCollaborators(collaborators.filter(c => c.id !== id));
-    
     toast({
       title: "Collaborator removed",
       description: "The collaborator has been removed successfully."
@@ -102,48 +110,70 @@ const EventCollaborators = ({ eventId, eventName, totalTickets }: EventCollabora
     setIsInviteDialogOpen(true);
   };
 
-  const sendInvite = () => {
-    setIsProcessing(true);
-    
-    // In a real app, this would send an email or notification
-    setTimeout(() => {
-      setIsProcessing(false);
-      setIsInviteDialogOpen(false);
-      
-      toast({
-        title: "Invitation sent",
-        description: `An invitation has been sent to ${selectedCollaborator?.name}.`
-      });
-    }, 1000);
-  };
-
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    
     toast({
       title: "Copied to clipboard",
-      description: "The unique code has been copied to your clipboard."
+      description: "The link has been copied to your clipboard."
     });
   };
 
   const generateScannerLink = (code: string) => {
-    // In a real app, this would be a proper URL
-    return `${window.location.origin}/#/scan/${eventId}?code=${code}`;
+    return `${window.origin}/#/scan/${eventId}?code=${code}`;
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Event Collaborators</h2>
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h2 className="text-xl sm:text-2xl font-bold">Event Collaborators</h2>
         <Button 
           variant="glow" 
           onClick={() => setIsAddDialogOpen(true)}
-          className="logo font-medium"
+          className="logo font-medium w-full sm:w-auto min-h-[44px]"
         >
           <Plus className="w-4 h-4 mr-2" />
           Add Collaborator
         </Button>
       </div>
+
+      {/* Performance Summary */}
+      {collaborators.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+          <Card className="glass-card">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-primary" />
+                <span className="text-sm text-muted-foreground">Total Sold</span>
+              </div>
+              <div className="text-xl sm:text-2xl font-bold">
+                {collaborators.reduce((sum, c) => sum + (c.ticketsSold || 0), 0)}
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="glass-card">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-primary" />
+                <span className="text-sm text-muted-foreground">Total Earnings</span>
+              </div>
+              <div className="text-xl sm:text-2xl font-bold">
+                ${collaborators.reduce((sum, c) => sum + (c.earnings || 0), 0)}
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="glass-card">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <Ticket className="w-4 h-4 text-primary" />
+                <span className="text-sm text-muted-foreground">Remaining</span>
+              </div>
+              <div className="text-xl sm:text-2xl font-bold">
+                {collaborators.reduce((sum, c) => sum + (c.ticketAllocation - (c.ticketsSold || 0)), 0)}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
       
       {collaborators.length === 0 ? (
         <div className="text-center py-12 glass-card">
@@ -151,63 +181,90 @@ const EventCollaborators = ({ eventId, eventName, totalTickets }: EventCollabora
           <Button 
             variant="outline" 
             onClick={() => setIsAddDialogOpen(true)}
-            className="logo font-medium"
+            className="logo font-medium min-h-[44px]"
           >
             <Plus className="w-4 h-4 mr-2" />
             Add Your First Collaborator
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {collaborators.map(collaborator => (
             <Card key={collaborator.id} className="glass-card">
-              <CardHeader>
-                <div className="flex justify-between">
-                  <div>
-                    <CardTitle>{collaborator.name}</CardTitle>
-                    <CardDescription>{collaborator.email}</CardDescription>
+              <CardHeader className="pb-3">
+                <div className="flex justify-between items-start">
+                  <div className="min-w-0 flex-1">
+                    <CardTitle className="text-base sm:text-lg truncate">{collaborator.name}</CardTitle>
+                    <CardDescription className="text-sm truncate">{collaborator.email}</CardDescription>
                   </div>
                   <Button 
                     variant="ghost" 
                     size="icon" 
                     onClick={() => handleRemoveCollaborator(collaborator.id)}
+                    className="flex-shrink-0 touch-target"
                   >
                     <Trash className="w-4 h-4 text-destructive" />
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Ticket Allocation:</span>
-                  <span className="font-medium">{collaborator.ticketAllocation}</span>
+              
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Allocated:</span>
+                    <div className="font-medium">{collaborator.ticketAllocation}</div>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Sold:</span>
+                    <div className="font-medium text-green-600">{collaborator.ticketsSold || 0}</div>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Discount:</span>
+                    <div className="font-medium">{collaborator.discountPercentage}%</div>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Earnings:</span>
+                    <div className="font-medium text-primary">${collaborator.earnings || 0}</div>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Discount:</span>
-                  <span className="font-medium">{collaborator.discountPercentage}%</span>
+                
+                <div className="space-y-2">
+                  <div className="text-xs text-muted-foreground">Referral Link:</div>
+                  <div className="flex items-center gap-2 p-2 bg-primary/10 rounded-md">
+                    <code className="text-xs truncate flex-1 font-mono">
+                      {collaborator.referralLink}
+                    </code>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="flex-shrink-0 h-6 w-6"
+                      onClick={() => copyToClipboard(collaborator.referralLink || '')}
+                    >
+                      <Copy className="w-3 h-3" />
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Bank:</span>
-                  <span className="font-medium">{collaborator.bankName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Account:</span>
-                  <span className="font-medium">•••• {collaborator.accountNumber.slice(-4)}</span>
-                </div>
-                <div className="mt-4 p-2 bg-primary/10 rounded-md flex justify-between items-center">
-                  <span className="font-mono text-sm">{collaborator.uniqueCode}</span>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => copyToClipboard(collaborator.uniqueCode)}
-                  >
-                    <Copy className="w-4 h-4" />
-                  </Button>
+                
+                <div className="space-y-2">
+                  <div className="text-xs text-muted-foreground">Scanner Code:</div>
+                  <div className="flex items-center gap-2 p-2 bg-primary/10 rounded-md">
+                    <code className="text-xs font-mono flex-1">{collaborator.uniqueCode}</code>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="flex-shrink-0 h-6 w-6"
+                      onClick={() => copyToClipboard(collaborator.uniqueCode)}
+                    >
+                      <Copy className="w-3 h-3" />
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
-              <CardFooter>
+              
+              <CardFooter className="pt-0">
                 <Button 
                   variant="outline" 
-                  className="w-full logo font-medium"
+                  className="w-full logo font-medium min-h-[44px]"
                   onClick={() => handleInvite(collaborator)}
                 >
                   <Share2 className="w-4 h-4 mr-2" />
@@ -221,7 +278,7 @@ const EventCollaborators = ({ eventId, eventName, totalTickets }: EventCollabora
       
       {/* Add Collaborator Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="glass-card border-glass-border max-w-md mx-4">
+        <DialogContent className="glass-card border-glass-border max-w-md mx-4 max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add Collaborator</DialogTitle>
             <DialogDescription>
@@ -235,7 +292,7 @@ const EventCollaborators = ({ eventId, eventName, totalTickets }: EventCollabora
                 id="name" 
                 value={newCollaborator.name}
                 onChange={(e) => setNewCollaborator({...newCollaborator, name: e.target.value})}
-                className="glass-card border-glass-border bg-glass/20"
+                className="glass-card border-glass-border bg-glass/20 min-h-[44px]"
               />
             </div>
             <div>
@@ -245,7 +302,7 @@ const EventCollaborators = ({ eventId, eventName, totalTickets }: EventCollabora
                 type="email"
                 value={newCollaborator.email}
                 onChange={(e) => setNewCollaborator({...newCollaborator, email: e.target.value})}
-                className="glass-card border-glass-border bg-glass/20"
+                className="glass-card border-glass-border bg-glass/20 min-h-[44px]"
               />
             </div>
             <div>
@@ -254,7 +311,7 @@ const EventCollaborators = ({ eventId, eventName, totalTickets }: EventCollabora
                 id="bank" 
                 value={newCollaborator.bankName}
                 onChange={(e) => setNewCollaborator({...newCollaborator, bankName: e.target.value})}
-                className="glass-card border-glass-border bg-glass/20"
+                className="glass-card border-glass-border bg-glass/20 min-h-[44px]"
               />
             </div>
             <div>
@@ -263,39 +320,39 @@ const EventCollaborators = ({ eventId, eventName, totalTickets }: EventCollabora
                 id="account" 
                 value={newCollaborator.accountNumber}
                 onChange={(e) => setNewCollaborator({...newCollaborator, accountNumber: e.target.value})}
-                className="glass-card border-glass-border bg-glass/20"
+                className="glass-card border-glass-border bg-glass/20 min-h-[44px]"
               />
             </div>
             <div>
               <Label>Ticket Allocation ({newCollaborator.ticketAllocation})</Label>
               <Slider 
                 defaultValue={[newCollaborator.ticketAllocation]} 
-                max={totalTickets}
+                max={Math.min(totalTickets, 100)}
                 step={1}
                 onValueChange={(value) => setNewCollaborator({...newCollaborator, ticketAllocation: value[0]})}
-                className="my-2"
+                className="my-3"
               />
               <p className="text-xs text-muted-foreground">
-                Maximum tickets this collaborator can sell: {newCollaborator.ticketAllocation} of {totalTickets}
+                Maximum tickets this collaborator can sell: {newCollaborator.ticketAllocation}
               </p>
             </div>
             <div>
-              <Label>Discount Percentage ({newCollaborator.discountPercentage}%)</Label>
+              <Label>Commission Percentage ({newCollaborator.discountPercentage}%)</Label>
               <Slider 
                 defaultValue={[newCollaborator.discountPercentage]} 
                 max={20}
                 step={1}
                 onValueChange={(value) => setNewCollaborator({...newCollaborator, discountPercentage: value[0]})}
-                className="my-2"
+                className="my-3"
               />
               <p className="text-xs text-muted-foreground">
-                Discount this collaborator can offer: {newCollaborator.discountPercentage}% (max 20%)
+                Commission this collaborator will earn: {newCollaborator.discountPercentage}%
               </p>
             </div>
             <div className="pt-4">
               <Button 
                 variant="glow" 
-                className="w-full logo font-medium"
+                className="w-full logo font-medium min-h-[44px]"
                 onClick={handleAddCollaborator}
                 disabled={isProcessing || !newCollaborator.name || !newCollaborator.email}
               >
@@ -319,63 +376,64 @@ const EventCollaborators = ({ eventId, eventName, totalTickets }: EventCollabora
           <DialogHeader>
             <DialogTitle>Share Access</DialogTitle>
             <DialogDescription>
-              Share scanner access with {selectedCollaborator?.name} for {eventName}.
+              Share access links with {selectedCollaborator?.name} for {eventName}.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="p-3 bg-primary/10 rounded-md">
-              <p className="text-sm mb-2">Scanner Link:</p>
-              <div className="flex items-center justify-between">
-                <code className="text-xs truncate max-w-[200px]">
+              <p className="text-sm mb-2 font-medium">Referral Link:</p>
+              <div className="flex items-center gap-2">
+                <code className="text-xs truncate flex-1 p-2 bg-background/50 rounded">
+                  {selectedCollaborator?.referralLink}
+                </code>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="touch-target"
+                  onClick={() => selectedCollaborator?.referralLink && copyToClipboard(selectedCollaborator.referralLink)}
+                >
+                  <Copy className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+            
+            <div className="p-3 bg-primary/10 rounded-md">
+              <p className="text-sm mb-2 font-medium">Scanner Link:</p>
+              <div className="flex items-center gap-2">
+                <code className="text-xs truncate flex-1 p-2 bg-background/50 rounded">
                   {selectedCollaborator && generateScannerLink(selectedCollaborator.uniqueCode)}
                 </code>
                 <Button 
                   variant="ghost" 
                   size="icon" 
+                  className="touch-target"
                   onClick={() => selectedCollaborator && copyToClipboard(generateScannerLink(selectedCollaborator.uniqueCode))}
                 >
                   <Copy className="w-4 h-4" />
                 </Button>
               </div>
             </div>
-            <div className="p-3 bg-primary/10 rounded-md">
-              <p className="text-sm mb-2">Access Code:</p>
-              <div className="flex items-center justify-between">
-                <code className="text-sm font-mono">{selectedCollaborator?.uniqueCode}</code>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={() => selectedCollaborator && copyToClipboard(selectedCollaborator.uniqueCode)}
-                >
-                  <Copy className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-            <div className="flex gap-4 pt-4">
+            
+            <div className="flex flex-col sm:flex-row gap-3 pt-4">
               <Button 
                 variant="outline" 
-                className="flex-1 logo font-medium"
+                className="flex-1 logo font-medium min-h-[44px]"
                 onClick={() => setIsInviteDialogOpen(false)}
               >
-                Cancel
+                Close
               </Button>
               <Button 
                 variant="glow" 
-                className="flex-1 logo font-medium"
-                onClick={sendInvite}
-                disabled={isProcessing}
+                className="flex-1 logo font-medium min-h-[44px]"
+                onClick={() => {
+                  if (selectedCollaborator?.referralLink) {
+                    copyToClipboard(selectedCollaborator.referralLink);
+                  }
+                  setIsInviteDialogOpen(false);
+                }}
               >
-                {isProcessing ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Sending...
-                  </>
-                ) : (
-                  <>
-                    <Mail className="mr-2 h-4 w-4" />
-                    Send Invite
-                  </>
-                )}
+                <Share2 className="mr-2 h-4 w-4" />
+                Copy Referral Link
               </Button>
             </div>
           </div>

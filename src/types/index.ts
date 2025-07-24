@@ -92,4 +92,7 @@ export interface Collaborator {
   ticketAllocation: number;
   discountPercentage: number;
   uniqueCode: string;
+  referralLink?: string;
+  ticketsSold?: number;
+  earnings?: number;
 }
