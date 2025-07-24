@@ -21,7 +21,7 @@ const BottomNavigation = () => {
     // Organizer navigation
     navItems = [
       { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-      { icon: QrCode, label: "Scan", path: "/events" },
+      { icon: QrCode, label: "Events", path: "/events" },
       { icon: PlusCircle, label: "Create", path: "/create-event" },
       { icon: Search, label: "Explore", path: "/app" },
       { icon: User, label: "Profile", path: "/profile" },
@@ -37,8 +37,8 @@ const BottomNavigation = () => {
   }
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border border-border/30 mx-4 mb-4 rounded-2xl animate-slide-up shadow-lg">
-      <div className="flex items-center justify-around py-3">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-lg border-t border-border/30 safe-area-pb">
+      <div className="flex items-center justify-around py-2 sm:py-3 px-2 max-w-md mx-auto">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = location.pathname === item.path;
@@ -48,14 +48,14 @@ const BottomNavigation = () => {
               key={item.path}
               to={item.path}
               className={cn(
-                "flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all duration-300",
+                "flex flex-col items-center gap-1 p-2 sm:p-3 rounded-xl transition-all duration-200 min-h-[48px] min-w-[48px] touch-target",
                 isActive 
-                  ? "text-primary bg-primary/10 scale-110" 
-                  : "text-muted-foreground hover:text-foreground hover:bg-glass/20"
+                  ? "text-primary bg-primary/10 scale-105" 
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent/50 active:scale-95"
               )}
             >
-              <Icon className="w-5 h-5" />
-              <span className="text-xs font-medium logo">{item.label}</span>
+              <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
+              <span className="text-xs sm:text-sm font-medium logo leading-tight">{item.label}</span>
             </Link>
           );
         })}

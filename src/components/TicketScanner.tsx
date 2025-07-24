@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Check, X, Camera, Loader2, QrCode, Ticket } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useParams, useSearchParams } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface TicketScannerProps {
   onScan?: (code: string) => void;
@@ -26,9 +27,11 @@ interface ScanResult {
 
 const TicketScanner: React.FC<TicketScannerProps> = ({ onScan }) => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const { eventId } = useParams();
   const [searchParams] = useSearchParams();
   const accessCode = searchParams.get('code');
+  const isOrganizer = user?.userType === 'organizer';
   
   const { validateTicket, markTicketAsUsed } = useTicket();
   const { getEvent } = useEvent();
@@ -40,18 +43,23 @@ const TicketScanner: React.FC<TicketScannerProps> = ({ onScan }) => {
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [resultDialogOpen, setResultDialogOpen] = useState(false);
   const [accessVerified, setAccessVerified] = useState(false);
-  const [accessDialogOpen, setAccessDialogOpen] = useState(!accessCode);
+  const [accessDialogOpen, setAccessDialogOpen] = useState(false);
   const [enteredAccessCode, setEnteredAccessCode] = useState(accessCode || '');
   const [recentScans, setRecentScans] = useState<ScanResult[]>([]);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   
   useEffect(() => {
-    if (accessCode) {
+    if (isOrganizer) {
+      // Organizers have automatic access
+      setAccessVerified(true);
+    } else if (accessCode) {
       verifyAccessCode(accessCode);
+    } else {
+      setAccessDialogOpen(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accessCode]);
+  }, [accessCode, isOrganizer]);
   
   const verifyAccessCode = (code: string) => {
     setIsProcessing(true);

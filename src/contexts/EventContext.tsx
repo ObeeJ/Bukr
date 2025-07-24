@@ -118,11 +118,13 @@ export const EventProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   const updateEvent = (id: string, eventData: Partial<Event>) => {
-    setEvents(prev => 
-      prev.map(event => 
+    setEvents(prev => {
+      const updated = prev.map(event => 
         event.id === id ? { ...event, ...eventData } : event
-      )
-    );
+      );
+      // Force re-render by creating new array
+      return [...updated];
+    });
   };
 
   const getEvent = (id: string) => {
@@ -146,7 +148,10 @@ export const EventProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       isActive: true
     };
     
-    setPromoCodes(prev => [...prev, newPromo]);
+    setPromoCodes(prev => {
+      const updated = [...prev, newPromo];
+      return updated;
+    });
     return id;
   };
 

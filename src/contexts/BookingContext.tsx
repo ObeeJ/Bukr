@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState } from 'react';
-import BookingFlow from '@/components/BookingFlow';
 
 type EventType = {
   id?: string;
@@ -13,6 +12,9 @@ type EventType = {
 
 interface BookingContextType {
   openBooking: (event: EventType) => void;
+  closeBooking: () => void;
+  isBookingOpen: boolean;
+  selectedEvent: EventType | null;
 }
 
 const BookingContext = createContext<BookingContextType | undefined>(undefined);
@@ -28,18 +30,17 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const closeBooking = () => {
     setIsBookingOpen(false);
+    setSelectedEvent(null);
   };
 
   return (
-    <BookingContext.Provider value={{ openBooking }}>
+    <BookingContext.Provider value={{ 
+      openBooking, 
+      closeBooking, 
+      isBookingOpen, 
+      selectedEvent 
+    }}>
       {children}
-      {selectedEvent && (
-        <BookingFlow 
-          isOpen={isBookingOpen} 
-          onClose={closeBooking} 
-          event={selectedEvent} 
-        />
-      )}
     </BookingContext.Provider>
   );
 };

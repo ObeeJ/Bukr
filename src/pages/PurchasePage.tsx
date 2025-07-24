@@ -47,12 +47,12 @@ const PurchasePage = () => {
     setIsProcessing(true);
     
     // Validate promo code using context
-    const validPromo = validatePromo(event.id.toString(), promoCode.toUpperCase());
-    
     setTimeout(() => {
+      const validPromo = validatePromo(event.id.toString(), promoCode.toUpperCase());
+      
       setIsProcessing(false);
       
-      if (validPromo) {
+      if (validPromo && validPromo.isActive && validPromo.usedCount < validPromo.ticketLimit) {
         setDiscount(validPromo.discountPercentage);
         setPromoApplied(true);
         
@@ -63,11 +63,11 @@ const PurchasePage = () => {
       } else {
         toast({
           title: "Invalid promo code",
-          description: "The promo code you entered is invalid or expired.",
+          description: "The promo code you entered is invalid, expired, or has reached its usage limit.",
           variant: "destructive"
         });
       }
-    }, 500);
+    }, 800);
   };
 
   const handleRatingSubmit = () => {

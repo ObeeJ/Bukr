@@ -13,6 +13,7 @@ import SignUp from "./pages/SignUp";
 import Explore from "./pages/Explore";
 import Favorites from "./pages/Favorites";
 import MyEvents from "./pages/MyEvents";
+import Events from "./pages/Events";
 import Profile from "./pages/Profile";
 import CreateEvent from "./pages/CreateEvent";
 import EventDashboard from "./pages/EventDashboard";
@@ -81,8 +82,8 @@ const AppRoutes = () => {
         </ProtectedRoute>
       } />
       <Route path="/events" element={
-        <ProtectedRoute>
-          <MyEvents />
+        <ProtectedRoute requiredUserType="organizer">
+          <Events />
         </ProtectedRoute>
       } />
       <Route path="/tickets" element={
