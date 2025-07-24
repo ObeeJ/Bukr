@@ -7,20 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ArrowLeft, Edit, Users, Tag, BarChart3, Calendar, MapPin, DollarSign } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import AnimatedLogo from '@/components/AnimatedLogo';
-import EventStats from '@/components/EventStats';
-import { Bar } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-} from 'chart.js';
+
 import { Event } from '@/types';
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+
 
 const EventDetail = () => {
   const { id } = useParams();
@@ -103,41 +93,7 @@ const EventDetail = () => {
   const endDate = event.endDate ? new Date(event.endDate) : new Date(eventDate.getTime() + 4 * 60 * 60 * 1000);
   const isActive = now < endDate && event.status === 'active';
 
-  // Chart data
-  const chartData = {
-    labels: ['Sold', 'Remaining', 'Promo Used', 'Collab Sales'],
-    datasets: [
-      {
-        label: 'Tickets',
-        data: [metrics.soldTickets, metrics.remainingTickets, metrics.promoUses, metrics.collabSales],
-        backgroundColor: [
-          'rgba(59, 130, 246, 0.8)',
-          'rgba(156, 163, 175, 0.8)',
-          'rgba(34, 197, 94, 0.8)',
-          'rgba(168, 85, 247, 0.8)',
-        ],
-        borderColor: [
-          'rgba(59, 130, 246, 1)',
-          'rgba(156, 163, 175, 1)',
-          'rgba(34, 197, 94, 1)',
-          'rgba(168, 85, 247, 1)',
-        ],
-        borderWidth: 1,
-      },
-    ],
-  };
 
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: { position: 'top' as const },
-      title: { display: true, text: 'Event Analytics' },
-    },
-    scales: {
-      y: { beginAtZero: true },
-    },
-  };
 
   return (
     <div className="container mx-auto px-4 py-8 pb-24">
@@ -187,7 +143,7 @@ const EventDetail = () => {
             <CardTitle className="text-xs sm:text-sm font-medium">Total Tickets</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-lg sm:text-2xl font-bold">{metrics.totalTickets}</div>
+            <div className="text-lg sm:text-2xl font-bold logo">{metrics.totalTickets}</div>
           </CardContent>
         </Card>
         <Card className="glass-card">
@@ -195,7 +151,7 @@ const EventDetail = () => {
             <CardTitle className="text-xs sm:text-sm font-medium">Sold</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-lg sm:text-2xl font-bold text-blue-600">{metrics.soldTickets}</div>
+            <div className="text-lg sm:text-2xl font-bold text-blue-600 logo">{metrics.soldTickets}</div>
           </CardContent>
         </Card>
         <Card className="glass-card">
@@ -203,7 +159,7 @@ const EventDetail = () => {
             <CardTitle className="text-xs sm:text-sm font-medium">Used</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-lg sm:text-2xl font-bold text-green-600">{metrics.usedTickets}</div>
+            <div className="text-lg sm:text-2xl font-bold text-green-600 logo">{metrics.usedTickets}</div>
           </CardContent>
         </Card>
         <Card className="glass-card">
@@ -211,7 +167,7 @@ const EventDetail = () => {
             <CardTitle className="text-xs sm:text-sm font-medium">Revenue</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-lg sm:text-2xl font-bold text-primary flex items-center gap-1">
+            <div className="text-lg sm:text-2xl font-bold text-primary flex items-center gap-1 logo">
               <DollarSign className="w-4 h-4" />
               {event.revenue || '$0'}
             </div>
@@ -219,30 +175,7 @@ const EventDetail = () => {
         </Card>
       </div>
 
-      {/* Analytics Chart */}
-      <Card className="glass-card mb-6 sm:mb-8">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-            <BarChart3 className="w-5 h-5" />
-            Analytics
-          </CardTitle>
-          <CardDescription>Real-time event metrics</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="h-48 sm:h-64 lg:h-80">
-            <Bar data={chartData} options={chartOptions} />
-          </div>
-        </CardContent>
-      </Card>
 
-      {/* Event Stats */}
-      <div className="mb-6 sm:mb-8">
-        <EventStats 
-          eventId={event.id.toString()} 
-          eventKey={event.key || ''} 
-          totalTickets={metrics.totalTickets} 
-        />
-      </div>
 
       {/* Promo Codes Summary */}
       {promos.length > 0 && (

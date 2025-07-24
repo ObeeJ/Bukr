@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Search, Heart, User, LayoutDashboard, Ticket, PlusCircle, QrCode } from "lucide-react";
+import { Search, Heart, User, LayoutDashboard, Ticket, PlusCircle, QrCode, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -8,7 +8,7 @@ const BottomNavigation = () => {
   const { user } = useAuth();
   
   // Only show bottom navigation on app routes
-  const shouldShow = ["/app", "/favorites", "/events", "/profile", "/create-event", "/dashboard", "/tickets"].some(
+  const shouldShow = ["/app", "/favorites", "/events", "/profile", "/create-event", "/dashboard", "/tickets", "/influencers"].some(
     route => location.pathname === route
   );
   
@@ -22,8 +22,8 @@ const BottomNavigation = () => {
     navItems = [
       { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
       { icon: QrCode, label: "Events", path: "/events" },
+      { icon: Users, label: "Influencers", path: "/influencers" },
       { icon: PlusCircle, label: "Create", path: "/create-event" },
-      { icon: Search, label: "Explore", path: "/app" },
       { icon: User, label: "Profile", path: "/profile" },
     ];
   } else {

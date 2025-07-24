@@ -155,10 +155,7 @@ const Explore = () => {
     setEventDetailsOpen(true);
   };
 
-  const handleBookNow = (event: Event) => {
-    setEventDetailsOpen(false);
-    navigate(`/purchase/${event.key || event.id}`);
-  };
+
 
   const renderStars = (rating: number) => {
     return (
@@ -284,8 +281,8 @@ const Explore = () => {
                     <Button 
                       variant="glow" 
                       size="sm" 
-                      className="logo font-medium"
-                      onClick={() => handleBookNow(event)}
+                      className="logo font-medium min-h-[44px]"
+                      onClick={() => navigate(`/purchase/${event.key || event.id}`)}
                     >
                       Book Now
                     </Button>
@@ -348,8 +345,11 @@ const Explore = () => {
               </div>
               <Button 
                 variant="glow" 
-                className="logo font-medium"
-                onClick={() => handleBookNow(selectedEvent)}
+                className="logo font-medium min-h-[44px]"
+                onClick={() => {
+                  setEventDetailsOpen(false);
+                  navigate(`/purchase/${selectedEvent.key || selectedEvent.id}`);
+                }}
               >
                 Book Now
               </Button>

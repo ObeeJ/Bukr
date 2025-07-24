@@ -14,6 +14,7 @@ import Explore from "./pages/Explore";
 import Favorites from "./pages/Favorites";
 import MyEvents from "./pages/MyEvents";
 import Events from "./pages/Events";
+import Influencers from "./pages/Influencers";
 import Profile from "./pages/Profile";
 import CreateEvent from "./pages/CreateEvent";
 import EventDashboard from "./pages/EventDashboard";
@@ -84,6 +85,11 @@ const AppRoutes = () => {
       <Route path="/events" element={
         <ProtectedRoute requiredUserType="organizer">
           <Events />
+        </ProtectedRoute>
+      } />
+      <Route path="/influencers" element={
+        <ProtectedRoute requiredUserType="organizer">
+          <Influencers />
         </ProtectedRoute>
       } />
       <Route path="/tickets" element={
