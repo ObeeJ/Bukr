@@ -531,7 +531,6 @@ const Profile = () => {
                       document.getElementById(`otp-${i + 1}`)?.focus();
                     }
                   }}
-                  id={`otp-${i}`}
                 />
               ))}
             </div>
