@@ -2,17 +2,18 @@ import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface EventModalProps {
-  isOpen: boolean;
+  open: boolean;
   onClose: () => void;
-  event?: any;
+  onSuccess?: () => void;
+  initialData?: any;
 }
 
-const EventModal = ({ isOpen, onClose, event }: EventModalProps) => {
+export const EventModal = ({ open, onClose, onSuccess, initialData }: EventModalProps) => {
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{event?.title || 'Event Details'}</DialogTitle>
+          <DialogTitle>{initialData?.title || 'Event Details'}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <p>Event modal content will be displayed here</p>
@@ -21,5 +22,3 @@ const EventModal = ({ isOpen, onClose, event }: EventModalProps) => {
     </Dialog>
   );
 };
-
-export default EventModal;
