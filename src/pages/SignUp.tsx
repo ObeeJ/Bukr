@@ -45,59 +45,62 @@ export default function SignUp() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-8">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-3 sm:p-4">
+      <div className="w-full max-w-md mx-auto">
+        <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-6 sm:mb-8">
           <ArrowLeft className="w-4 h-4" />
           Back to Home
         </Link>
         
-        <div className="space-y-6">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight">Create an Account</h1>
-          <p className="text-sm text-muted-foreground">Join us by creating a free account</p>
+        <div className="space-y-4 sm:space-y-6">
+        <div className="text-center px-2">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Create an Account</h1>
+          <p className="text-sm text-muted-foreground mt-2">Join us by creating a free account</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6 glass-card p-8">
-          <div className="flex gap-4">
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6 glass-card p-4 sm:p-6 lg:p-8">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             <div className="flex-1 space-y-2">
-              <Label htmlFor="firstName">First Name</Label>
+              <Label htmlFor="firstName" className="text-sm font-medium">First Name</Label>
               <Input
                 id="firstName"
                 placeholder="Enter first name"
                 value={formData.firstName}
                 onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                className="h-11 text-base"
                 required
               />
             </div>
             <div className="flex-1 space-y-2">
-              <Label htmlFor="lastName">Last Name</Label>
+              <Label htmlFor="lastName" className="text-sm font-medium">Last Name</Label>
               <Input
                 id="lastName"
                 placeholder="Enter last name"
                 value={formData.lastName}
                 onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                className="h-11 text-base"
                 required
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email" className="text-sm font-medium">Email</Label>
             <Input
               id="email"
               type="email"
               placeholder="Enter your email"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              className="h-11 text-base"
               required
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="userType">Account Type</Label>
+            <Label htmlFor="userType" className="text-sm font-medium">Account Type</Label>
             <Select value={formData.userType} onValueChange={(value) => setFormData({ ...formData, userType: value })}>
-              <SelectTrigger>
+              <SelectTrigger className="h-11">
                 <SelectValue placeholder="Select account type" />
               </SelectTrigger>
               <SelectContent>
@@ -109,47 +112,50 @@ export default function SignUp() {
 
           {formData.userType === "organizer" && (
             <div className="space-y-2">
-              <Label htmlFor="orgName">Organization Name</Label>
+              <Label htmlFor="orgName" className="text-sm font-medium">Organization Name</Label>
               <Input
                 id="orgName"
                 placeholder="Enter organization name"
                 value={formData.orgName}
                 onChange={(e) => setFormData({ ...formData, orgName: e.target.value })}
+                className="h-11 text-base"
                 required
               />
             </div>
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password" className="text-sm font-medium">Password</Label>
             <Input
               id="password"
               type="password"
               placeholder="Enter password"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              className="h-11 text-base"
               required
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirm Password</Label>
+            <Label htmlFor="confirmPassword" className="text-sm font-medium">Confirm Password</Label>
             <Input
               id="confirmPassword"
               type="password"
               placeholder="Confirm password"
               value={formData.confirmPassword}
               onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+              className="h-11 text-base"
               required
             />
           </div>
 
-          <Button type="submit" variant="glow" className="w-full h-12">Sign Up</Button>
+          <Button type="submit" variant="glow" className="w-full h-12 text-base font-medium mt-6">Sign Up</Button>
         </form>
         
-        <div className="text-center">
-          <span className="text-muted-foreground">Already have an account? </span>
-          <Link to="/signin" className="text-primary hover:text-primary-glow transition-colors font-medium">
+        <div className="text-center px-2">
+          <span className="text-sm text-muted-foreground">Already have an account? </span>
+          <Link to="/signin" className="text-sm text-primary hover:text-primary-glow transition-colors font-medium">
             Sign in
           </Link>
         </div>

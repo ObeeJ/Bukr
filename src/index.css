@@ -353,12 +353,28 @@
 .touch-target {
   min-height: 48px;
   min-width: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .safe-area-pb {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
+.mobile-optimized {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.mobile-scroll {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* Mobile-first responsive utilities */
 @media (max-width: 640px) {
   .responsive-text {
     font-size: 0.85rem;
@@ -367,6 +383,32 @@
 
   .responsive-spacing {
     padding: 0.75rem;
+  }
+
+  .mobile-form {
+    padding: 1rem;
+    gap: 1rem;
+  }
+
+  .mobile-input {
+    height: 44px;
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+
+  .mobile-button {
+    height: 48px;
+    font-size: 16px;
+    font-weight: 500;
+  }
+
+  .mobile-title {
+    font-size: 1.5rem;
+    line-height: 2rem;
+  }
+
+  .mobile-subtitle {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
   }
 }
 
@@ -379,5 +421,26 @@
 @media (min-width: 1024px) {
   .responsive-spacing {
     padding: 1.75rem;
+  }
+}
+
+/* Touch-friendly interactions */
+@media (hover: none) and (pointer: coarse) {
+  .touch-friendly {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .touch-friendly:active {
+    transform: scale(0.98);
+    transition: transform 0.1s ease;
+  }
+}
+
+/* Improved mobile viewport handling */
+@supports (-webkit-touch-callout: none) {
+  .ios-safe-area {
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-top: env(safe-area-inset-top);
   }
 }

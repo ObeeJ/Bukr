@@ -27,23 +27,23 @@ const SignIn = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-3 sm:p-4">
+      <div className="w-full max-w-md mx-auto">
         {/* Back Button */}
-        <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-8">
+        <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-6 sm:mb-8">
           <ArrowLeft className="w-4 h-4" />
           Back to Home
         </Link>
 
         {/* Sign In Form */}
-        <div className="glass-card p-8 space-y-6">
+        <div className="glass-card p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
           {/* Header */}
-          <div className="text-center space-y-2">
+          <div className="text-center space-y-2 px-2">
             <div className="mb-4">
               <AnimatedLogo size="md" />
             </div>
-            <h1 className="text-3xl font-bold text-glow">Welcome Back</h1>
-            <p className="text-muted-foreground">Sign in to your Bukr account</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-glow">Welcome Back</h1>
+            <p className="text-sm text-muted-foreground">Sign in to your Bukr account</p>
           </div>
 
           {/* Error Message */}
@@ -56,20 +56,20 @@ const SignIn = () => {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-sm font-medium">Email</Label>
               <Input
                 id="email"
                 type="email"
                 placeholder="Enter your email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="glass-card border-glass-border bg-glass/20"
+                className="glass-card border-glass-border bg-glass/20 h-11 text-base"
                 required
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" className="text-sm font-medium">Password</Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -77,7 +77,7 @@ const SignIn = () => {
                   placeholder="Enter your password"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="glass-card border-glass-border bg-glass/20 pr-10"
+                  className="glass-card border-glass-border bg-glass/20 pr-10 h-11 text-base"
                   required
                 />
                 <Button
@@ -102,7 +102,7 @@ const SignIn = () => {
               </Link>
             </div>
 
-            <Button type="submit" variant="glow" className="w-full h-12">
+            <Button type="submit" variant="glow" className="w-full h-12 text-base font-medium mt-6">
               Sign In
             </Button>
           </form>
@@ -119,8 +119,8 @@ const SignIn = () => {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <Button variant="outline" className="h-12">Google</Button>
-              <Button variant="outline" className="h-12">Twitter</Button>
+              <Button variant="outline" className="h-11 text-sm">Google</Button>
+              <Button variant="outline" className="h-11 text-sm">Twitter</Button>
             </div>
           </div>
 
