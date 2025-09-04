@@ -46,20 +46,28 @@ const Events = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto py-8 px-4">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Events</h1>
+    <div className="max-w-5xl mx-auto py-4 sm:py-6 lg:py-8 px-3 sm:px-4 safe-area-pb">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-3 sm:gap-0">
+        <h1 className="text-2xl sm:text-3xl font-bold">Events</h1>
         {user?.role === "organizer" && (
-          <Button onClick={handleCreate}>Create Event</Button>
+          <Button 
+            onClick={handleCreate}
+            className="w-full sm:w-auto h-11 touch-target"
+            variant="glow"
+          >
+            Create Event
+          </Button>
         )}
       </div>
 
       {loading ? (
-        <p className="text-center text-muted-foreground">Loading events...</p>
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">Loading events...</p>
+        </div>
       ) : events.length === 0 ? (
         <Empty message="No events yet. Be the first to create one!" />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {events.map((event) => (
             <EventCard key={event.id} event={event} onEdit={handleEdit} />
           ))}

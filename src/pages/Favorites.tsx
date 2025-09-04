@@ -11,7 +11,7 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useBooking } from "@/context/BookingContext";
 import { AnimatedLogo } from "@/components/shared/AnimatedLogo";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 
 type SimpleEvent = {
   id: number;
@@ -92,47 +92,54 @@ export default function Favorites() {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-3 sm:p-4 lg:p-6 max-w-7xl mx-auto safe-area-pb">
+      <div className="flex items-center justify-between mb-4 sm:mb-6 px-2">
         <AnimatedLogo />
-        <h1 className="text-2xl font-semibold tracking-tight">My Favorites</h1>
+        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">My Favorites</h1>
       </div>
 
       {favorites.length === 0 ? (
-        <p className="text-muted-foreground">You have no favorites saved yet.</p>
+        <div className="text-center py-12 px-4">
+          <p className="text-muted-foreground text-base">You have no favorites saved yet.</p>
+        </div>
       ) : (
-        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           <TooltipProvider>
             {favorites.map((event) => (
-              <Card key={event.id} className="hover:shadow-lg transition">
-                <CardHeader>
+              <Card key={event.id} className="hover:shadow-lg transition glass-card">
+                <CardHeader className="p-4 sm:p-6">
                   <div className="flex items-center justify-between">
-                    <span className="text-xl">{event.emoji}</span>
-                    <Badge>{event.category}</Badge>
+                    <span className="text-2xl">{event.emoji}</span>
+                    <Badge className="text-xs">{event.category}</Badge>
                   </div>
-                  <h2 className="font-bold text-lg">{event.title}</h2>
-                  <p className="text-sm text-muted-foreground">
+                  <h2 className="font-bold text-base sm:text-lg leading-tight">{event.title}</h2>
+                  <p className="text-xs sm:text-sm text-muted-foreground">
                     {event.date} at {event.time}
                   </p>
                 </CardHeader>
-                <CardContent>
-                  <p className="text-sm">{event.location}</p>
-                  <p className="text-sm font-medium">{event.price}</p>
+                <CardContent className="p-4 sm:p-6 pt-0">
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-1">{event.location}</p>
+                  <p className="text-sm sm:text-base font-medium text-primary">{event.price}</p>
                 </CardContent>
-                <CardFooter className="flex flex-col gap-2">
-                  <div className="flex gap-1">
+                <CardFooter className="flex flex-col gap-3 p-4 sm:p-6">
+                  <div className="flex gap-1 justify-center">
                     {Array.from({ length: 5 }).map((_, i) => (
-                      <span key={i}>{i < event.rating ? "⭐" : "☆"}</span>
+                      <span key={i} className="text-sm">{i < event.rating ? "⭐" : "☆"}</span>
                     ))}
                   </div>
                   <div className="flex gap-2 w-full">
-                    <Button className="w-full" onClick={() => openModal(event)}>
+                    <Button 
+                      className="flex-1 h-10 text-sm touch-target" 
+                      onClick={() => openModal(event)}
+                    >
                       View Details
                     </Button>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
                           variant="destructive"
+                          size="icon"
+                          className="h-10 w-10 touch-target"
                           onClick={() => removeFromFavorites(event.id)}
                         >
                           💔
@@ -152,33 +159,42 @@ export default function Favorites() {
 
       {/* Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
+        <DialogContent className="mx-4 max-w-md">
           {selectedEvent && (
             <>
               <DialogHeader>
-                <DialogTitle className="text-xl font-bold">
+                <DialogTitle className="text-lg sm:text-xl font-bold leading-tight">
                   {selectedEvent.emoji} {selectedEvent.title}
                 </DialogTitle>
               </DialogHeader>
-              <div className="mt-4 space-y-2 text-sm">
-                <p>
-                  <strong>Date:</strong> {selectedEvent.date} at {selectedEvent.time}
-                </p>
-                <p>
-                  <strong>Location:</strong> {selectedEvent.location}
-                </p>
-                <p>
-                  <strong>Category:</strong> {selectedEvent.category}
-                </p>
-                <p>
-                  <strong>Price:</strong> {selectedEvent.price}
-                </p>
-                <p>
-                  <strong>Description:</strong> {selectedEvent.description}
-                </p>
+              <div className="mt-4 space-y-3 text-sm">
+                <div className="grid grid-cols-1 gap-2">
+                  <p>
+                    <strong className="text-foreground">Date:</strong> <span className="text-muted-foreground">{selectedEvent.date} at {selectedEvent.time}</span>
+                  </p>
+                  <p>
+                    <strong className="text-foreground">Location:</strong> <span className="text-muted-foreground">{selectedEvent.location}</span>
+                  </p>
+                  <p>
+                    <strong className="text-foreground">Category:</strong> <span className="text-muted-foreground">{selectedEvent.category}</span>
+                  </p>
+                  <p>
+                    <strong className="text-foreground">Price:</strong> <span className="text-primary font-medium">{selectedEvent.price}</span>
+                  </p>
+                </div>
+                <div>
+                  <strong className="text-foreground">Description:</strong>
+                  <p className="text-muted-foreground mt-1 leading-relaxed">{selectedEvent.description}</p>
+                </div>
               </div>
-              <div className="mt-4">
-                <Button onClick={() => handleBookNow(selectedEvent)}>Book Now</Button>
+              <div className="mt-6">
+                <Button 
+                  onClick={() => handleBookNow(selectedEvent)} 
+                  variant="glow" 
+                  className="w-full h-12 touch-target"
+                >
+                  Book Now
+                </Button>
               </div>
             </>
           )}
