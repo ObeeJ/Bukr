@@ -11,8 +11,6 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:ui": "vitest --ui"
-    "test": "vitest",
-    "test:ui": "vitest --ui"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
