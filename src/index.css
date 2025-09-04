@@ -163,8 +163,9 @@
 @layer components {
   /* Enhanced Glass Morphism Cards */
   .glass-card {
-    @apply backdrop-blur-2xl bg-glass/40 border border-glass-border/25 rounded-[var(--radius)] shadow-[var(--shadow-glass)];
+    @apply backdrop-blur-2xl bg-card/40 border border-primary/25 rounded-[var(--radius)];
     background: linear-gradient(135deg, hsl(var(--glass) / 0.1), hsl(var(--glass) / 0.05));
+    box-shadow: var(--shadow-glass);
   }
 
   .glass-card-primary {
