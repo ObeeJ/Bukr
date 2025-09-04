@@ -1,56 +1,68 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
-type UserType = 'user' | 'organizer';
-
-interface User {
-  id: string;
+// Define the structure of the user object
+export interface User {
   name: string;
   email: string;
-  userType: UserType;
+  userType: "user" | "organizer";
   orgName?: string;
 }
 
 interface AuthContextType {
   user: User | null;
-  isAuthenticated: boolean;
-  login: (userData: User) => void;
-  logout: () => void;
+  signUp: (data: User) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<void>;
+  signOut: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  
-  // Check for saved user on mount
+  const navigate = useNavigate();
+
+  // Load user from localStorage on mount
   useEffect(() => {
-    const savedUser = localStorage.getItem('bukr_user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
     }
   }, []);
 
-  const login = (userData: User) => {
-    setUser(userData);
-    localStorage.setItem('bukr_user', JSON.stringify(userData));
+  const signUp = async (data: User) => {
+    // Simulate an API call or connect to your backend
+    setUser(data);
+    localStorage.setItem("user", JSON.stringify(data));
+    navigate("/dashboard");
   };
 
-  const logout = () => {
+  const signIn = async (email: string, password: string) => {
+    // Simulate login (replace with real logic)
+    const storedUser = localStorage.getItem("user");
+    if (!storedUser) throw new Error("User not found");
+    const parsedUser = JSON.parse(storedUser) as User;
+    if (parsedUser.email !== email) throw new Error("Invalid credentials");
+
+    setUser(parsedUser);
+    navigate("/dashboard");
+  };
+
+  const signOut = () => {
     setUser(null);
-    localStorage.removeItem('bukr_user');
+    localStorage.removeItem("user");
+    navigate("/");
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, logout }}>
+    <AuthContext.Provider value={{ user, signUp, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-export const useAuth = () => {
+export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error("useAuth must be used within an AuthProvider");
   return context;
 };

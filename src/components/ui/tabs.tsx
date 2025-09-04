@@ -11,8 +11,9 @@ const TabsList = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <TabsPrimitive.List
     ref={ref}
+    role="tablist"
     className={cn(
-      "inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground",
+      "flex flex-wrap items-center justify-center gap-2 p-1 text-muted-foreground bg-background/50 backdrop-blur-sm rounded-xl border border-border/30 mb-8",
       className
     )}
     {...props}
@@ -26,10 +27,14 @@ const TabsTrigger = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <TabsPrimitive.Trigger
     ref={ref}
+    role="tab"
     className={cn(
-      "inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm",
+      "inline-flex items-center justify-center whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium border border-transparent transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+      "text-muted-foreground/70 hover:text-foreground hover:bg-muted/50",
+      "data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:border-border/50 data-[state=active]:shadow-md",
       className
     )}
+    aria-selected={props['data-state'] === 'active'}
     {...props}
   />
 ))

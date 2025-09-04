@@ -1,3 +1,5 @@
+// src/pages/PrivacyPolicy.tsx
+
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
@@ -6,25 +8,23 @@ import AnimatedLogo from "@/components/AnimatedLogo";
 const PrivacyPolicy = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   const handleGoBack = () => {
-    // Go back to the previous page if it exists in history state
     if (location.state?.from) {
       navigate(location.state.from);
     } else {
-      navigate(-1); // Default fallback
+      navigate(-1);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 py-8 px-4">
+    <div className="min-h-screen bg-background py-8 px-4 responsive-spacing">
       <div className="max-w-3xl mx-auto">
-        {/* Header */}
         <div className="flex items-center gap-4 mb-8">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="rounded-full"
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-full hover-glow"
             onClick={handleGoBack}
           >
             <ArrowLeft className="w-5 h-5" />
@@ -32,95 +32,97 @@ const PrivacyPolicy = () => {
           <AnimatedLogo size="md" />
         </div>
 
-        <div className="glass-card p-8">
-          <h1 className="text-3xl font-bold text-glow mb-8">Privacy Policy</h1>
-          
-          <div className="space-y-6 text-foreground">
+        <div className="glass-card p-6 sm:p-8 rounded-[var(--radius)]">
+          <h1 className="text-3xl sm:text-4xl font-bold watermark text-glow mb-8">Privacy Policy</h1>
+
+          <div className="space-y-8 text-foreground font-montserrat">
             <section>
-              <h2 className="text-xl font-bold mb-3">1. Introduction</h2>
-              <p className="text-muted-foreground">
+              <h2 className="text-xl sm:text-2xl font-bold mb-3 logo">1. Introduction</h2>
+              <p className="text-muted-foreground text-sm sm:text-base">
                 Welcome to Bukr. We respect your privacy and are committed to protecting your personal data. 
-                This privacy policy will inform you about how we look after your personal data when you visit 
-                our website and tell you about your privacy rights and how the law protects you.
+                This privacy policy explains how we handle your personal data when you visit our website, 
+                your privacy rights, and how the law protects you.
               </p>
             </section>
 
             <section>
-              <h2 className="text-xl font-bold mb-3">2. Data We Collect</h2>
-              <p className="text-muted-foreground mb-3">
-                We may collect, use, store and transfer different kinds of personal data about you which we have grouped together as follows:
+              <h2 className="text-xl sm:text-2xl font-bold mb-3 logo">2. Data We Collect</h2>
+              <p className="text-muted-foreground mb-3 text-sm sm:text-base">
+                We collect, use, store, and transfer various types of personal data, including:
               </p>
-              <ul className="list-disc pl-6 space-y-2 text-muted-foreground">
+              <ul className="list-disc pl-6 space-y-2 text-muted-foreground text-sm sm:text-base">
                 <li>Identity Data: name, username, or similar identifier</li>
                 <li>Contact Data: email address, phone number</li>
-                <li>Technical Data: internet protocol address, login data, browser type</li>
-                <li>Profile Data: your preferences, feedback, and survey responses</li>
+                <li>Technical Data: IP address, login data, browser type</li>
+                <li>Profile Data: preferences, feedback, survey responses</li>
                 <li>Usage Data: information about how you use our website and services</li>
-                <li>Marketing Data: your preferences in receiving marketing from us</li>
+                <li>Marketing Data: your marketing preferences</li>
               </ul>
             </section>
 
             <section>
-              <h2 className="text-xl font-bold mb-3">3. How We Use Your Data</h2>
-              <p className="text-muted-foreground mb-3">
-                We will only use your personal data when the law allows us to. Most commonly, we will use your personal data in the following circumstances:
+              <h2 className="text-xl sm:text-2xl font-bold mb-3 logo">3. How We Use Your Data</h2>
+              <p className="text-muted-foreground mb-3 text-sm sm:text-base">
+                We use your personal data only when permitted by law, including:
               </p>
-              <ul className="list-disc pl-6 space-y-2 text-muted-foreground">
-                <li>To register you as a new customer</li>
-                <li>To process and deliver your orders</li>
-                <li>To manage our relationship with you</li>
-                <li>To improve our website, products/services, marketing</li>
-                <li>To recommend products or services that may interest you</li>
+              <ul className="list-disc pl-6 space-y-2 text-muted-foreground text-sm sm:text-base">
+                <li>Registering you as a new customer</li>
+                <li>Processing and delivering orders</li>
+                <li>Managing our relationship with you</li>
+                <li>Improving our website, products, services, and marketing</li>
+                <li>Recommending relevant products or services</li>
               </ul>
             </section>
 
             <section>
-              <h2 className="text-xl font-bold mb-3">4. Data Security</h2>
-              <p className="text-muted-foreground">
-                We have put in place appropriate security measures to prevent your personal data from being 
-                accidentally lost, used, or accessed in an unauthorized way, altered, or disclosed. We limit 
-                access to your personal data to those employees, agents, contractors, and other third parties 
-                who have a business need to know.
+              <h2 className="text-xl sm:text-2xl font-bold mb-3 logo">4. Data Security</h2>
+              <p className="text-muted-foreground text-sm sm:text-base">
+                We implement robust security measures to prevent unauthorized access, loss, alteration, or disclosure 
+                of your personal data. Access is restricted to employees, agents, and contractors with a legitimate 
+                business need.
               </p>
             </section>
 
             <section>
-              <h2 className="text-xl font-bold mb-3">5. Your Legal Rights</h2>
-              <p className="text-muted-foreground mb-3">
-                Under certain circumstances, you have rights under data protection laws in relation to your personal data, including the right to:
+              <h2 className="text-xl sm:text-2xl font-bold mb-3 logo">5. Your Legal Rights</h2>
+              <p className="text-muted-foreground mb-3 text-sm sm:text-base">
+                You have rights under data protection laws, including:
               </p>
-              <ul className="list-disc pl-6 space-y-2 text-muted-foreground">
-                <li>Request access to your personal data</li>
-                <li>Request correction of your personal data</li>
-                <li>Request erasure of your personal data</li>
-                <li>Object to processing of your personal data</li>
-                <li>Request restriction of processing your personal data</li>
-                <li>Request transfer of your personal data</li>
-                <li>Right to withdraw consent</li>
+              <ul className="list-disc pl-6 space-y-2 text-muted-foreground text-sm sm:text-base">
+                <li>Access to your personal data</li>
+                <li>Correction of your personal data</li>
+                <li>Erasure of your personal data</li>
+                <li>Objection to processing</li>
+                <li>Restriction of processing</li>
+                <li>Data transfer</li>
+                <li>Withdrawal of consent</li>
               </ul>
             </section>
 
             <section>
-              <h2 className="text-xl font-bold mb-3">6. Contact Us</h2>
-              <p className="text-muted-foreground">
-                If you have any questions about this privacy policy or our privacy practices, please contact us at:
+              <h2 className="text-xl sm:text-2xl font-bold mb-3 logo">6. Contact Us</h2>
+              <p className="text-muted-foreground text-sm sm:text-base">
+                For questions about this privacy policy or our practices, contact us at:
                 <br />
-                <a href="mailto:privacy@bukr.app" className="text-primary hover:text-primary-glow transition-colors">
+                <a
+                  href="mailto:privacy@bukr.app"
+                  className="text-primary hover:text-primary-glow transition-colors"
+                >
                   privacy@bukr.app
                 </a>
               </p>
             </section>
 
             <section>
-              <h2 className="text-xl font-bold mb-3">7. Changes to This Policy</h2>
-              <p className="text-muted-foreground">
-                We may update our privacy policy from time to time. We will notify you of any changes by posting 
-                the new privacy policy on this page and updating the "Last Updated" date.
+              <h2 className="text-xl sm:text-2xl font-bold mb-3 logo">7. Changes to This Policy</h2>
+              <p className="text-muted-foreground text-sm sm:text-base">
+                We may update this privacy policy periodically. Changes will be posted on this page with an updated 
+                "Last Updated" date.
               </p>
             </section>
 
             <div className="pt-4 text-sm text-muted-foreground">
-              Last Updated: June 15, 2025
+              Last Updated: July 29, 2025
             </div>
           </div>
         </div>

@@ -1,54 +1,57 @@
-import React, { createContext, useContext, useState } from 'react';
+// src/contexts/BookingContext.tsx
 
-type EventType = {
-  id?: string;
-  title?: string;
-  date?: string;
-  time?: string;
-  price?: string;
-  emoji?: string;
-  key?: string;
-};
+import { createContext, useContext, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Event } from "@/types";
 
 interface BookingContextType {
-  openBooking: (event: EventType) => void;
+  openBooking: (event: Event) => void;
   closeBooking: () => void;
   isBookingOpen: boolean;
-  selectedEvent: EventType | null;
+  selectedEvent: Event | null;
 }
 
 const BookingContext = createContext<BookingContextType | undefined>(undefined);
 
 export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isBookingOpen, setIsBookingOpen] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<EventType | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const navigate = useNavigate();
 
-  const openBooking = (event: EventType) => {
+  const openBooking = (event: Event) => {
+    if (!event.key) {
+      console.warn("Event key is missing for booking");
+      return;
+    }
     setSelectedEvent(event);
     setIsBookingOpen(true);
+    navigate(`/purchase/${event.key}`);
   };
 
   const closeBooking = () => {
     setIsBookingOpen(false);
     setSelectedEvent(null);
+    navigate(-1); // Navigate back to previous page
   };
 
   return (
-    <BookingContext.Provider value={{ 
-      openBooking, 
-      closeBooking, 
-      isBookingOpen, 
-      selectedEvent 
-    }}>
+    <BookingContext.Provider
+      value={{
+        openBooking,
+        closeBooking,
+        isBookingOpen,
+        selectedEvent,
+      }}
+    >
       {children}
     </BookingContext.Provider>
   );
 };
 
-export const useBooking = () => {
+export const useBooking = (): BookingContextType => {
   const context = useContext(BookingContext);
   if (context === undefined) {
-    throw new Error('useBooking must be used within a BookingProvider');
+    throw new Error("useBooking must be used within a BookingProvider");
   }
   return context;
 };
