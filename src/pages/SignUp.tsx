@@ -24,6 +24,7 @@ export default function SignUp() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Sign up form submitted:', formData);
 
     if (formData.password !== formData.confirmPassword) {
       alert("Passwords do not match.");
@@ -37,10 +38,14 @@ export default function SignUp() {
       orgName: formData.userType === "organizer" ? formData.orgName : undefined,
     };
 
+    console.log('User data to submit:', userData);
+
     try {
       await signUp(userData);
+      console.log('Sign up successful');
     } catch (error: any) {
-      alert("Signup failed: " + error.message);
+      console.error('Sign up error:', error);
+      alert("Signup failed: " + (error.message || 'Unknown error'));
     }
   };
 

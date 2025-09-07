@@ -18,10 +18,14 @@ const SignIn = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Sign in form submitted:', { email: formData.email, password: '***' });
     setError(null);
+    
     try {
       await signIn(formData.email, formData.password);
+      console.log('Sign in successful');
     } catch (err: any) {
+      console.error('Sign in error:', err);
       setError(err.message || "Failed to sign in");
     }
   };

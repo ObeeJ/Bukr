@@ -32,21 +32,60 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const signUp = async (data: User) => {
-    // Simulate an API call or connect to your backend
-    setUser(data);
-    localStorage.setItem("user", JSON.stringify(data));
-    navigate("/dashboard");
+    console.log('AuthContext signUp called with:', data);
+    try {
+      // Simulate an API call or connect to your backend
+      setUser(data);
+      localStorage.setItem("user", JSON.stringify(data));
+      console.log('User saved to localStorage:', data);
+      
+      // Navigate based on user type
+      if (data.userType === 'organizer') {
+        navigate("/dashboard");
+      } else {
+        navigate("/app");
+      }
+    } catch (error) {
+      console.error('SignUp error:', error);
+      throw error;
+    }
   };
 
   const signIn = async (email: string, password: string) => {
-    // Simulate login (replace with real logic)
-    const storedUser = localStorage.getItem("user");
-    if (!storedUser) throw new Error("User not found");
-    const parsedUser = JSON.parse(storedUser) as User;
-    if (parsedUser.email !== email) throw new Error("Invalid credentials");
-
-    setUser(parsedUser);
-    navigate("/dashboard");
+    console.log('AuthContext signIn called with email:', email);
+    try {
+      // For demo purposes, create a mock user if none exists
+      let storedUser = localStorage.getItem("user");
+      
+      if (!storedUser) {
+        // Create a demo user
+        const demoUser: User = {
+          name: "Demo User",
+          email: email,
+          userType: "user"
+        };
+        localStorage.setItem("user", JSON.stringify(demoUser));
+        setUser(demoUser);
+        navigate("/app");
+        return;
+      }
+      
+      const parsedUser = JSON.parse(storedUser) as User;
+      console.log('Found stored user:', parsedUser);
+      
+      // For demo, accept any password
+      setUser(parsedUser);
+      
+      // Navigate based on user type
+      if (parsedUser.userType === 'organizer') {
+        navigate("/dashboard");
+      } else {
+        navigate("/app");
+      }
+    } catch (error) {
+      console.error('SignIn error:', error);
+      throw new Error("Failed to sign in");
+    }
   };
 
   const signOut = () => {
