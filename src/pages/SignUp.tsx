@@ -155,7 +155,7 @@ export default function SignUp() {
             />
           </div>
 
-          <Button type="submit" variant="glow" className="w-full h-12 text-base font-medium mt-6">Sign Up</Button>
+          <Button type="submit" variant="glow" className="w-full h-12 text-base font-medium mt-6 cta">Sign Up</Button>
         </form>
         
         <div className="text-center px-2">

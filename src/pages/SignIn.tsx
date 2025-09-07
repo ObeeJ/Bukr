@@ -106,7 +106,7 @@ const SignIn = () => {
               </Link>
             </div>
 
-            <Button type="submit" variant="glow" className="w-full h-12 text-base font-medium mt-6">
+            <Button type="submit" variant="glow" className="w-full h-12 text-base font-medium mt-6 cta">
               Sign In
             </Button>
           </form>

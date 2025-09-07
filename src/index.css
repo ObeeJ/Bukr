@@ -5,40 +5,39 @@
 @tailwind utilities;
 
 @layer base {
-  /* Typography */
+  /* Typography - Clash Display for CTAs/Buttons, Montserrat for everything else */
+  * {
+    font-family: 'Montserrat', sans-serif;
+  }
+
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Clash Display', sans-serif;
-    font-weight: 400;
-  }
-
-  h1 {
-    font-weight: 700;
-  }
-
-  body, p, span, input, textarea, select {
     font-family: 'Montserrat', sans-serif;
-    font-weight: 400;
+    font-weight: 600;
   }
 
-  button {
-    font-family: 'Clash Display', sans-serif;
-    font-weight: 400;
+  /* CTA Buttons use Clash Display */
+  button, .btn, .cta {
+    font-family: 'Clash Display', sans-serif !important;
+    font-weight: 500;
   }
 
-  .text-xs, .text-sm {
-    font-family: 'Montserrat', sans-serif;
-  }
-
+  /* Logo and Brand elements */
   .logo, .brand {
-    font-family: 'Clash Display', sans-serif;
-    font-weight: 550;
+    font-family: 'Clash Display', sans-serif !important;
+    font-weight: 600;
     letter-spacing: -0.01em;
   }
 
   .watermark {
-    font-family: 'Clash Display', sans-serif;
+    font-family: 'Clash Display', sans-serif !important;
     font-weight: 600;
     opacity: 0.8;
+  }
+
+  /* Ensure all text inputs and body text use Montserrat */
+  body, p, span, input, textarea, select, label {
+    font-family: 'Montserrat', sans-serif !important;
+    font-weight: 400;
   }
 
   :root {

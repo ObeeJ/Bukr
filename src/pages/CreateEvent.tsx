@@ -1,207 +1,144 @@
-import React, { useContext, useState } from "react";
-import { v4 as uuidv4 } from "uuid";
-import { useNavigate } from "react-router-dom";
-import { EventContext } from "@/context/EventContext";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { toast } from "@/components/ui/use-toast";
+import React, { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const CreateEvent = () => {
   const navigate = useNavigate();
-  const { events, setEvents } = useContext(EventContext);
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
   const [formData, setFormData] = useState({
-    id: "",
-    name: "",
-    description: "",
-    location: "",
-    type: "physical", // physical | virtual | hybrid
-    date: "",
-    time: "",
-    category: "",
-    totalSeats: 0,
-    availableSeats: 0,
-    price: 0,
-    organizer: "You",
-    isInfluencerEvent: false,
-    influencerHandles: {
-      twitter: "",
-      instagram: "",
-      tiktok: "",
-      snapchat: "",
-      facebook: ""
-    }
+    title: '',
+    description: '',
+    date: '',
+    time: '',
+    location: '',
+    price: '',
+    category: '',
+    totalTickets: ''
   });
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: name === "totalSeats" || name === "price" ? Number(value) : value
-    }));
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
-
-    // Influencer validation
-    if (formData.isInfluencerEvent) {
-      const filledHandles = Object.values(formData.influencerHandles).filter(Boolean);
-      if (filledHandles.length < 2) {
-        toast({
-          title: "Add More Socials",
-          description: "Please provide at least two social media handles.",
-          variant: "destructive"
-        });
-        setIsSubmitting(false);
-        return;
-      }
-    }
-
-    const eventId = uuidv4();
-    const newEvent = {
-      ...formData,
-      id: eventId,
-      availableSeats: formData.totalSeats
-    };
-
-    setEvents([newEvent, ...events]);
-
-    toast({
-      title: "Event Created 🎉",
-      description: `${formData.name} has been added.`,
-    });
-
-    setTimeout(() => {
-      navigate("/dashboard");
-    }, 1500);
+    console.log('Creating event:', formData);
+    alert('Event created successfully!');
+    navigate('/dashboard');
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6 mt-6 bg-white rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold mb-4">Create a New Event</h2>
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <div>
-          <Label>Event Name</Label>
-          <Input name="name" value={formData.name} onChange={handleChange} required />
-        </div>
-
-        <div>
-          <Label>Description</Label>
-          <Textarea name="description" value={formData.description} onChange={handleChange} required />
-        </div>
-
-        <div>
-          <Label>Location</Label>
-          <Input name="location" value={formData.location} onChange={handleChange} required />
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <div>
-            <Label>Date</Label>
-            <Input name="date" type="date" value={formData.date} onChange={handleChange} required />
-          </div>
-          <div>
-            <Label>Time</Label>
-            <Input name="time" type="time" value={formData.time} onChange={handleChange} required />
-          </div>
-          <div>
-            <Label>Category</Label>
-            <Input name="category" value={formData.category} onChange={handleChange} required />
-          </div>
-        </div>
-
-        <div>
-          <Label>Event Type</Label>
-          <select
-            name="type"
-            value={formData.type}
-            onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-            className="border border-gray-300 rounded px-3 py-2 w-full"
+    <div className="min-h-screen p-4 safe-area-pb">
+      <div className="max-w-2xl mx-auto">
+        <div className="flex items-center mb-6">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => navigate('/dashboard')}
+            className="mr-3"
           >
-            <option value="physical">Physical</option>
-            <option value="virtual">Virtual</option>
-            <option value="hybrid">Hybrid</option>
-          </select>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-2xl font-bold">Create New Event</h1>
         </div>
 
-        {formData.type === "physical" || formData.type === "hybrid" ? (
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Total Seats</Label>
+        <form onSubmit={handleSubmit} className="space-y-6 glass-card p-6">
+          <div className="space-y-2">
+            <Label htmlFor="title">Event Title</Label>
+            <Input
+              id="title"
+              placeholder="Enter event title"
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              placeholder="Describe your event"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="date">Date</Label>
               <Input
-                name="totalSeats"
-                type="number"
-                min={1}
-                value={formData.totalSeats}
-                onChange={handleChange}
+                id="date"
+                type="date"
+                value={formData.date}
+                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                required
               />
             </div>
-            <div>
-              <Label>Price (₦)</Label>
+            <div className="space-y-2">
+              <Label htmlFor="time">Time</Label>
               <Input
-                name="price"
-                type="number"
-                min={0}
-                value={formData.price}
-                onChange={handleChange}
+                id="time"
+                type="time"
+                value={formData.time}
+                onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                required
               />
             </div>
           </div>
-        ) : null}
 
-        <div className="space-y-2 mt-6">
-          <Label>
-            <input
-              type="checkbox"
-              checked={formData.isInfluencerEvent}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  isInfluencerEvent: e.target.checked
-                }))
-              }
-            />{" "}
-            Enable Influencer Applications
-          </Label>
+          <div className="space-y-2">
+            <Label htmlFor="location">Location</Label>
+            <Input
+              id="location"
+              placeholder="Event location"
+              value={formData.location}
+              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+              required
+            />
+          </div>
 
-          {formData.isInfluencerEvent && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {["twitter", "instagram", "tiktok", "snapchat", "facebook"].map((platform) => (
-                <div key={platform}>
-                  <Label htmlFor={platform}>
-                    {platform.charAt(0).toUpperCase() + platform.slice(1)} Handle
-                  </Label>
-                  <Input
-                    id={platform}
-                    name={platform}
-                    value={formData.influencerHandles[platform as keyof typeof formData.influencerHandles]}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        influencerHandles: {
-                          ...prev.influencerHandles,
-                          [platform]: e.target.value
-                        }
-                      }))
-                    }
-                    placeholder={`@your${platform}`}
-                  />
-                </div>
-              ))}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="price">Price (₦)</Label>
+              <Input
+                id="price"
+                type="number"
+                placeholder="0"
+                value={formData.price}
+                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                required
+              />
             </div>
-          )}
-        </div>
+            <div className="space-y-2">
+              <Label htmlFor="totalTickets">Total Tickets</Label>
+              <Input
+                id="totalTickets"
+                type="number"
+                placeholder="100"
+                value={formData.totalTickets}
+                onChange={(e) => setFormData({ ...formData, totalTickets: e.target.value })}
+                required
+              />
+            </div>
+          </div>
 
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Submitting..." : "Create Event"}
-        </Button>
-      </form>
+          <div className="space-y-2">
+            <Label htmlFor="category">Category</Label>
+            <Input
+              id="category"
+              placeholder="e.g., Music, Tech, Sports"
+              value={formData.category}
+              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              required
+            />
+          </div>
+
+          <Button type="submit" variant="glow" className="w-full h-12 cta">
+            Create Event
+          </Button>
+        </form>
+      </div>
     </div>
   );
 };

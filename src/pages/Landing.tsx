@@ -71,12 +71,12 @@ const Landing = () => {
               onClick={() => setAuthModal({ isOpen: true, tab: "signin" })}
               variant="glow" 
               size="lg" 
-              className="px-8 sm:px-12 py-4 sm:py-6 text-lg sm:text-xl group animate-scale-in button-glow transition-all duration-500 hover:scale-105 transform-gpu shadow-lg hover:shadow-xl touch-target"
+              className="px-8 sm:px-12 py-4 sm:py-6 text-lg sm:text-xl group animate-scale-in button-glow transition-all duration-500 hover:scale-105 transform-gpu shadow-lg hover:shadow-xl touch-target cta"
               style={{
                 transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
               }}
             >
-              <span className="font-medium logo">Use Bukr</span>
+              <span className="font-medium">Use Bukr</span>
               <ArrowRight className="ml-2 sm:ml-3 w-5 h-5 sm:w-6 sm:h-6 group-hover:translate-x-1 transition-transform duration-300" />
             </Button>
           </div>

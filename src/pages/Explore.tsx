@@ -1,78 +1,80 @@
-import { useEffect, useState } from "react"
-import { getAllEvents } from "@/lib/actions/event.actions"
-import { EventType } from "@/types"
-import EventCard from "@/components/shared/EventCard"
-import Empty from "@/components/shared/Empty"
-import EventModal from "@/components/modals/EventModal"
-import { useUser } from "@clerk/nextjs"
-import { Button } from "@/components/ui/button"
-import { Plus } from "lucide-react"
-import Loader from "@/components/shared/Loader"
+import React from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ArrowLeft, Heart, MapPin, Calendar } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+
+const sampleEvents = [
+  {
+    id: 1,
+    title: 'Tech Conference 2025',
+    date: '2025-03-15',
+    location: 'Lagos, Nigeria',
+    price: '₦15,000',
+    image: '🎯'
+  },
+  {
+    id: 2,
+    title: 'Music Festival',
+    date: '2025-04-20',
+    location: 'Abuja, Nigeria',
+    price: '₦8,000',
+    image: '🎵'
+  }
+];
 
 const Explore = () => {
-  const { user } = useUser()
-  const [events, setEvents] = useState<EventType[]>([])
-  const [loading, setLoading] = useState(true)
-  const [modalOpen, setModalOpen] = useState(false)
-
-  const fetchEvents = async () => {
-    try {
-      setLoading(true)
-      const allEvents = await getAllEvents()
-      setEvents(allEvents || [])
-    } catch (error) {
-      console.error("Failed to fetch events:", error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchEvents()
-  }, [])
-
-  const isOrganizer = user?.publicMetadata?.role === "organizer"
+  const navigate = useNavigate();
 
   return (
-    <main className="px-6 py-8 md:px-12 w-full">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Explore Events</h1>
-        {isOrganizer && (
-          <Button onClick={() => setModalOpen(true)} className="gap-2">
-            <Plus size={18} />
-            Add Event
+    <div className="min-h-screen p-4 safe-area-pb">
+      <div className="max-w-4xl mx-auto">
+        <div className="flex items-center mb-6">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => navigate('/app')}
+            className="mr-3"
+          >
+            <ArrowLeft className="h-5 w-5" />
           </Button>
-        )}
-      </div>
+          <h1 className="text-2xl font-bold">Explore Events</h1>
+        </div>
 
-      {loading ? (
-        <Loader />
-      ) : events.length === 0 ? (
-        <Empty
-          title="No Events Found"
-          description="Events will appear here once published."
-        />
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {events.map((event) => (
-            <EventCard key={event._id} event={event} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {sampleEvents.map((event) => (
+            <Card key={event.id} className="glass-card hover:shadow-lg transition-all">
+              <CardHeader>
+                <div className="flex items-start justify-between">
+                  <div className="text-3xl mb-2">{event.image}</div>
+                  <Button variant="ghost" size="icon">
+                    <Heart className="h-4 w-4" />
+                  </Button>
+                </div>
+                <CardTitle className="text-lg">{event.title}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="flex items-center text-sm text-muted-foreground">
+                  <Calendar className="h-4 w-4 mr-2" />
+                  {event.date}
+                </div>
+                <div className="flex items-center text-sm text-muted-foreground">
+                  <MapPin className="h-4 w-4 mr-2" />
+                  {event.location}
+                </div>
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-lg font-bold text-primary">{event.price}</span>
+                  <Button variant="glow" size="sm" className="cta">
+                    Book Now
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           ))}
         </div>
-      )}
+      </div>
+    </div>
+  );
+};
 
-      {/* Modal for creating/editing event */}
-      {isOrganizer && (
-        <EventModal
-          isOpen={modalOpen}
-          onClose={() => setModalOpen(false)}
-          onSuccess={() => {
-            fetchEvents()
-            setModalOpen(false)
-          }}
-        />
-      )}
-    </main>
-  )
-}
-
-export default Explore
+export default Explore;

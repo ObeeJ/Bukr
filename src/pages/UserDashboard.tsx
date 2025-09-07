@@ -1,251 +1,64 @@
-// src/pages/UserDashboard.tsx
-
-import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { useEvent } from "@/contexts/EventContext";
-import { useTicket } from "@/contexts/TicketContext";
-import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Ticket, Heart, User, ArrowLeft } from "lucide-react";
-import AnimatedLogo from "@/components/AnimatedLogo";
-import EmptyState from "@/components/EmptyState";
-import { Event, Ticket as TicketType } from "@/types";
+import React from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Calendar, Heart, Ticket, User } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const UserDashboard = () => {
-  const { user } = useAuth();
-  const { events, fetchEvents, loading: eventsLoading, error: eventsError } = useEvent();
-  const { getUserTickets, loading: ticketsLoading, error: ticketsError } = useTicket();
   const navigate = useNavigate();
-  const [tickets, setTickets] = useState<TicketType[]>([]);
-  const [favorites, setFavorites] = useState<Event[]>([]);
-  const [activeTab, setActiveTab] = useState("upcoming");
-
-  useEffect(() => {
-    if (user?.email) {
-      fetchEvents();
-      const userTickets = getUserTickets(user.email);
-      setTickets(userTickets || []);
-      setFavorites(events.filter((event) => user.favorites?.includes(event.id)));
-    }
-  }, [user, fetchEvents, getUserTickets, events]);
-
-  if (!user) {
-    return (
-      <div className="min-h-screen pt-8 pb-24 px-4 responsive-spacing">
-        <div className="flex items-center gap-2 mb-6">
-          <AnimatedLogo size="sm" />
-        </div>
-        <div className="text-center py-16">
-          <h2 className="text-2xl font-bold watermark mb-4">Please Sign In</h2>
-          <p className="text-muted-foreground font-montserrat mb-8">
-            You need to be signed in to view your dashboard.
-          </p>
-          <Button
-            variant="glow"
-            onClick={() => navigate("/login")}
-            className="logo font-medium hover-glow"
-          >
-            Sign In
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  if (eventsLoading || ticketsLoading) {
-    return (
-      <div className="min-h-screen pt-8 pb-24 px-4 responsive-spacing">
-        <div className="flex items-center gap-2 mb-6">
-          <AnimatedLogo size="sm" />
-        </div>
-        <div className="animate-pulse space-y-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-32 bg-muted rounded-lg"></div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (eventsError || ticketsError) {
-    return (
-      <div className="min-h-screen pt-8 pb-24 px-4 responsive-spacing">
-        <div className="flex items-center gap-2 mb-6">
-          <AnimatedLogo size="sm" />
-        </div>
-        <div className="text-center py-16">
-          <h2 className="text-2xl font-bold watermark mb-4">Error Loading Dashboard</h2>
-          <p className="text-muted-foreground font-montserrat mb-8">
-            {eventsError || ticketsError}
-          </p>
-          <Button
-            variant="glow"
-            onClick={() => navigate("/app")}
-            className="logo font-medium hover-glow"
-          >
-            Back to Events
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  const upcomingEvents = tickets
-    .map((ticket) => {
-      const event = events.find((e) => e.id.toString() === ticket.eventId);
-      return event ? { ...event, ticket } : null;
-    })
-    .filter((e): e is Event & { ticket: TicketType } => e !== null)
-    .filter((e) => new Date(e.date) >= new Date());
 
   return (
-    <div className="min-h-screen pt-8 pb-24 px-4 responsive-spacing">
-      <div className="flex items-center gap-4 mb-6">
-        <Button
-          variant="ghost"
-          onClick={() => navigate("/app")}
-          className="p-2 hover-glow"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          <span className="hidden sm:inline logo font-medium">Back</span>
-        </Button>
-        <AnimatedLogo size="sm" />
-      </div>
+    <div className="min-h-screen p-4 safe-area-pb">
+      <div className="max-w-4xl mx-auto space-y-6">
+        <div className="text-center mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold mb-2">Welcome to Bukr</h1>
+          <p className="text-muted-foreground">Discover and book amazing events</p>
+        </div>
 
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold watermark mb-2">Welcome, {user.name}!</h1>
-          <p className="text-muted-foreground font-montserrat">Manage your events and tickets</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Card className="glass-card hover:shadow-lg transition-all cursor-pointer" onClick={() => navigate('/favorites')}>
+            <CardHeader className="flex flex-row items-center space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">My Favorites</CardTitle>
+              <Heart className="h-4 w-4 ml-auto text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">0</div>
+              <p className="text-xs text-muted-foreground">Saved events</p>
+            </CardContent>
+          </Card>
+
+          <Card className="glass-card hover:shadow-lg transition-all cursor-pointer" onClick={() => navigate('/tickets')}>
+            <CardHeader className="flex flex-row items-center space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">My Tickets</CardTitle>
+              <Ticket className="h-4 w-4 ml-auto text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">0</div>
+              <p className="text-xs text-muted-foreground">Active tickets</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="space-y-4">
+          <Button 
+            onClick={() => navigate('/explore')} 
+            variant="glow" 
+            className="w-full h-12 cta"
+          >
+            <Calendar className="mr-2 h-5 w-5" />
+            Explore Events
+          </Button>
+          
+          <Button 
+            onClick={() => navigate('/profile')} 
+            variant="outline" 
+            className="w-full h-12"
+          >
+            <User className="mr-2 h-5 w-5" />
+            My Profile
+          </Button>
         </div>
       </div>
-
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4 mb-8">
-          <TabsTrigger value="upcoming" className="flex items-center gap-2 logo font-medium">
-            <Calendar className="w-4 h-4" />
-            <span className="hidden sm:inline">Upcoming</span>
-          </TabsTrigger>
-          <TabsTrigger value="tickets" className="flex items-center gap-2 logo font-medium">
-            <Ticket className="w-4 h-4" />
-            <span className="hidden sm:inline">My Tickets</span>
-          </TabsTrigger>
-          <TabsTrigger value="favorites" className="flex items-center gap-2 logo font-medium">
-            <Heart className="w-4 h-4" />
-            <span className="hidden sm:inline">Favorites</span>
-          </TabsTrigger>
-          <TabsTrigger value="profile" className="flex items-center gap-2 logo font-medium">
-            <User className="w-4 h-4" />
-            <span className="hidden sm:inline">Profile</span>
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="upcoming" className="space-y-4">
-          {upcomingEvents.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {upcomingEvents.map((event) => (
-                <Card key={event.id} className="glass-card hover-glow">
-                  <CardHeader>
-                    <CardTitle className="truncate logo">{event.title}</CardTitle>
-                    <CardDescription className="font-montserrat">
-                      {new Date(event.date).toLocaleDateString()} • {event.time}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="aspect-video bg-gradient-to-br from-primary/20 to-accent/20 rounded-md flex items-center justify-center mb-4">
-                      <span className="text-6xl">{event.emoji || "🎉"}</span>
-                    </div>
-                    <p className="text-sm text-muted-foreground font-montserrat">
-                      Your tickets: {event.ticket.quantity} × {event.ticket.ticketType}
-                    </p>
-                  </CardContent>
-                  <CardFooter className="flex justify-between gap-2">
-                    <Button
-                      variant="outline"
-                      className="flex-1 logo font-medium hover-glow"
-                      onClick={() => navigate(`/events/${event.key}`)}
-                    >
-                      View Details
-                    </Button>
-                    <Button
-                      variant="glow"
-                      className="flex-1 logo font-medium hover-glow"
-                      onClick={() => navigate(`/tickets/${event.ticket.ticketId}`)}
-                    >
-                      View Tickets
-                    </Button>
-                  </CardFooter>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <EmptyState
-              title="No Upcoming Events"
-              description="You don't have any upcoming events. Explore new events to attend!"
-              icon="📅"
-              action={{
-                label: "Explore Events",
-                onClick: () => navigate("/app"),
-              }}
-            />
-          )}
-        </TabsContent>
-
-        <TabsContent value="tickets" className="space-y-4">
-          <EmptyState
-            title="No Tickets Found"
-            description="You haven't purchased any tickets yet. Explore events and book your first ticket!"
-            icon="🎫"
-            action={{
-              label: "Explore Events",
-              onClick: () => navigate("/app"),
-            }}
-          />
-        </TabsContent>
-
-        <TabsContent value="favorites" className="space-y-4">
-          <EmptyState
-            title="No Favorites"
-            description="You haven't favorited any events yet. Find events you love and save them!"
-            icon="❤️"
-            action={{
-              label: "Explore Events",
-              onClick: () => navigate("/app"),
-            }}
-          />
-        </TabsContent>
-
-        <TabsContent value="profile" className="space-y-4">
-          <Card className="glass-card hover-glow">
-            <CardHeader>
-              <CardTitle className="logo">Personal Information</CardTitle>
-              <CardDescription className="font-montserrat">Manage your account details</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground font-montserrat">Name</p>
-                  <p className="font-medium logo">{user.name}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground font-montserrat">Email</p>
-                  <p className="font-medium logo">{user.email}</p>
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button
-                variant="outline"
-                className="logo font-medium hover-glow"
-                onClick={() => navigate("/profile")}
-              >
-                Edit Profile
-              </Button>
-            </CardFooter>
-          </Card>
-        </TabsContent>
-      </Tabs>
     </div>
   );
 };
