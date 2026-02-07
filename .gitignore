@@ -29,3 +29,6 @@ dist-ssr
 
 # Plan files
 .plan
+
+# Rust build artifacts
+backend/core/target/
