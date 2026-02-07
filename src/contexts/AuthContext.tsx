@@ -1,101 +1,153 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-
-// Define the structure of the user object
-export interface User {
-  name: string;
-  email: string;
-  userType: "user" | "organizer";
-  orgName?: string;
-}
+import { User } from "@/types";
+import { supabase } from "@/lib/supabase";
+import { getProfile, completeProfile } from "@/api/users";
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  signUp: (data: User) => Promise<void>;
+  isLoading: boolean;
+  signUp: (data: SignupData) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
-  signOut: () => void;
+  signOut: () => Promise<void>;
+}
+
+export interface SignupData {
+  email: string;
+  password: string;
+  name: string;
+  userType: "user" | "organizer";
+  orgName?: string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Load user from localStorage on mount
-  useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
+  const fetchUserProfile = async () => {
+    try {
+      const profile = await getProfile();
+      setUser(profile);
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      setUser(null);
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  useEffect(() => {
+    // Check active session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        fetchUserProfile();
+      } else {
+        setIsLoading(false);
+      }
+    });
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        fetchUserProfile();
+      } else {
+        setUser(null);
+        setIsLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (data: User) => {
-    console.log('AuthContext signUp called with:', data);
+  const signUp = async (data: SignupData) => {
+    setIsLoading(true);
     try {
-      // Simulate an API call or connect to your backend
-      setUser(data);
-      localStorage.setItem("user", JSON.stringify(data));
-      console.log('User saved to localStorage:', data);
-      
-      // Navigate based on user type
-      if (data.userType === 'organizer') {
-        navigate("/dashboard");
+      // 1. Sign up with Supabase
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: data.email,
+        password: data.password,
+      });
+
+      if (authError) throw authError;
+
+      if (authData.session) {
+        // 2. Call backend to complete profile
+        await completeProfile({
+          name: data.name,
+          userType: data.userType,
+          orgName: data.orgName,
+        });
+
+        // 3. Fetch full profile
+        await fetchUserProfile();
+
+        // 4. Navigate
+        if (data.userType === 'organizer') {
+          navigate("/dashboard");
+        } else {
+          navigate("/app");
+        }
       } else {
-        navigate("/app");
+        // Handle case where email confirmation is required
+        alert("Please check your email to confirm your account.");
       }
     } catch (error) {
       console.error('SignUp error:', error);
       throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const signIn = async (email: string, password: string) => {
-    console.log('AuthContext signIn called with email:', email);
+    setIsLoading(true);
     try {
-      // For demo purposes, create a mock user if none exists
-      let storedUser = localStorage.getItem("user");
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
       
-      if (!storedUser) {
-        // Create a demo user
-        const demoUser: User = {
-          name: "Demo User",
-          email: email,
-          userType: "user"
-        };
-        localStorage.setItem("user", JSON.stringify(demoUser));
-        setUser(demoUser);
-        navigate("/app");
-        return;
-      }
+      // onAuthStateChange will trigger fetchUserProfile and navigation could happen there,
+      // but we can also do it here explicitly if we want to wait for profile.
+      await fetchUserProfile();
       
-      const parsedUser = JSON.parse(storedUser) as User;
-      console.log('Found stored user:', parsedUser);
+      // We need the user state to be updated to know where to navigate,
+      // but state updates are async. We can check the fetched profile or just default to /app 
+      // and let the component protection handle redirection if needed.
+      // For now, let's just go to /app (or dashboard if we knew)
+      navigate("/app"); 
       
-      // For demo, accept any password
-      setUser(parsedUser);
-      
-      // Navigate based on user type
-      if (parsedUser.userType === 'organizer') {
-        navigate("/dashboard");
-      } else {
-        navigate("/app");
-      }
     } catch (error) {
       console.error('SignIn error:', error);
-      throw new Error("Failed to sign in");
+      throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const signOut = () => {
-    setUser(null);
-    localStorage.removeItem("user");
-    navigate("/");
+  const signOut = async () => {
+    setIsLoading(true);
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      navigate("/");
+    } catch (error) {
+      console.error('SignOut error:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, signUp, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );
