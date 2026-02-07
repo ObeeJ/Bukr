@@ -1,0 +1,77 @@
+# Render Blueprint for Bukr Backend
+# Deploy both services from a single repo
+# https://render.com/docs/blueprint-spec
+
+services:
+  # Go API Gateway
+  - type: web
+    name: bukr-gateway
+    runtime: docker
+    dockerfilePath: ./backend/gateway/Dockerfile
+    dockerContext: ./backend/gateway
+    region: oregon
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: "8080"
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          name: bukr-redis
+          type: redis
+          property: connectionString
+      - key: RUST_SERVICE_URL
+        fromService:
+          name: bukr-core
+          type: web
+          property: hostport
+      - key: ALLOWED_ORIGINS
+        value: "https://your-netlify-site.netlify.app"
+      - key: LOG_LEVEL
+        value: "info"
+
+  # Rust Core Service (internal, not publicly exposed)
+  - type: web
+    name: bukr-core
+    runtime: docker
+    dockerfilePath: ./backend/core/Dockerfile
+    dockerContext: ./backend/core
+    region: oregon
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: "8081"
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          name: bukr-redis
+          type: redis
+          property: connectionString
+      - key: PAYSTACK_SECRET_KEY
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: PAYSTACK_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: RUST_LOG
+        value: "bukr_core=info,tower_http=info"
+
+  # Redis Cache
+  - type: redis
+    name: bukr-redis
+    region: oregon
+    plan: starter
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: [] # only internal access
