@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useAuth } from "@/context/auth-context";
+import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
+import { toast } from "sonner";
 
 export default function SignUp() {
   const [formData, setFormData] = useState({
@@ -18,16 +19,25 @@ export default function SignUp() {
     userType: "user",
     orgName: "",
   });
+  const [isLoading, setIsLoading] = useState(false);
 
   const { signUp } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Sign up form submitted:', formData);
 
     if (formData.password !== formData.confirmPassword) {
-      alert("Passwords do not match.");
+      toast.error("Passwords don't match 🔒", {
+        description: "Please make sure both passwords are identical."
+      });
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      toast.error("Password too short 🔑", {
+        description: "Password must be at least 6 characters long."
+      });
       return;
     }
 
@@ -38,14 +48,31 @@ export default function SignUp() {
       orgName: formData.userType === "organizer" ? formData.orgName : undefined,
     };
 
-    console.log('User data to submit:', userData);
+    setIsLoading(true);
 
     try {
       await signUp(userData);
-      console.log('Sign up successful');
+      toast.success("Account created! 🎉", {
+        description: "Check your email to verify your account."
+      });
     } catch (error: any) {
       console.error('Sign up error:', error);
-      alert("Signup failed: " + (error.message || 'Unknown error'));
+
+      if (error.message?.includes('already registered') || error.message?.includes('already exists')) {
+        toast.error("Email already taken 📧", {
+          description: "This email is already registered. Try signing in instead."
+        });
+      } else if (error.message?.includes('invalid email')) {
+        toast.error("Invalid email format ✉️", {
+          description: "Please enter a valid email address."
+        });
+      } else {
+        toast.error("Signup failed 😕", {
+          description: error.message || "Something went wrong. Please try again."
+        });
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -56,114 +83,121 @@ export default function SignUp() {
           <ArrowLeft className="w-4 h-4" />
           Back to Home
         </Link>
-        
+
         <div className="space-y-4 sm:space-y-6">
-        <div className="text-center px-2">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Create an Account</h1>
-          <p className="text-sm text-muted-foreground mt-2">Join us by creating a free account</p>
-        </div>
+          <div className="text-center px-2">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Create an Account</h1>
+            <p className="text-sm text-muted-foreground mt-2">Join us by creating a free account</p>
+          </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6 glass-card p-4 sm:p-6 lg:p-8">
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-            <div className="flex-1 space-y-2">
-              <Label htmlFor="firstName" className="text-sm font-medium">First Name</Label>
-              <Input
-                id="firstName"
-                placeholder="Enter first name"
-                value={formData.firstName}
-                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                className="h-11 text-base"
-                required
-              />
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6 glass-card p-4 sm:p-6 lg:p-8">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+              <div className="flex-1 space-y-2">
+                <Label htmlFor="firstName" className="text-sm font-medium">First Name</Label>
+                <Input
+                  id="firstName"
+                  placeholder="Enter first name"
+                  value={formData.firstName}
+                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                  className="h-11 text-base"
+                  required
+                />
+              </div>
+              <div className="flex-1 space-y-2">
+                <Label htmlFor="lastName" className="text-sm font-medium">Last Name</Label>
+                <Input
+                  id="lastName"
+                  placeholder="Enter last name"
+                  value={formData.lastName}
+                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                  className="h-11 text-base"
+                  required
+                />
+              </div>
             </div>
-            <div className="flex-1 space-y-2">
-              <Label htmlFor="lastName" className="text-sm font-medium">Last Name</Label>
-              <Input
-                id="lastName"
-                placeholder="Enter last name"
-                value={formData.lastName}
-                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                className="h-11 text-base"
-                required
-              />
-            </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="email" className="text-sm font-medium">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="Enter your email"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="h-11 text-base"
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="userType" className="text-sm font-medium">Account Type</Label>
-            <Select value={formData.userType} onValueChange={(value) => setFormData({ ...formData, userType: value })}>
-              <SelectTrigger className="h-11">
-                <SelectValue placeholder="Select account type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="user">User</SelectItem>
-                <SelectItem value="organizer">Organizer</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {formData.userType === "organizer" && (
             <div className="space-y-2">
-              <Label htmlFor="orgName" className="text-sm font-medium">Organization Name</Label>
+              <Label htmlFor="email" className="text-sm font-medium">Email</Label>
               <Input
-                id="orgName"
-                placeholder="Enter organization name"
-                value={formData.orgName}
-                onChange={(e) => setFormData({ ...formData, orgName: e.target.value })}
+                id="email"
+                type="email"
+                placeholder="Enter your email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 className="h-11 text-base"
                 required
               />
             </div>
-          )}
 
-          <div className="space-y-2">
-            <Label htmlFor="password" className="text-sm font-medium">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="Enter password"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              className="h-11 text-base"
-              required
-            />
+            <div className="space-y-2">
+              <Label htmlFor="userType" className="text-sm font-medium">Account Type</Label>
+              <Select value={formData.userType} onValueChange={(value) => setFormData({ ...formData, userType: value })}>
+                <SelectTrigger className="h-11">
+                  <SelectValue placeholder="Select account type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="user">User</SelectItem>
+                  <SelectItem value="organizer">Organizer</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {formData.userType === "organizer" && (
+              <div className="space-y-2">
+                <Label htmlFor="orgName" className="text-sm font-medium">Organization Name</Label>
+                <Input
+                  id="orgName"
+                  placeholder="Enter organization name"
+                  value={formData.orgName}
+                  onChange={(e) => setFormData({ ...formData, orgName: e.target.value })}
+                  className="h-11 text-base"
+                  required
+                />
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-sm font-medium">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="Enter password"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                className="h-11 text-base"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword" className="text-sm font-medium">Confirm Password</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                placeholder="Confirm password"
+                value={formData.confirmPassword}
+                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                className="h-11 text-base"
+                required
+              />
+            </div>
+
+            <Button
+              type="submit"
+              variant="glow"
+              className="w-full h-12 text-base font-medium mt-6 cta"
+              disabled={isLoading}
+            >
+              {isLoading ? "Creating account..." : "Create Account"}
+            </Button>
+          </form>
+
+          <div className="text-center px-2">
+            <span className="text-sm text-muted-foreground">Already have an account? </span>
+            <Link to="/signin" className="text-sm text-primary hover:text-primary-glow transition-colors font-medium">
+              Sign in
+            </Link>
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="confirmPassword" className="text-sm font-medium">Confirm Password</Label>
-            <Input
-              id="confirmPassword"
-              type="password"
-              placeholder="Confirm password"
-              value={formData.confirmPassword}
-              onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-              className="h-11 text-base"
-              required
-            />
-          </div>
-
-          <Button type="submit" variant="glow" className="w-full h-12 text-base font-medium mt-6 cta">Sign Up</Button>
-        </form>
-        
-        <div className="text-center px-2">
-          <span className="text-sm text-muted-foreground">Already have an account? </span>
-          <Link to="/signin" className="text-sm text-primary hover:text-primary-glow transition-colors font-medium">
-            Sign in
-          </Link>
-        </div>
         </div>
       </div>
     </div>

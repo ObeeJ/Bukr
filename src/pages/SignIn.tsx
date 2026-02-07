@@ -4,29 +4,51 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useAuth } from "@/context/auth-context";
+import { useAuth } from "@/contexts/AuthContext";
 import AnimatedLogo from "@/components/AnimatedLogo";
+import { toast } from "sonner";
 
 const SignIn = () => {
   const { signIn } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: ""
   });
-  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Sign in form submitted:', { email: formData.email, password: '***' });
-    setError(null);
-    
+    setIsLoading(true);
+
     try {
       await signIn(formData.email, formData.password);
-      console.log('Sign in successful');
+      toast.success("Welcome back! 🎉", {
+        description: "You've successfully signed in."
+      });
     } catch (err: any) {
       console.error('Sign in error:', err);
-      setError(err.message || "Failed to sign in");
+
+      // User-friendly error messages
+      if (err.message?.includes('Invalid login credentials')) {
+        toast.error("Oops! Wrong credentials 🔐", {
+          description: "Double-check your email and password, then try again."
+        });
+      } else if (err.message?.includes('Email not confirmed')) {
+        toast.error("Email not verified ✉️", {
+          description: "Please check your inbox and verify your email first."
+        });
+      } else if (err.message?.includes('network') || err.message?.includes('fetch')) {
+        toast.error("Connection issue 📡", {
+          description: "Check your internet connection and try again."
+        });
+      } else {
+        toast.error("Couldn't sign in 😕", {
+          description: err.message || "Something went wrong. Please try again."
+        });
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -50,12 +72,7 @@ const SignIn = () => {
             <p className="text-sm text-muted-foreground">Sign in to your Bukr account</p>
           </div>
 
-          {/* Error Message */}
-          {error && (
-            <div className="bg-red-100 text-red-700 p-3 rounded-md text-sm text-center">
-              {error}
-            </div>
-          )}
+
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -106,8 +123,13 @@ const SignIn = () => {
               </Link>
             </div>
 
-            <Button type="submit" variant="glow" className="w-full h-12 text-base font-medium mt-6 cta">
-              Sign In
+            <Button
+              type="submit"
+              variant="glow"
+              className="w-full h-12 text-base font-medium mt-6 cta"
+              disabled={isLoading}
+            >
+              {isLoading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
 
