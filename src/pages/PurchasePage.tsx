@@ -5,7 +5,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useEvent } from "@/contexts/EventContext";
 import { useTicket } from "@/contexts/TicketContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { v4 as uuid } from "uuid";
 import {
   Dialog,
   DialogContent,
@@ -19,14 +18,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import AnimatedLogo from "@/components/AnimatedLogo";
-import { Event, Ticket } from "@/types";
+import { Event } from "@/types";
 
 const PurchasePage = () => {
   const { eventKey } = useParams<{ eventKey: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { events, validatePromo } = useEvent();
-  const { saveTicket } = useTicket();
+  const { getEventByKey, validatePromo } = useEvent();
+  const { purchaseTicket } = useTicket();
   const { user } = useAuth();
 
   const urlParams = new URLSearchParams(window.location.search);
@@ -41,37 +40,48 @@ const PurchasePage = () => {
   const [promoApplied, setPromoApplied] = useState(false);
   const [discount, setDiscount] = useState<number>(0);
   const [event, setEvent] = useState<Event | null>(null);
+  const [loadingEvent, setLoadingEvent] = useState(true);
+  const [paymentUrl, setPaymentUrl] = useState<string>("");
 
   useEffect(() => {
-    const foundEvent = events.find((e) => e.key === eventKey);
-    if (foundEvent) {
-      setEvent(foundEvent);
-      if (referralCode) {
-        const collaboratorDiscount = 10; // Mock 10% referral discount
-        setDiscount(collaboratorDiscount);
-        setPromoApplied(true);
-        setPromoCode(`REF-${referralCode}`);
+    const fetchEvent = async () => {
+      if (!eventKey) {
+        navigate("/app");
+        return;
+      }
+      setLoadingEvent(true);
+      const foundEvent = await getEventByKey(eventKey);
+      if (foundEvent) {
+        setEvent(foundEvent);
+        if (referralCode) {
+          const collaboratorDiscount = 10;
+          setDiscount(collaboratorDiscount);
+          setPromoApplied(true);
+          setPromoCode(`REF-${referralCode}`);
+          toast({
+            title: "Referral discount applied",
+            description: `You got a ${collaboratorDiscount}% discount from your referral!`,
+          });
+        }
+      } else {
+        navigate("/app");
         toast({
-          title: "Referral discount applied",
-          description: `You got a ${collaboratorDiscount}% discount from your referral!`,
+          title: "Event not found",
+          description: "The event you are looking for does not exist.",
+          variant: "destructive",
         });
       }
-    } else {
-      navigate("/app");
-      toast({
-        title: "Event not found",
-        description: "The event you are looking for does not exist.",
-        variant: "destructive",
-      });
-    }
-  }, [eventKey, events, navigate, referralCode, toast]);
+      setLoadingEvent(false);
+    };
+    fetchEvent();
+  }, [eventKey]);
 
   const applyPromoCode = async () => {
     if (!event || !promoCode.trim()) return;
 
     setIsProcessing(true);
     try {
-      const validPromo = await validatePromo(event.id.toString(), promoCode.toUpperCase());
+      const validPromo = await validatePromo(event.id, promoCode.toUpperCase());
       if (validPromo && validPromo.isActive && validPromo.usedCount < validPromo.ticketLimit) {
         setDiscount(validPromo.discountPercentage);
         setPromoApplied(true);
@@ -119,31 +129,35 @@ const PurchasePage = () => {
 
     setIsProcessing(true);
     try {
-      const generatedTicketId = `BUKR-${Math.floor(Math.random() * 10000)}-${event.id}`;
-      setTicketId(generatedTicketId);
-
-      const ticket: Ticket = {
-        ticketId: generatedTicketId,
-        eventId: event.id.toString(),
-        eventKey: event.key || uuid(),
-        userEmail: user.email || "user@example.com",
-        userName: user.name || "User",
-        ticketType: "General Admission",
+      const result = await purchaseTicket({
+        eventId: event.id,
         quantity,
-        price: `$${totalPrice.toFixed(2)}`,
-        purchaseDate: new Date().toISOString(),
-      };
+        ticketType: "General Admission",
+        promoCode: promoApplied ? promoCode : undefined,
+        excitementRating: rating,
+        paymentProvider: "paystack",
+        referralCode: referralCode || undefined,
+      });
 
-      await saveTicket(ticket);
+      setTicketId(result.ticket.ticketId);
+
+      // If payment provider returns an authorization URL, redirect
+      if (result.payment?.authorizationUrl) {
+        setPaymentUrl(result.payment.authorizationUrl);
+        window.location.href = result.payment.authorizationUrl;
+        return;
+      }
+
+      // For free events or pre-authorized payments, go straight to success
       setStep("success");
       toast({
         title: "Purchase Successful",
         description: `You have purchased ${quantity} ticket(s) for ${event.title}!`,
       });
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Purchase Failed",
-        description: "An error occurred while processing your purchase. Please try again.",
+        description: error.message || "An error occurred while processing your purchase. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -157,7 +171,7 @@ const PurchasePage = () => {
     const shareData = {
       title: `My ticket for ${event.title}`,
       text: `Check out my ticket for ${event.title} on ${event.date}!`,
-      url: `${window.location.origin}/events/${event.key}?ref=${user?.id || "user"}`,
+      url: `${window.location.origin}/events/${event.eventKey}?ref=${user?.id || "user"}`,
     };
 
     if (navigator.share) {
@@ -180,7 +194,6 @@ const PurchasePage = () => {
   const handleDownload = () => {
     if (!event || !ticketId) return;
 
-    // Simulate ticket download (replace with actual PDF generation in production)
     const canvas = document.createElement("canvas");
     canvas.width = 200;
     canvas.height = 200;
@@ -222,9 +235,18 @@ const PurchasePage = () => {
     </div>
   );
 
+  if (loadingEvent) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   if (!event) return null;
 
-  const basePrice = parseFloat(event.price?.replace("$", "") || "0");
+  const currencySymbol = event.currency === 'NGN' ? '₦' : '$';
+  const basePrice = event.price || 0;
   const discountAmount = basePrice * (discount / 100);
   const finalPrice = basePrice - discountAmount;
   const totalPrice = finalPrice * quantity;
@@ -366,17 +388,17 @@ const PurchasePage = () => {
                   <div className="space-y-2 mb-6 p-4 bg-glass/20 rounded-lg">
                     <div className="flex justify-between text-sm font-montserrat">
                       <span className="text-muted-foreground">Price per ticket:</span>
-                      <span>${basePrice.toFixed(2)}</span>
+                      <span>{currencySymbol}{basePrice.toLocaleString()}</span>
                     </div>
                     {discount > 0 && (
                       <div className="flex justify-between text-primary text-sm font-montserrat">
                         <span className="text-muted-foreground">Discount ({discount}%):</span>
-                        <span>-${(discountAmount * quantity).toFixed(2)}</span>
+                        <span>-{currencySymbol}{(discountAmount * quantity).toLocaleString()}</span>
                       </div>
                     )}
                     <div className="flex justify-between font-bold pt-2 border-t border-border/30 font-montserrat">
                       <span>Total:</span>
-                      <span>${totalPrice.toFixed(2)}</span>
+                      <span>{currencySymbol}{totalPrice.toLocaleString()}</span>
                     </div>
                   </div>
                 </div>
@@ -440,7 +462,7 @@ const PurchasePage = () => {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Total Paid:</span>
-                      <span>${totalPrice.toFixed(2)}</span>
+                      <span>{currencySymbol}{totalPrice.toLocaleString()}</span>
                     </div>
                   </div>
                 </div>
