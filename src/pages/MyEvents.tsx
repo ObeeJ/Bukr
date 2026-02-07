@@ -14,7 +14,7 @@ import { Event } from "@/types";
 
 const MyEvents = () => {
   const { user } = useAuth();
-  const { events, fetchEvents, loading: eventsLoading, error } = useEvent();
+  const { events, fetchMyEvents, loading: eventsLoading, error } = useEvent();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
 
@@ -22,11 +22,11 @@ const MyEvents = () => {
 
   useEffect(() => {
     if (isOrganizer) {
-      fetchEvents().finally(() => setIsLoading(false));
+      fetchMyEvents().finally(() => setIsLoading(false));
     } else {
       setIsLoading(false);
     }
-  }, [fetchEvents, isOrganizer]);
+  }, [fetchMyEvents, isOrganizer]);
 
   const getEventStatus = (event: Event) => {
     const now = new Date();
@@ -80,7 +80,7 @@ const MyEvents = () => {
         <div className="text-center py-16">
           <h2 className="text-2xl font-bold mb-4">Error Loading Events</h2>
           <p className="text-muted-foreground mb-8">{error}</p>
-          <Button variant="glow" onClick={() => fetchEvents()} className="logo font-medium">
+          <Button variant="glow" onClick={() => fetchMyEvents()} className="logo font-medium">
             Retry
           </Button>
         </div>
@@ -186,7 +186,7 @@ const MyEvents = () => {
                           <td className="p-4">
                             <div className="flex items-center gap-1 text-sm font-medium">
                               <DollarSign className="w-3 h-3" />
-                              {event.revenue ? `$${parseFloat(event.revenue).toFixed(2)}` : "$0.00"}
+                              {event.revenue ? `$${(typeof event.revenue === 'number' ? event.revenue : parseFloat(String(event.revenue))).toFixed(2)}` : "$0.00"}
                             </div>
                           </td>
                           <td className="p-4">
@@ -263,7 +263,7 @@ const MyEvents = () => {
                         <div className="text-sm text-muted-foreground">Revenue</div>
                         <div className="flex items-center gap-1 text-sm font-medium">
                           <DollarSign className="w-4 h-4" />
-                          {event.revenue ? `$${parseFloat(event.revenue).toFixed(2)}` : "$0.00"}
+                          {event.revenue ? `$${(typeof event.revenue === 'number' ? event.revenue : parseFloat(String(event.revenue))).toFixed(2)}` : "$0.00"}
                         </div>
                       </div>
                     </div>

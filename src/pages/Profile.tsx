@@ -3,24 +3,37 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, User, Mail, Building } from 'lucide-react';
+import { ArrowLeft, User, Building } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/context/auth-context';
+import { useAuth } from '@/contexts/AuthContext';
+import { updateProfile } from '@/api/users';
+import { toast } from 'sonner';
 
 const Profile = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
     orgName: user?.orgName || ''
   });
 
-  const handleSave = () => {
-    console.log('Saving profile:', formData);
-    setIsEditing(false);
-    alert('Profile updated successfully!');
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await updateProfile({
+        name: formData.name,
+        orgName: formData.orgName || undefined,
+      });
+      setIsEditing(false);
+      toast.success('Profile updated successfully!');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update profile');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleSignOut = () => {
@@ -32,9 +45,9 @@ const Profile = () => {
     <div className="min-h-screen p-4 safe-area-pb">
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center mb-6">
-          <Button 
-            variant="ghost" 
-            size="icon" 
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => navigate(user?.userType === 'organizer' ? '/dashboard' : '/app')}
             className="mr-3"
           >
@@ -67,8 +80,7 @@ const Profile = () => {
                 id="email"
                 type="email"
                 value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                disabled={!isEditing}
+                disabled
               />
             </div>
 
@@ -94,8 +106,8 @@ const Profile = () => {
             <div className="flex flex-col sm:flex-row gap-3 pt-6">
               {isEditing ? (
                 <>
-                  <Button onClick={handleSave} variant="glow" className="flex-1 cta">
-                    Save Changes
+                  <Button onClick={handleSave} variant="glow" className="flex-1 cta" disabled={isSaving}>
+                    {isSaving ? 'Saving...' : 'Save Changes'}
                   </Button>
                   <Button onClick={() => setIsEditing(false)} variant="outline" className="flex-1">
                     Cancel
