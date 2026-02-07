@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,31 +25,25 @@ const AuthModal = ({ isOpen, onClose, defaultTab = "signin" }: AuthModalProps) =
     orgName: "",
     phone: ""
   });
-  const { login } = useAuth();
+  const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = (type: "signin" | "signup") => {
-    // In a real app, we would validate and make API calls here
-    const userId = `USER-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    
-    // Create user object
-    const userData = {
-      id: userId,
-      name: formData.name || 'Demo User', // Default name for signin
-      email: formData.email,
-      userType: userType,
-      orgName: userType === 'organizer' ? formData.orgName : undefined
-    };
-    
-    // Login the user
-    login(userData);
-    onClose();
-    
-    // Navigate to appropriate dashboard
-    if (userType === 'organizer') {
-      navigate('/dashboard');
-    } else {
-      navigate('/app');
+  const handleSubmit = async (type: "signin" | "signup") => {
+    try {
+      if (type === "signin") {
+        await signIn(formData.email, formData.password);
+      } else {
+        await signUp({
+          id: `USER-${Date.now()}`,
+          name: formData.name,
+          email: formData.email,
+          userType: userType,
+          orgName: userType === 'organizer' ? formData.orgName : undefined
+        });
+      }
+      onClose();
+    } catch (error) {
+      console.error("Auth error:", error);
     }
   };
 
@@ -60,6 +54,9 @@ const AuthModal = ({ isOpen, onClose, defaultTab = "signin" }: AuthModalProps) =
           <div className="text-center mb-4">
             <AnimatedLogo size="md" className="mb-2" />
             <DialogTitle className="text-foreground">Welcome to Bukr</DialogTitle>
+            <DialogDescription>
+              Sign in or create an account to manage your events.
+            </DialogDescription>
           </div>
         </DialogHeader>
 
@@ -78,7 +75,7 @@ const AuthModal = ({ isOpen, onClose, defaultTab = "signin" }: AuthModalProps) =
                   type="email"
                   placeholder="Enter your email"
                   value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="glass-card border-glass-border bg-glass/20"
                 />
               </div>
@@ -90,7 +87,7 @@ const AuthModal = ({ isOpen, onClose, defaultTab = "signin" }: AuthModalProps) =
                     type={showPassword ? "text" : "password"}
                     placeholder="Enter your password"
                     value={formData.password}
-                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     className="glass-card border-glass-border bg-glass/20 pr-10"
                   />
                   <Button
@@ -104,9 +101,9 @@ const AuthModal = ({ isOpen, onClose, defaultTab = "signin" }: AuthModalProps) =
                   </Button>
                 </div>
               </div>
-              <Button 
-                onClick={() => handleSubmit("signin")} 
-                variant="glow" 
+              <Button
+                onClick={() => handleSubmit("signin")}
+                variant="glow"
                 className="w-full"
               >
                 Sign In
@@ -144,7 +141,7 @@ const AuthModal = ({ isOpen, onClose, defaultTab = "signin" }: AuthModalProps) =
                   id="signup-name"
                   placeholder="Enter your full name"
                   value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="glass-card border-glass-border bg-glass/20"
                 />
               </div>
@@ -156,7 +153,7 @@ const AuthModal = ({ isOpen, onClose, defaultTab = "signin" }: AuthModalProps) =
                     id="org-name"
                     placeholder="Enter organization name"
                     value={formData.orgName}
-                    onChange={(e) => setFormData({...formData, orgName: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, orgName: e.target.value })}
                     className="glass-card border-glass-border bg-glass/20"
                   />
                 </div>
@@ -169,7 +166,7 @@ const AuthModal = ({ isOpen, onClose, defaultTab = "signin" }: AuthModalProps) =
                   type="email"
                   placeholder="Enter your email"
                   value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="glass-card border-glass-border bg-glass/20"
                 />
               </div>
@@ -182,7 +179,7 @@ const AuthModal = ({ isOpen, onClose, defaultTab = "signin" }: AuthModalProps) =
                     type={showPassword ? "text" : "password"}
                     placeholder="Create a password"
                     value={formData.password}
-                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     className="glass-card border-glass-border bg-glass/20 pr-10"
                   />
                   <Button
@@ -197,9 +194,9 @@ const AuthModal = ({ isOpen, onClose, defaultTab = "signin" }: AuthModalProps) =
                 </div>
               </div>
 
-              <Button 
-                onClick={() => handleSubmit("signup")} 
-                variant="glow" 
+              <Button
+                onClick={() => handleSubmit("signup")}
+                variant="glow"
                 className="w-full"
               >
                 Sign Up as {userType === "organizer" ? "Organizer" : "User"}
