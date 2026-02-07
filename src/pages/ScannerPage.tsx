@@ -10,7 +10,7 @@ import AnimatedLogo from "@/components/AnimatedLogo";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Check, X, AlertCircle, ArrowLeft } from "lucide-react";
+import { Check, X, AlertCircle, ArrowLeft, Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { Event } from "@/types";
 
@@ -18,15 +18,21 @@ const ScannerPage = () => {
   const { eventId, eventKey } = useParams<{ eventId?: string; eventKey?: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { getEvent } = useEvent();
+  const { getEvent, getEventByKey } = useEvent();
   const { validateTicket, markTicketAsUsed } = useTicket();
   const { user } = useAuth();
   const [status, setStatus] = useState<"valid" | "invalid" | "used" | null>(null);
   const [scanCount, setScanCount] = useState({ valid: 0, invalid: 0, used: 0 });
   const [currentEvent, setCurrentEvent] = useState<Event | null>(null);
+  const [loadingEvent, setLoadingEvent] = useState(true);
 
   useEffect(() => {
-    if (!user || user.userType !== "organizer") {
+    if (!user && !eventKey && !eventId) {
+      navigate("/signin");
+      return;
+    }
+
+    if (user && user.userType !== "organizer" && !eventKey && !eventId) {
       toast({
         title: "Access Denied",
         description: "Only organizers can access the ticket scanner.",
@@ -37,12 +43,13 @@ const ScannerPage = () => {
     }
 
     const fetchEvent = async () => {
+      setLoadingEvent(true);
       let event: Event | null = null;
+
       if (eventId) {
         event = await getEvent(eventId);
       } else if (eventKey) {
-        const events = await getEvent("all");
-        event = Array.isArray(events) ? events.find((e) => e.key === eventKey) || null : null;
+        event = await getEventByKey(eventKey);
       }
 
       if (!event) {
@@ -55,10 +62,11 @@ const ScannerPage = () => {
       } else {
         setCurrentEvent(event);
       }
+      setLoadingEvent(false);
     };
 
     fetchEvent();
-  }, [eventId, eventKey, getEvent, navigate, toast, user]);
+  }, [eventId, eventKey]);
 
   const handleScan = async (code: string) => {
     if (!currentEvent) return;
@@ -72,7 +80,7 @@ const ScannerPage = () => {
       const result = await validateTicket(data.ticketId, data.eventKey);
 
       if (!result.isValid) {
-        if (result.ticket?.status === "used") {
+        if (result.status === "used") {
           setStatus("used");
           setScanCount((prev) => ({ ...prev, used: prev.used + 1 }));
           toast({
@@ -85,7 +93,7 @@ const ScannerPage = () => {
           setScanCount((prev) => ({ ...prev, invalid: prev.invalid + 1 }));
           toast({
             title: "Invalid Ticket",
-            description: "This ticket is not valid for this event.",
+            description: result.message || "This ticket is not valid for this event.",
             variant: "destructive",
           });
         }
@@ -109,6 +117,14 @@ const ScannerPage = () => {
       });
     }
   };
+
+  if (loadingEvent) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   if (!currentEvent) {
     return null;
@@ -150,13 +166,12 @@ const ScannerPage = () => {
 
       {status && (
         <Alert
-          className={`${
-            status === "valid"
+          className={`${status === "valid"
               ? "status-confirmed"
               : status === "used"
-              ? "status-trending"
-              : "status-expired"
-          } mb-4 rounded-[var(--radius)]`}
+                ? "status-trending"
+                : "status-expired"
+            } mb-4 rounded-[var(--radius)]`}
         >
           {status === "valid" && <Check className="h-4 w-4" />}
           {status === "used" && <AlertCircle className="h-4 w-4" />}
@@ -168,8 +183,8 @@ const ScannerPage = () => {
             {status === "valid"
               ? "Ticket has been validated and marked as used."
               : status === "used"
-              ? "This ticket has already been scanned."
-              : "This ticket is not valid for this event."}
+                ? "This ticket has already been scanned."
+                : "This ticket is not valid for this event."}
           </AlertDescription>
         </Alert>
       )}

@@ -14,15 +14,15 @@ import { Event } from "@/types";
 
 const OrganizerDashboard = () => {
   const { user } = useAuth();
-  const { events, fetchEvents, loading, error } = useEvent();
+  const { events, fetchMyEvents, loading, error } = useEvent();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("events");
 
   useEffect(() => {
     if (user?.userType === "organizer") {
-      fetchEvents();
+      fetchMyEvents();
     }
-  }, [fetchEvents, user]);
+  }, [fetchMyEvents, user]);
 
   if (user?.userType !== "organizer") {
     return (
@@ -67,7 +67,7 @@ const OrganizerDashboard = () => {
         <div className="text-center py-16">
           <h2 className="text-2xl font-bold mb-4 watermark">Error Loading Dashboard</h2>
           <p className="text-muted-foreground font-montserrat mb-8">{error}</p>
-          <Button variant="glow" onClick={() => fetchEvents()} className="logo font-medium">
+          <Button variant="glow" onClick={() => fetchMyEvents()} className="logo font-medium">
             Retry
           </Button>
         </div>
@@ -77,7 +77,7 @@ const OrganizerDashboard = () => {
 
   const totalTicketsSold = events.reduce((sum, event) => sum + (event.soldTickets || 0), 0);
   const totalRevenue = events.reduce((sum, event) => {
-    const revenue = parseFloat(event.revenue?.replace("$", "") || "0");
+    const revenue = typeof event.revenue === 'number' ? event.revenue : parseFloat(String(event.revenue || 0));
     return sum + (isNaN(revenue) ? 0 : revenue);
   }, 0);
 
