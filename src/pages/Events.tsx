@@ -49,7 +49,7 @@ const Events = () => {
     <div className="max-w-5xl mx-auto py-4 sm:py-6 lg:py-8 px-3 sm:px-4 safe-area-pb">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-3 sm:gap-0">
         <h1 className="text-2xl sm:text-3xl font-bold">Events</h1>
-        {user?.role === "organizer" && (
+        {user?.userType === "organizer" && (
           <Button 
             onClick={handleCreate}
             className="w-full sm:w-auto h-11 touch-target"

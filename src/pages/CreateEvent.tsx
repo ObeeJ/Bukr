@@ -3,11 +3,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useEvent } from '@/contexts/EventContext';
+import { toast } from 'sonner';
 
 const CreateEvent = () => {
   const navigate = useNavigate();
+  const { addEvent } = useEvent();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -16,23 +20,41 @@ const CreateEvent = () => {
     location: '',
     price: '',
     category: '',
-    totalTickets: ''
+    totalTickets: '',
+    currency: 'NGN',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Creating event:', formData);
-    alert('Event created successfully!');
-    navigate('/dashboard');
+    setIsSubmitting(true);
+    try {
+      await addEvent({
+        title: formData.title,
+        description: formData.description,
+        date: formData.date,
+        time: formData.time,
+        location: formData.location,
+        price: parseFloat(formData.price) || 0,
+        category: formData.category,
+        totalTickets: parseInt(formData.totalTickets) || 0,
+        currency: formData.currency,
+      });
+      toast.success('Event created successfully!');
+      navigate('/dashboard');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to create event');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <div className="min-h-screen p-4 safe-area-pb">
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center mb-6">
-          <Button 
-            variant="ghost" 
-            size="icon" 
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => navigate('/dashboard')}
             className="mr-3"
           >
@@ -100,7 +122,7 @@ const CreateEvent = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="price">Price (₦)</Label>
+              <Label htmlFor="price">Price ({formData.currency === 'NGN' ? '₦' : '$'})</Label>
               <Input
                 id="price"
                 type="number"
@@ -134,8 +156,15 @@ const CreateEvent = () => {
             />
           </div>
 
-          <Button type="submit" variant="glow" className="w-full h-12 cta">
-            Create Event
+          <Button type="submit" variant="glow" className="w-full h-12 cta" disabled={isSubmitting}>
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              'Create Event'
+            )}
           </Button>
         </form>
       </div>
