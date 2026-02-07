@@ -9,86 +9,52 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useBooking } from "@/context/BookingContext";
 import { AnimatedLogo } from "@/components/shared/AnimatedLogo";
 import { toast } from "sonner";
-
-type SimpleEvent = {
-  id: number;
-  title: string;
-  date: string;
-  time: string;
-  location: string;
-  price: string;
-  category: string;
-  emoji: string;
-  rating: number;
-  description: string;
-};
-
-const sampleFavorites: SimpleEvent[] = [
-  {
-    id: 1,
-    title: "Beach Party Night",
-    date: "2025-08-20",
-    time: "8:00 PM",
-    location: "Tarkwa Bay, Lagos",
-    price: "₦3,000",
-    category: "Nightlife",
-    emoji: "🏖️",
-    rating: 4,
-    description: "A vibrant beach party with music, food, and dance.",
-  },
-  {
-    id: 2,
-    title: "Tech Expo 2025",
-    date: "2025-09-12",
-    time: "10:00 AM",
-    location: "Eko Hotel, Lagos",
-    price: "₦1,500",
-    category: "Technology",
-    emoji: "💻",
-    rating: 5,
-    description: "Explore cutting-edge innovations and networking.",
-  },
-];
+import { useNavigate } from "react-router-dom";
+import { FavoriteEvent } from "@/types";
+import { getFavorites, removeFavorite } from "@/api/favorites";
 
 export default function Favorites() {
-  const [favorites, setFavorites] = useState<SimpleEvent[]>([]);
-  const [selectedEvent, setSelectedEvent] = useState<SimpleEvent | null>(null);
+  const navigate = useNavigate();
+  const [favorites, setFavorites] = useState<FavoriteEvent[]>([]);
+  const [selectedEvent, setSelectedEvent] = useState<FavoriteEvent | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const { bookNow } = useBooking();
+  const [loading, setLoading] = useState(true);
 
-  // Load from localStorage
   useEffect(() => {
-    const stored = localStorage.getItem("favorites");
-    if (stored) {
-      setFavorites(JSON.parse(stored));
-    } else {
-      setFavorites(sampleFavorites); // fallback
-    }
+    const fetchFavorites = async () => {
+      setLoading(true);
+      const data = await getFavorites();
+      setFavorites(data);
+      setLoading(false);
+    };
+    fetchFavorites();
   }, []);
 
-  const openModal = (event: SimpleEvent) => {
+  const openModal = (event: FavoriteEvent) => {
     setSelectedEvent(event);
     setIsDialogOpen(true);
   };
 
-  const closeModal = () => {
-    setIsDialogOpen(false);
-    setSelectedEvent(null);
+  const removeFromFavorites = async (eventId: string) => {
+    try {
+      await removeFavorite(eventId);
+      setFavorites(prev => prev.filter(e => e.id !== eventId));
+      toast("Removed from favorites");
+    } catch {
+      toast.error("Failed to remove from favorites");
+    }
   };
 
-  const removeFromFavorites = (eventId: number) => {
-    const updated = favorites.filter((event) => event.id !== eventId);
-    setFavorites(updated);
-    localStorage.setItem("favorites", JSON.stringify(updated));
-    toast({ title: "Removed from favorites" });
+  const handleBookNow = (event: FavoriteEvent) => {
+    navigate(`/purchase/${event.eventKey}`);
   };
 
-  const handleBookNow = (event: SimpleEvent) => {
-    bookNow(event);
-    toast({ title: "Booking started" });
+  const formatPrice = (event: FavoriteEvent) => {
+    if (!event.price || event.price === 0) return 'Free';
+    const symbol = event.currency === 'NGN' ? '₦' : '$';
+    return `${symbol}${event.price.toLocaleString()}`;
   };
 
   return (
@@ -98,7 +64,11 @@ export default function Favorites() {
         <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">My Favorites</h1>
       </div>
 
-      {favorites.length === 0 ? (
+      {loading ? (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">Loading favorites...</p>
+        </div>
+      ) : favorites.length === 0 ? (
         <div className="text-center py-12 px-4">
           <p className="text-muted-foreground text-base">You have no favorites saved yet.</p>
         </div>
@@ -109,7 +79,7 @@ export default function Favorites() {
               <Card key={event.id} className="hover:shadow-lg transition glass-card">
                 <CardHeader className="p-4 sm:p-6">
                   <div className="flex items-center justify-between">
-                    <span className="text-2xl">{event.emoji}</span>
+                    <span className="text-2xl">{event.emoji || '🎉'}</span>
                     <Badge className="text-xs">{event.category}</Badge>
                   </div>
                   <h2 className="font-bold text-base sm:text-lg leading-tight">{event.title}</h2>
@@ -119,17 +89,12 @@ export default function Favorites() {
                 </CardHeader>
                 <CardContent className="p-4 sm:p-6 pt-0">
                   <p className="text-xs sm:text-sm text-muted-foreground mb-1">{event.location}</p>
-                  <p className="text-sm sm:text-base font-medium text-primary">{event.price}</p>
+                  <p className="text-sm sm:text-base font-medium text-primary">{formatPrice(event)}</p>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-3 p-4 sm:p-6">
-                  <div className="flex gap-1 justify-center">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <span key={i} className="text-sm">{i < event.rating ? "⭐" : "☆"}</span>
-                    ))}
-                  </div>
                   <div className="flex gap-2 w-full">
-                    <Button 
-                      className="flex-1 h-10 text-sm touch-target" 
+                    <Button
+                      className="flex-1 h-10 text-sm touch-target"
                       onClick={() => openModal(event)}
                     >
                       View Details
@@ -157,14 +122,13 @@ export default function Favorites() {
         </div>
       )}
 
-      {/* Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="mx-4 max-w-md">
           {selectedEvent && (
             <>
               <DialogHeader>
                 <DialogTitle className="text-lg sm:text-xl font-bold leading-tight">
-                  {selectedEvent.emoji} {selectedEvent.title}
+                  {selectedEvent.emoji || '🎉'} {selectedEvent.title}
                 </DialogTitle>
               </DialogHeader>
               <div className="mt-4 space-y-3 text-sm">
@@ -179,18 +143,17 @@ export default function Favorites() {
                     <strong className="text-foreground">Category:</strong> <span className="text-muted-foreground">{selectedEvent.category}</span>
                   </p>
                   <p>
-                    <strong className="text-foreground">Price:</strong> <span className="text-primary font-medium">{selectedEvent.price}</span>
+                    <strong className="text-foreground">Price:</strong> <span className="text-primary font-medium">{formatPrice(selectedEvent)}</span>
                   </p>
-                </div>
-                <div>
-                  <strong className="text-foreground">Description:</strong>
-                  <p className="text-muted-foreground mt-1 leading-relaxed">{selectedEvent.description}</p>
+                  <p>
+                    <strong className="text-foreground">Organizer:</strong> <span className="text-muted-foreground">{selectedEvent.organizerName}</span>
+                  </p>
                 </div>
               </div>
               <div className="mt-6">
-                <Button 
-                  onClick={() => handleBookNow(selectedEvent)} 
-                  variant="glow" 
+                <Button
+                  onClick={() => handleBookNow(selectedEvent)}
+                  variant="glow"
                   className="w-full h-12 touch-target"
                 >
                   Book Now
