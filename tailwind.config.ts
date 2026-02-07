@@ -19,8 +19,9 @@ export default {
 		},
 		extend: {
 			fontFamily: {
-				'sans': ['Host Grotesk', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
-				'host-grotesk': ['Host Grotesk', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+				'sans': ['Montserrat Alternates', 'Host Grotesk', 'sans-serif'],
+				'clash': ['Clash Display', 'sans-serif'],
+				'montserrat': ['Montserrat Alternates', 'sans-serif'],
 			},
 			colors: {
 				border: 'hsl(var(--border))',

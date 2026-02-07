@@ -5,38 +5,41 @@
 @tailwind utilities;
 
 @layer base {
-  /* Typography - Clash Display for CTAs/Buttons, Montserrat for everything else */
+
+  /* Typography - Clash Display for Headers/Buttons, Montserrat Alternates for Body */
   * {
-    font-family: 'Montserrat', sans-serif;
+    font-family: 'Montserrat Alternates', sans-serif;
   }
 
-  h1, h2, h3, h4, h5, h6 {
-    font-family: 'Montserrat', sans-serif;
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: 'Clash Display', sans-serif;
     font-weight: 600;
   }
 
   /* CTA Buttons use Clash Display */
-  button, .btn, .cta {
-    font-family: 'Clash Display', sans-serif !important;
-    font-weight: 500;
-  }
-
-  /* Logo and Brand elements */
-  .logo, .brand {
+  button,
+  .btn,
+  .cta,
+  .brand,
+  .logo {
     font-family: 'Clash Display', sans-serif !important;
     font-weight: 600;
-    letter-spacing: -0.01em;
   }
 
-  .watermark {
-    font-family: 'Clash Display', sans-serif !important;
-    font-weight: 600;
-    opacity: 0.8;
-  }
-
-  /* Ensure all text inputs and body text use Montserrat */
-  body, p, span, input, textarea, select, label {
-    font-family: 'Montserrat', sans-serif !important;
+  /* Ensure all text inputs and body text use Montserrat Alternates */
+  body,
+  p,
+  span,
+  input,
+  textarea,
+  select,
+  label {
+    font-family: 'Montserrat Alternates', sans-serif !important;
     font-weight: 400;
   }
 
@@ -160,6 +163,7 @@
 }
 
 @layer components {
+
   /* Enhanced Glass Morphism Cards */
   .glass-card {
     @apply backdrop-blur-2xl bg-card/40 border border-primary/25 rounded-[var(--radius)];
@@ -262,7 +266,7 @@
   }
 
   .font-montserrat {
-    font-family: 'Montserrat', sans-serif;
+    font-family: 'Montserrat Alternates', sans-serif;
   }
 }
 
@@ -271,6 +275,7 @@
     opacity: 0;
     transform: translateY(25px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -282,6 +287,7 @@
     opacity: 0;
     transform: scale(0.92);
   }
+
   to {
     opacity: 1;
     transform: scale(1);
@@ -293,6 +299,7 @@
     opacity: 0;
     transform: translateY(35px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -300,18 +307,24 @@
 }
 
 @keyframes float {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateY(0px);
   }
+
   50% {
     transform: translateY(-12px);
   }
 }
 
 @keyframes pulse-glow {
-  0%, 100% {
+
+  0%,
+  100% {
     box-shadow: 0 0 20px hsl(var(--warning) / 0.35);
   }
+
   50% {
     box-shadow: 0 0 30px hsl(var(--warning) / 0.55);
   }
@@ -322,9 +335,11 @@
     opacity: 0;
     transform: translateX(-35px);
   }
+
   60% {
     transform: translateX(6px);
   }
+
   100% {
     opacity: 1;
     transform: translateX(0);
@@ -332,9 +347,12 @@
 }
 
 @keyframes dotBounce {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: scale(1) rotate(0deg);
   }
+
   50% {
     transform: scale(1.25) rotate(180deg);
   }
@@ -344,6 +362,7 @@
   0% {
     transform: translateX(0%);
   }
+
   100% {
     transform: translateX(-50%);
   }
@@ -391,7 +410,8 @@
 
   .mobile-input {
     height: 44px;
-    font-size: 16px; /* Prevents zoom on iOS */
+    font-size: 16px;
+    /* Prevents zoom on iOS */
   }
 
   .mobile-button {
