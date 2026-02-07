@@ -46,8 +46,12 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute = ({ children, requiredUserType }: ProtectedRouteProps) => {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, isLoading } = useAuth();
   const { toast } = useToast();
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  }
 
   if (!isAuthenticated) {
     toast({
@@ -71,10 +75,14 @@ const ProtectedRoute = ({ children, requiredUserType }: ProtectedRouteProps) => 
 };
 
 const ScannerRoute = ({ children }: { children: JSX.Element }) => {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, isLoading } = useAuth();
   const { toast } = useToast();
   const isOrganizer = user?.userType === "organizer";
   const hasAccessCode = window.location.hash.includes("code=");
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  }
 
   if (!isAuthenticated && !hasAccessCode) {
     toast({
@@ -110,6 +118,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <UserDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/explore"
+        element={
+          <ProtectedRoute>
+            <Explore />
           </ProtectedRoute>
         }
       />
