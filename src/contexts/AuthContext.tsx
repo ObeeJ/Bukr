@@ -1,33 +1,74 @@
+/**
+ * PRESENTATION LAYER - Authentication Context
+ * 
+ * AuthContext: The identity manager - handling user authentication state
+ * 
+ * Architecture Layer: Presentation (Layer 1)
+ * Dependencies: Supabase (auth provider), API clients (user profile)
+ * Responsibility: Global authentication state management
+ * 
+ * Features:
+ * - User session management
+ * - Sign up with profile completion
+ * - Sign in with email/password
+ * - Sign out with cleanup
+ * - Auth state persistence
+ * - Real-time auth state changes
+ * 
+ * Flow:
+ * 1. Check existing session on mount
+ * 2. Listen for auth state changes
+ * 3. Fetch user profile after authentication
+ * 4. Navigate based on user type (user vs organizer)
+ * 
+ * Integration:
+ * - Supabase: JWT authentication
+ * - Backend: Profile completion and retrieval
+ * - Router: Navigation after auth events
+ */
+
 import { createContext, useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { User } from "@/types";
 import { supabase } from "@/lib/supabase";
 import { getProfile, completeProfile } from "@/api/users";
 
+// Auth context interface
 interface AuthContextType {
-  user: User | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
+  user: User | null;              // Current user profile
+  isAuthenticated: boolean;       // Is user logged in?
+  isLoading: boolean;             // Loading state
   signUp: (data: SignupData) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
+// Signup data structure
 export interface SignupData {
   email: string;
   password: string;
   name: string;
-  userType: "user" | "organizer";
-  orgName?: string;
+  userType: "user" | "organizer";  // Determines permissions
+  orgName?: string;                 // Required for organizers
 }
 
+// Create context
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+/**
+ * AuthProvider: Global authentication state provider
+ * 
+ * Manages user session and profile across the app
+ */
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
+  /**
+   * Fetch user profile from backend
+   * Called after successful authentication
+   */
   const fetchUserProfile = async () => {
     try {
       const profile = await getProfile();
@@ -40,6 +81,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  /**
+   * Initialize auth state on mount
+   * Check for existing session and listen for changes
+   */
   useEffect(() => {
     // Check active session
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -50,7 +95,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     });
 
-    // Listen for auth changes
+    // Listen for auth state changes (login, logout, token refresh)
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -65,6 +110,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
+  /**
+   * Sign Up: Create new user account
+   * 
+   * Flow:
+   * 1. Create Supabase auth account
+   * 2. Complete profile in backend (set user_type)
+   * 3. Fetch full profile
+   * 4. Navigate based on user type
+   */
   const signUp = async (data: SignupData) => {
     setIsLoading(true);
     try {
@@ -77,7 +131,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (authError) throw authError;
 
       if (authData.session) {
-        // 2. Call backend to complete profile
+        // 2. Complete profile in backend
         await completeProfile({
           name: data.name,
           userType: data.userType,
@@ -87,14 +141,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         // 3. Fetch full profile
         await fetchUserProfile();
 
-        // 4. Navigate
+        // 4. Navigate based on user type
         if (data.userType === 'organizer') {
           navigate("/dashboard");
         } else {
           navigate("/app");
         }
       } else {
-        // Handle case where email confirmation is required
+        // Email confirmation required
         alert("Please check your email to confirm your account.");
       }
     } catch (error) {
@@ -105,6 +159,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  /**
+   * Sign In: Authenticate existing user
+   * 
+   * Flow:
+   * 1. Sign in with Supabase
+   * 2. Fetch user profile
+   * 3. Navigate to app
+   */
   const signIn = async (email: string, password: string) => {
     setIsLoading(true);
     try {
@@ -115,14 +177,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (error) throw error;
       
-      // onAuthStateChange will trigger fetchUserProfile and navigation could happen there,
-      // but we can also do it here explicitly if we want to wait for profile.
+      // Fetch profile (onAuthStateChange will also trigger this)
       await fetchUserProfile();
       
-      // We need the user state to be updated to know where to navigate,
-      // but state updates are async. We can check the fetched profile or just default to /app 
-      // and let the component protection handle redirection if needed.
-      // For now, let's just go to /app (or dashboard if we knew)
+      // Navigate to app (component protection handles specific routing)
       navigate("/app"); 
       
     } catch (error) {
@@ -133,6 +191,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  /**
+   * Sign Out: Clear session and navigate home
+   */
   const signOut = async () => {
     setIsLoading(true);
     try {
@@ -153,6 +214,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
+/**
+ * useAuth: Hook to access auth context
+ * 
+ * Must be used within AuthProvider
+ */
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (!context) throw new Error("useAuth must be used within an AuthProvider");

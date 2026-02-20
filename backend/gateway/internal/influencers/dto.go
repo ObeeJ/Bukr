@@ -1,9 +1,21 @@
+/**
+ * DOMAIN LAYER - Influencer Data Transfer Objects
+ * 
+ * Influencer DTOs: The affiliate contracts - defining influencer data structures
+ * 
+ * Architecture Layer: Domain (Layer 4)
+ * Responsibility: Define data contracts for influencer operations
+ */
+
 package influencers
 
 import "time"
 
-// --- Request DTOs ---
+/**
+ * REQUEST DTOs
+ */
 
+// CreateInfluencerRequest: Create new influencer
 type CreateInfluencerRequest struct {
 	Name         string  `json:"name" validate:"required,min=2"`
 	Email        string  `json:"email" validate:"required,email"`
@@ -11,6 +23,7 @@ type CreateInfluencerRequest struct {
 	Bio          string  `json:"bio"`
 }
 
+// UpdateInfluencerRequest: Partial influencer update
 type UpdateInfluencerRequest struct {
 	Name         *string `json:"name"`
 	Email        *string `json:"email"`
@@ -19,8 +32,11 @@ type UpdateInfluencerRequest struct {
 	IsActive     *bool   `json:"is_active"`
 }
 
-// --- Response DTOs ---
+/**
+ * RESPONSE DTOs
+ */
 
+// InfluencerResponse: Public influencer details
 type InfluencerResponse struct {
 	ID               string    `json:"id"`
 	Name             string    `json:"name"`
@@ -35,13 +51,17 @@ type InfluencerResponse struct {
 	CreatedAt        time.Time `json:"created_at"`
 }
 
+// ReferralLinkResponse: Shareable referral link
 type ReferralLinkResponse struct {
 	ReferralCode string `json:"referral_code"`
-	ReferralLink string `json:"referral_link"`
+	ReferralLink string `json:"referral_link"`    // Full URL with code
 }
 
-// --- Internal model ---
+/**
+ * INTERNAL MODELS
+ */
 
+// Influencer: Complete influencer entity from database
 type Influencer struct {
 	ID               string
 	OrganizerID      string
@@ -58,6 +78,11 @@ type Influencer struct {
 	UpdatedAt        time.Time
 }
 
+/**
+ * ToResponse: Convert internal model to public response
+ * 
+ * Excludes organizer_id and updated_at
+ */
 func (i *Influencer) ToResponse() InfluencerResponse {
 	return InfluencerResponse{
 		ID:               i.ID,

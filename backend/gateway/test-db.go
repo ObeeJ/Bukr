@@ -4,13 +4,17 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/jackc/pgx/v5"
 )
 
 func main() {
-	// Supabase connection string
-	dbURL := "postgresql://postgres.emcezfurwhednbfssqfk:bukrishere26@aws-1-eu-west-1.pooler.supabase.com:5432/postgres"
+	// Supabase connection string - Load from environment
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		log.Fatal("❌ DATABASE_URL environment variable not set")
+	}
 
 	fmt.Println("🔌 Connecting to Supabase PostgreSQL...")
 

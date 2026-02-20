@@ -2,12 +2,15 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Calendar, MapPin, Share2, Ticket, Check, Users } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Share2, Ticket, Check, Users, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Event } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import SeatingMap from './SeatingMap';
+
+import { claimFreeTicket } from '@/api/events';
+import { toast } from 'sonner';
 
 interface PublicEventViewProps {
     event: Event;
@@ -20,6 +23,28 @@ const PublicEventView = ({ event }: PublicEventViewProps) => {
     const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
     const [quantity, setQuantity] = useState(1);
     const [guestNames, setGuestNames] = useState<string[]>([]);
+    const [claiming, setClaiming] = useState(false);
+
+    const isFreeEvent = !event.price || event.price === 0;
+
+    const handleClaimFreeTicket = async () => {
+        if (!user) {
+            toast.error('Please sign in to claim ticket');
+            navigate('/signin');
+            return;
+        }
+
+        setClaiming(true);
+        try {
+            await claimFreeTicket(event.id);
+            toast.success('Free ticket claimed successfully!');
+            navigate('/tickets');
+        } catch (error: any) {
+            toast.error(error.message || 'Failed to claim ticket');
+        } finally {
+            setClaiming(false);
+        }
+    };
 
     const handleShare = async () => {
         if (navigator.share) {
@@ -288,10 +313,19 @@ const PublicEventView = ({ event }: PublicEventViewProps) => {
                                     <Button
                                         size="lg"
                                         className="w-full mt-4 font-bold text-lg h-12"
-                                        disabled={!selectedTicketId}
-                                        onClick={handleBooking} // Calling the handler here
+                                        disabled={!selectedTicketId && !isFreeEvent}
+                                        onClick={isFreeEvent ? handleClaimFreeTicket : handleBooking}
                                     >
-                                        Book Now
+                                        {claiming ? (
+                                            <>
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                Claiming...
+                                            </>
+                                        ) : isFreeEvent ? (
+                                            'Claim Free Ticket'
+                                        ) : (
+                                            'Book Now'
+                                        )}
                                     </Button>
                                     <p className="text-xs text-center text-muted-foreground mt-2">
                                         Secure payment powered by Paystack

@@ -12,6 +12,12 @@ export const getInfluencers = async (): Promise<Influencer[]> => {
   }
 };
 
+/** GET /influencers/:id — get influencer by ID */
+export const getInfluencerById = async (id: string): Promise<Influencer> => {
+  const { data } = await api.get(`/influencers/${id}`);
+  return mapFromApi<Influencer>(data);
+};
+
 /** POST /influencers — add influencer (organizer) */
 export const createInfluencer = async (req: {
   name: string;
@@ -21,6 +27,19 @@ export const createInfluencer = async (req: {
 }): Promise<Influencer> => {
   const payload = mapToApi(req);
   const { data } = await api.post('/influencers', payload);
+  return mapFromApi<Influencer>(data);
+};
+
+/** PUT /influencers/:id — update influencer */
+export const updateInfluencer = async (id: string, req: {
+  name?: string;
+  email?: string;
+  socialHandle?: string;
+  bio?: string;
+  isActive?: boolean;
+}): Promise<Influencer> => {
+  const payload = mapToApi(req);
+  const { data } = await api.put(`/influencers/${id}`, payload);
   return mapFromApi<Influencer>(data);
 };
 

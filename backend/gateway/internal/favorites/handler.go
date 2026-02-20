@@ -1,3 +1,25 @@
+/**
+ * CONTROLLER LAYER - Favorites HTTP Handlers
+ * 
+ * Favorites Handler: The bookmark manager - saving events for later
+ * 
+ * Architecture Layer: Controller (Layer 2)
+ * Dependencies: Service layer (favorites business logic)
+ * Responsibility: HTTP request/response handling for favorites
+ * 
+ * Endpoints:
+ * - GET /api/v1/favorites: List user's favorited events
+ * - POST /api/v1/favorites/:eventId: Add event to favorites
+ * - DELETE /api/v1/favorites/:eventId: Remove from favorites
+ * - GET /api/v1/favorites/:eventId/check: Check if event is favorited
+ * 
+ * Use Cases:
+ * 1. User saves interesting events for later
+ * 2. User views their saved events
+ * 3. User removes events from favorites
+ * 4. UI checks if event is already favorited (heart icon state)
+ */
+
 package favorites
 
 import (
@@ -6,14 +28,23 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+/**
+ * Handler: Favorites controller
+ */
 type Handler struct {
 	service *Service
 }
 
+/**
+ * NewHandler: Constructor
+ */
 func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
 }
 
+/**
+ * RegisterRoutes: Mount favorites endpoints
+ */
 func (h *Handler) RegisterRoutes(router fiber.Router) {
 	router.Get("/", h.List)
 	router.Post("/:eventId", h.Add)
@@ -21,7 +52,12 @@ func (h *Handler) RegisterRoutes(router fiber.Router) {
 	router.Get("/:eventId/check", h.Check)
 }
 
-// GET /api/v1/favorites
+/**
+ * List: Get user's favorited events
+ * 
+ * GET /api/v1/favorites
+ * Returns full event details for each favorited event
+ */
 func (h *Handler) List(c *fiber.Ctx) error {
 	claims := middleware.GetUserClaims(c)
 	if claims == nil {
@@ -36,7 +72,12 @@ func (h *Handler) List(c *fiber.Ctx) error {
 	return shared.Success(c, fiber.StatusOK, fiber.Map{"events": events})
 }
 
-// POST /api/v1/favorites/:eventId
+/**
+ * Add: Add event to favorites
+ * 
+ * POST /api/v1/favorites/:eventId
+ * Idempotent: adding twice has same effect as once
+ */
 func (h *Handler) Add(c *fiber.Ctx) error {
 	claims := middleware.GetUserClaims(c)
 	if claims == nil {
@@ -52,7 +93,12 @@ func (h *Handler) Add(c *fiber.Ctx) error {
 	return shared.Success(c, fiber.StatusCreated, result)
 }
 
-// DELETE /api/v1/favorites/:eventId
+/**
+ * Remove: Remove event from favorites
+ * 
+ * DELETE /api/v1/favorites/:eventId
+ * Idempotent: removing twice has same effect as once
+ */
 func (h *Handler) Remove(c *fiber.Ctx) error {
 	claims := middleware.GetUserClaims(c)
 	if claims == nil {
@@ -68,7 +114,12 @@ func (h *Handler) Remove(c *fiber.Ctx) error {
 	return shared.Success(c, fiber.StatusOK, result)
 }
 
-// GET /api/v1/favorites/:eventId/check
+/**
+ * Check: Check if event is favorited
+ * 
+ * GET /api/v1/favorites/:eventId/check
+ * Used by UI to show heart icon state (filled vs outline)
+ */
 func (h *Handler) Check(c *fiber.Ctx) error {
 	claims := middleware.GetUserClaims(c)
 	if claims == nil {

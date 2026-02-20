@@ -25,9 +25,14 @@ export default function Favorites() {
   useEffect(() => {
     const fetchFavorites = async () => {
       setLoading(true);
-      const data = await getFavorites();
-      setFavorites(data);
-      setLoading(false);
+      try {
+        const data = await getFavorites();
+        setFavorites(data);
+      } catch (error) {
+        toast.error('Failed to load favorites');
+      } finally {
+        setLoading(false);
+      }
     };
     fetchFavorites();
   }, []);

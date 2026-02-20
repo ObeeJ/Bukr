@@ -12,9 +12,9 @@ export const getFavorites = async (): Promise<FavoriteEvent[]> => {
   }
 };
 
-/** POST /favorites — add event to favorites */
+/** POST /favorites/:eventId — add event to favorites */
 export const addFavorite = async (eventId: string): Promise<void> => {
-  await api.post('/favorites', { event_id: eventId });
+  await api.post(`/favorites/${eventId}`);
 };
 
 /** DELETE /favorites/:eventId — remove from favorites */
@@ -22,10 +22,10 @@ export const removeFavorite = async (eventId: string): Promise<void> => {
   await api.delete(`/favorites/${eventId}`);
 };
 
-/** GET /favorites/check/:eventId — check if event is favorited */
+/** GET /favorites/:eventId/check — check if event is favorited */
 export const checkFavorite = async (eventId: string): Promise<boolean> => {
   try {
-    const { data } = await api.get(`/favorites/check/${eventId}`);
+    const { data } = await api.get(`/favorites/${eventId}/check`);
     return data?.favorited || false;
   } catch {
     return false;

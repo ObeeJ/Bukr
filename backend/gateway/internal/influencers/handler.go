@@ -1,3 +1,27 @@
+/**
+ * CONTROLLER LAYER - Influencer HTTP Handlers
+ * 
+ * Influencer Handler: The affiliate manager - tracking referral partners
+ * 
+ * Architecture Layer: Controller (Layer 2)
+ * Dependencies: Service layer (influencer business logic)
+ * Responsibility: HTTP request/response handling for influencers
+ * 
+ * Endpoints:
+ * - GET /api/v1/influencers: List organizer's influencers
+ * - GET /api/v1/influencers/:id: Get influencer details
+ * - POST /api/v1/influencers: Create new influencer
+ * - PUT /api/v1/influencers/:id: Update influencer
+ * - DELETE /api/v1/influencers/:id: Delete influencer
+ * - GET /api/v1/influencers/:id/referral-link: Get referral link
+ * 
+ * Use Cases:
+ * 1. Organizers create influencer profiles
+ * 2. Generate unique referral links for tracking
+ * 3. Track ticket sales via influencer codes
+ * 4. Calculate commissions/rewards
+ */
+
 package influencers
 
 import (
@@ -8,6 +32,9 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+/**
+ * Handler: Influencer controller
+ */
 type Handler struct {
 	service *Service
 }
@@ -16,6 +43,9 @@ func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
 }
 
+/**
+ * RegisterRoutes: Mount influencer endpoints
+ */
 func (h *Handler) RegisterRoutes(router fiber.Router) {
 	router.Get("/", h.List)
 	router.Get("/:id", h.GetByID)
@@ -25,7 +55,12 @@ func (h *Handler) RegisterRoutes(router fiber.Router) {
 	router.Get("/:id/referral-link", h.GetReferralLink)
 }
 
-// GET /api/v1/influencers
+/**
+ * List: Get organizer's influencers
+ * 
+ * GET /api/v1/influencers
+ * Only returns influencers owned by authenticated organizer
+ */
 func (h *Handler) List(c *fiber.Ctx) error {
 	claims := middleware.GetUserClaims(c)
 	if claims == nil {
@@ -40,7 +75,12 @@ func (h *Handler) List(c *fiber.Ctx) error {
 	return shared.Success(c, fiber.StatusOK, fiber.Map{"influencers": influencers})
 }
 
-// GET /api/v1/influencers/:id
+/**
+ * GetByID: Get influencer details
+ * 
+ * GET /api/v1/influencers/:id
+ * Includes referral stats (clicks, conversions, revenue)
+ */
 func (h *Handler) GetByID(c *fiber.Ctx) error {
 	claims := middleware.GetUserClaims(c)
 	if claims == nil {
@@ -58,7 +98,12 @@ func (h *Handler) GetByID(c *fiber.Ctx) error {
 	return shared.Success(c, fiber.StatusOK, inf)
 }
 
-// POST /api/v1/influencers
+/**
+ * Create: Create new influencer
+ * 
+ * POST /api/v1/influencers
+ * Generates unique referral code
+ */
 func (h *Handler) Create(c *fiber.Ctx) error {
 	claims := middleware.GetUserClaims(c)
 	if claims == nil {
@@ -81,7 +126,12 @@ func (h *Handler) Create(c *fiber.Ctx) error {
 	return shared.Success(c, fiber.StatusCreated, inf)
 }
 
-// PUT /api/v1/influencers/:id
+/**
+ * Update: Update influencer details
+ * 
+ * PUT /api/v1/influencers/:id
+ * Partial update (only provided fields)
+ */
 func (h *Handler) Update(c *fiber.Ctx) error {
 	claims := middleware.GetUserClaims(c)
 	if claims == nil {
@@ -104,7 +154,12 @@ func (h *Handler) Update(c *fiber.Ctx) error {
 	return shared.Success(c, fiber.StatusOK, inf)
 }
 
-// DELETE /api/v1/influencers/:id
+/**
+ * Delete: Delete influencer
+ * 
+ * DELETE /api/v1/influencers/:id
+ * Only owner can delete
+ */
 func (h *Handler) Delete(c *fiber.Ctx) error {
 	claims := middleware.GetUserClaims(c)
 	if claims == nil {
@@ -118,7 +173,13 @@ func (h *Handler) Delete(c *fiber.Ctx) error {
 	return shared.Success(c, fiber.StatusOK, fiber.Map{"message": "Influencer deleted"})
 }
 
-// GET /api/v1/influencers/:id/referral-link
+/**
+ * GetReferralLink: Generate referral link
+ * 
+ * GET /api/v1/influencers/:id/referral-link
+ * Returns shareable link with tracking code
+ * Format: https://bukr.app/events?ref=INFLUENCER_CODE
+ */
 func (h *Handler) GetReferralLink(c *fiber.Ctx) error {
 	claims := middleware.GetUserClaims(c)
 	if claims == nil {

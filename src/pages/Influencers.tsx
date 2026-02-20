@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Trash2, Plus } from "lucide-react";
 import { Influencer } from "@/types";
-import { getInfluencers, createInfluencer, deleteInfluencer } from "@/api/influencers";
+import { getInfluencers, createInfluencer, deleteInfluencer, updateInfluencer } from "@/api/influencers";
 import { toast } from "sonner";
 
 export default function Influencers() {
@@ -15,6 +15,7 @@ export default function Influencers() {
   const [influencers, setInfluencers] = useState<Influencer[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     bio: "",
@@ -25,23 +26,52 @@ export default function Influencers() {
   useEffect(() => {
     const fetchInfluencers = async () => {
       setLoading(true);
-      const data = await getInfluencers();
-      setInfluencers(data);
-      setLoading(false);
+      try {
+        const data = await getInfluencers();
+        setInfluencers(data);
+      } catch (error) {
+        toast.error('Failed to load influencers');
+      } finally {
+        setLoading(false);
+      }
     };
     fetchInfluencers();
   }, []);
 
   const handleAddInfluencer = async () => {
     try {
-      const newInfluencer = await createInfluencer(formData);
-      setInfluencers(prev => [newInfluencer, ...prev]);
+      if (editingId) {
+        const updated = await updateInfluencer(editingId, formData);
+        setInfluencers(prev => prev.map(inf => inf.id === editingId ? updated : inf));
+        toast.success("Influencer updated");
+      } else {
+        const newInfluencer = await createInfluencer(formData);
+        setInfluencers(prev => [newInfluencer, ...prev]);
+        toast.success("Influencer added");
+      }
       setFormData({ name: "", bio: "", email: "", socialHandle: "" });
+      setEditingId(null);
       setOpen(false);
-      toast.success("Influencer added");
     } catch (err: any) {
-      toast.error(err.message || "Failed to add influencer");
+      toast.error(err.message || `Failed to ${editingId ? 'update' : 'add'} influencer`);
     }
+  };
+
+  const handleEdit = (influencer: Influencer) => {
+    setFormData({
+      name: influencer.name,
+      email: influencer.email,
+      socialHandle: influencer.socialHandle || "",
+      bio: influencer.bio || "",
+    });
+    setEditingId(influencer.id);
+    setOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setOpen(false);
+    setEditingId(null);
+    setFormData({ name: "", bio: "", email: "", socialHandle: "" });
   };
 
   const handleRemove = async (id: string) => {
@@ -59,7 +89,7 @@ export default function Influencers() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-semibold">Influencers</h1>
         {user?.userType === "organizer" && (
-          <Dialog open={open} onOpenChange={setOpen}>
+          <Dialog open={open} onOpenChange={handleCloseDialog}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="w-4 h-4 mr-2" />
@@ -68,7 +98,7 @@ export default function Influencers() {
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Add Influencer</DialogTitle>
+                <DialogTitle>{editingId ? 'Edit' : 'Add'} Influencer</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
                 <div>
@@ -100,7 +130,7 @@ export default function Influencers() {
                   />
                 </div>
                 <Button onClick={handleAddInfluencer} className="w-full">
-                  Add
+                  {editingId ? 'Update' : 'Add'}
                 </Button>
               </div>
             </DialogContent>
@@ -131,9 +161,14 @@ export default function Influencers() {
                   )}
                 </div>
                 {user?.userType === "organizer" && (
-                  <Button variant="ghost" size="icon" onClick={() => handleRemove(influencer.id)}>
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button variant="ghost" size="icon" onClick={() => handleEdit(influencer)}>
+                      <Plus className="w-4 h-4 rotate-45" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => handleRemove(influencer.id)}>
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 )}
               </div>
             ))

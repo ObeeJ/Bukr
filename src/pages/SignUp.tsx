@@ -1,3 +1,38 @@
+// ============================================================================
+// SIGN UP PAGE - USER REGISTRATION
+// ============================================================================
+// Layer 1: PRESENTATION - New user registration interface
+//
+// ARCHITECTURE ROLE:
+// - Handles new user registration
+// - Supports two user types: regular user and organizer
+// - Conditional fields based on user type (organizers need org name)
+// - Client-side validation before API call
+//
+// REACT PATTERNS:
+// 1. Complex Form State: Object with multiple fields
+// 2. Conditional Rendering: Show orgName field only for organizers
+// 3. Form Validation: Check password match and length before submission
+// 4. Select Component: Dropdown for user type selection
+//
+// FORM STATE:
+// - firstName, lastName: Split name for better data structure
+// - email: User's email (will be verified)
+// - password, confirmPassword: Password with confirmation
+// - userType: "user" or "organizer" (affects UI and backend logic)
+// - orgName: Required for organizers, optional for users
+//
+// VALIDATION STRATEGY:
+// 1. Client-side: Check password match and length (fast feedback)
+// 2. Server-side: Check email uniqueness, format (authoritative)
+// 3. HTML5: required, type="email" (browser-level validation)
+//
+// USER TYPE IMPLICATIONS:
+// - Regular users: Can browse and book events
+// - Organizers: Can create and manage events
+// - This is set at registration and affects entire user experience
+// ============================================================================
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -10,30 +45,36 @@ import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
 export default function SignUp() {
+  // COMPLEX FORM STATE - Multiple fields in one object
+  // This is cleaner than 7 separate useState calls
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
     email: "",
     password: "",
     confirmPassword: "",
-    userType: "user",
-    orgName: "",
+    userType: "user", // Default to regular user
+    orgName: "", // Only used if userType === "organizer"
   });
   const [isLoading, setIsLoading] = useState(false);
 
   const { signUp } = useAuth();
   const navigate = useNavigate();
 
+  // FORM SUBMISSION WITH VALIDATION
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // CLIENT-SIDE VALIDATION - Fast feedback before API call
+    // Validation 1: Password match
     if (formData.password !== formData.confirmPassword) {
       toast.error("Passwords don't match 🔒", {
         description: "Please make sure both passwords are identical."
       });
-      return;
+      return; // Early return prevents API call
     }
 
+    // Validation 2: Password length (security requirement)
     if (formData.password.length < 6) {
       toast.error("Password too short 🔑", {
         description: "Password must be at least 6 characters long."
@@ -41,11 +82,14 @@ export default function SignUp() {
       return;
     }
 
+    // DATA TRANSFORMATION - Prepare data for API
+    // Combine firstName and lastName into single name field
+    // Only include orgName if user is organizer
     const userData = {
       name: `${formData.firstName} ${formData.lastName}`,
       email: formData.email,
-      userType: formData.userType as "user" | "organizer",
-      orgName: formData.userType === "organizer" ? formData.orgName : undefined,
+      userType: formData.userType as "user" | "organizer", // TypeScript type assertion
+      orgName: formData.userType === "organizer" ? formData.orgName : undefined, // Conditional field
     };
 
     setIsLoading(true);
@@ -55,9 +99,11 @@ export default function SignUp() {
       toast.success("Account created! 🎉", {
         description: "Check your email to verify your account."
       });
+      // Note: User needs to verify email before they can sign in
     } catch (error: any) {
       console.error('Sign up error:', error);
 
+      // ERROR HANDLING - User-friendly messages
       if (error.message?.includes('already registered') || error.message?.includes('already exists')) {
         toast.error("Email already taken 📧", {
           description: "This email is already registered. Try signing in instead."
@@ -129,6 +175,8 @@ export default function SignUp() {
               />
             </div>
 
+            {/* USER TYPE SELECT - Determines user role */}
+            {/* This is a controlled Select component from shadcn/ui */}
             <div className="space-y-2">
               <Label htmlFor="userType" className="text-sm font-medium">Account Type</Label>
               <Select value={formData.userType} onValueChange={(value) => setFormData({ ...formData, userType: value })}>
@@ -142,6 +190,9 @@ export default function SignUp() {
               </Select>
             </div>
 
+            {/* CONDITIONAL FIELD - Only show for organizers */}
+            {/* This is React's conditional rendering: condition && <JSX> */}
+            {/* If condition is false, React renders nothing */}
             {formData.userType === "organizer" && (
               <div className="space-y-2">
                 <Label htmlFor="orgName" className="text-sm font-medium">Organization Name</Label>

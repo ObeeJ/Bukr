@@ -1,4 +1,35 @@
-// src/pages/Landing.tsx (Hero Section Only)
+// ============================================================================
+// LANDING PAGE - THE GRAND ENTRANCE
+// ============================================================================
+// Layer 1: PRESENTATION - The first impression, the digital handshake
+// This is where users decide if they want to stay or bounce faster than a
+// rubber ball on concrete. No pressure.
+//
+// ARCHITECTURE ROLE:
+// - Entry point for unauthenticated users (the "hello world" of Bukr)
+// - Conditional routing based on user type (organizer vs regular user)
+// - Authentication state management via AuthContext
+// - Modal-based auth flow (no page redirects, smooth as butter)
+//
+// REACT PATTERNS EXPLAINED:
+// 1. useState Hook: Local state for modal visibility and tab selection
+//    Think of it as a light switch - on/off, signin/signup
+// 2. useAuth Hook: Custom hook that wraps AuthContext consumer
+//    Gives us isAuthenticated and user without prop drilling hell
+// 3. useNavigate Hook: React Router's programmatic navigation
+//    Like a GPS for your SPA (Single Page Application)
+//
+// COMPONENT LIFECYCLE:
+// Mount -> Check auth state -> Render appropriate CTA -> User clicks -> Navigate or show modal
+//
+// WHY THIS MATTERS:
+// Landing pages have ~3 seconds to convince users to stay. This one uses:
+// - Gradient backgrounds (visual appeal)
+// - Animated logo (movement catches eyes)
+// - Clear CTAs (Call To Action buttons)
+// - Social proof (1M+ events, 500K+ users stats)
+// - Conditional rendering based on auth state (personalized experience)
+// ============================================================================
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -9,35 +40,57 @@ import AnimatedLogo from "@/components/AnimatedLogo";
 import AuthModal from "@/components/AuthModal";
 
 const Landing = () => {
+  // STATE MANAGEMENT (Layer 2: Business Logic)
+  // authModal: Controls modal visibility and which tab (signin/signup) to show
+  // Think of it as a traffic controller for authentication flows
   const [authModal, setAuthModal] = useState({ isOpen: false, tab: "signin" as "signin" | "signup" });
+  
+  // CONTEXT CONSUMPTION (Layer 3: State Management)
+  // useAuth: Custom hook that taps into AuthContext
+  // Provides: isAuthenticated (boolean), user (object with userType, email, etc.)
+  // This is React's way of avoiding "prop drilling" - passing props through 10 components
   const { isAuthenticated, user } = useAuth();
+  
+  // NAVIGATION (Layer 4: Routing)
+  // useNavigate: React Router v6's navigation hook
+  // Replaces old history.push() - cleaner API, better TypeScript support
   const navigate = useNavigate();
 
   return (
     <section className="relative min-h-screen bg-gradient-to-br from-background via-background to-primary/10 flex items-center justify-center px-3 sm:px-4 overflow-hidden">
-      {/* Background Effects */}
+      {/* BACKGROUND EFFECTS - Pure CSS magic, no JavaScript needed */}
+      {/* Grid pattern: Creates that tech-startup aesthetic */}
       <div className="absolute inset-0 bg-grid-pattern opacity-10 animate-pulse"></div>
+      {/* Gradient overlay: Adds depth, makes text readable */}
       <div className="absolute inset-0 bg-gradient-to-t from-primary/20 to-transparent"></div>
 
       <div className="relative max-w-4xl mx-auto text-center px-2">
+        {/* ANIMATED LOGO - First thing users see, sets the tone */}
         <div className="mb-6 sm:mb-8 animate-fade-in">
           <AnimatedLogo size="lg" className="mb-4 sm:mb-6 mx-auto" />
         </div>
 
+        {/* HERO HEADLINE - The value proposition in 5 words */}
         <div className="mb-4 sm:mb-6 animate-slide-up">
           <h2 className="text-2xl sm:text-3xl md:text-5xl font-medium bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent animate-pulse watermark leading-tight">
             Make Every Moment Count!
           </h2>
         </div>
 
+        {/* SUBHEADLINE - Explains what we do in plain English */}
         <p className="text-base sm:text-lg md:text-xl text-muted-foreground mb-6 sm:mb-8 max-w-2xl mx-auto animate-slide-up font-montserrat px-2">
           Discover, book, and experience the world's most incredible events. 
           From concerts to conferences, we make event booking seamless and exciting.
         </p>
 
+        {/* CONDITIONAL RENDERING - Different CTAs based on auth state */}
+        {/* This is React's superpower: dynamic UI based on state */}
         {isAuthenticated ? (
+          // USER IS LOGGED IN - Show personalized actions
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-4">
+            {/* ROLE-BASED ROUTING - Organizers and users see different buttons */}
             {user?.userType === 'organizer' ? (
+              // ORGANIZER PATH - Manage events dashboard
               <Button 
                 onClick={() => navigate('/dashboard')}
                 variant="glow" 
@@ -51,6 +104,7 @@ const Landing = () => {
                 <span className="font-medium logo">Manage Events</span>
               </Button>
             ) : (
+              // REGULAR USER PATH - Browse and find events
               <Button 
                 onClick={() => navigate('/app')}
                 variant="glow" 
@@ -66,6 +120,8 @@ const Landing = () => {
             )}
           </div>
         ) : (
+          // USER NOT LOGGED IN - Show auth modal trigger
+          // Modal pattern: Better UX than full page redirects
           <div className="px-4">
             <Button 
               onClick={() => setAuthModal({ isOpen: true, tab: "signin" })}
@@ -82,7 +138,9 @@ const Landing = () => {
           </div>
         )}
 
-        {/* Stats */}
+        {/* SOCIAL PROOF STATS - Trust indicators */}
+        {/* Psychology: Big numbers = credibility = trust = conversions */}
+        {/* Grid layout: Responsive (1 col mobile, 3 cols desktop) */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 md:gap-8 mt-8 sm:mt-12 md:mt-16 max-w-2xl mx-auto px-4">
           <div className="glass-card p-4 sm:p-6 text-center hover-glow rounded-xl shadow-md transition-shadow duration-300">
             <div className="text-2xl sm:text-3xl font-semibold text-primary mb-1 sm:mb-2 watermark">1M+</div>
@@ -99,6 +157,10 @@ const Landing = () => {
         </div>
       </div>
 
+      {/* AUTH MODAL - Controlled component pattern */}
+      {/* Props: isOpen (boolean), onClose (callback), defaultTab (string) */}
+      {/* This modal is rendered but hidden until isOpen=true */}
+      {/* React doesn't remove it from DOM, just hides it (performance optimization) */}
       <AuthModal 
         isOpen={authModal.isOpen}
         onClose={() => setAuthModal({ ...authModal, isOpen: false })}

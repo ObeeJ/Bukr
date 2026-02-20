@@ -1,0 +1,565 @@
+openapi: 3.0.3
+info:
+  title: Bukr API
+  version: 1.0.0
+  description: Cloud-native ticket booking platform API
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local Gateway
+  - url: http://localhost:3000/api/v1
+    description: Local Rust Core
+
+paths:
+  # Events
+  /events:
+    get:
+      summary: List events
+      tags: [Events]
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+        - name: category
+          in: query
+          schema: { type: string }
+        - name: search
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventListResponse'
+    post:
+      summary: Create event
+      tags: [Events]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEventRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+
+  /events/me:
+    get:
+      summary: Get organizer's events
+      tags: [Events]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventListResponse'
+
+  /events/{id}:
+    get:
+      summary: Get event by ID
+      tags: [Events]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+    put:
+      summary: Update event
+      tags: [Events]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateEventRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+    delete:
+      summary: Delete event
+      tags: [Events]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Deleted
+
+  /events/{id}/claim:
+    post:
+      summary: Claim free ticket
+      tags: [Events]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '201':
+          description: Ticket claimed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ticket'
+
+  /events/{id}/scanners:
+    get:
+      summary: List event scanners
+      tags: [Scanner]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  scanners:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Scanner'
+    post:
+      summary: Assign scanner
+      tags: [Scanner]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id]
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Scanner assigned
+
+  /events/{id}/scanners/{scanner_id}:
+    delete:
+      summary: Remove scanner
+      tags: [Scanner]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: scanner_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Scanner removed
+
+  # Tickets
+  /tickets/purchase:
+    post:
+      summary: Purchase tickets
+      tags: [Tickets]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PurchaseRequest'
+      responses:
+        '201':
+          description: Purchase initiated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseResponse'
+
+  /tickets/me:
+    get:
+      summary: Get user's tickets
+      tags: [Tickets]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tickets:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Ticket'
+
+  # Promos
+  /promos/event/{event_id}:
+    get:
+      summary: List event promos
+      tags: [Promos]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: event_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  promos:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PromoCode'
+
+  /promos:
+    post:
+      summary: Create promo code
+      tags: [Promos]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePromoRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromoCode'
+
+  /promos/{id}:
+    delete:
+      summary: Delete promo
+      tags: [Promos]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Deleted
+
+  /promos/{id}/toggle:
+    patch:
+      summary: Toggle promo active status
+      tags: [Promos]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Toggled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromoCode'
+
+  /promos/validate:
+    post:
+      summary: Validate promo code
+      tags: [Promos]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [event_id, code]
+              properties:
+                event_id:
+                  type: string
+                  format: uuid
+                code:
+                  type: string
+      responses:
+        '200':
+          description: Valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromoCode'
+
+  # Scanner
+  /scanner/validate:
+    post:
+      summary: Validate ticket QR
+      tags: [Scanner]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ticket_id, event_key]
+              properties:
+                ticket_id:
+                  type: string
+                  format: uuid
+                event_key:
+                  type: string
+      responses:
+        '200':
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanValidationResult'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Event:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        organizer_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        date:
+          type: string
+          format: date
+        time:
+          type: string
+        location:
+          type: string
+        price:
+          type: number
+        total_tickets:
+          type: integer
+        available_tickets:
+          type: integer
+        event_key:
+          type: string
+        status:
+          type: string
+          enum: [draft, active, cancelled, completed]
+
+    EventListResponse:
+      type: object
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/Event'
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+
+    CreateEventRequest:
+      type: object
+      required: [title, date, time, location, total_tickets]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        date:
+          type: string
+          format: date
+        time:
+          type: string
+        location:
+          type: string
+        price:
+          type: number
+        total_tickets:
+          type: integer
+
+    UpdateEventRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        status:
+          type: string
+
+    Ticket:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        event_id:
+          type: string
+          format: uuid
+        ticket_number:
+          type: string
+        price_paid:
+          type: number
+        status:
+          type: string
+          enum: [valid, used, cancelled]
+        qr_code:
+          type: string
+
+    PurchaseRequest:
+      type: object
+      required: [event_id, quantity]
+      properties:
+        event_id:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+        promo_code:
+          type: string
+
+    PurchaseResponse:
+      type: object
+      properties:
+        ticket:
+          $ref: '#/components/schemas/Ticket'
+        payment_url:
+          type: string
+        reference:
+          type: string
+
+    PromoCode:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        event_id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        discount_percentage:
+          type: integer
+        ticket_limit:
+          type: integer
+        tickets_used:
+          type: integer
+        is_active:
+          type: boolean
+        expires_at:
+          type: string
+          format: date-time
+
+    CreatePromoRequest:
+      type: object
+      required: [event_id, code, discount_percentage, ticket_limit]
+      properties:
+        event_id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        discount_percentage:
+          type: integer
+        ticket_limit:
+          type: integer
+        expires_at:
+          type: string
+          format: date-time
+
+    Scanner:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        event_id:
+          type: string
+          format: uuid
+        assigned_at:
+          type: string
+          format: date-time
+
+    ScanValidationResult:
+      type: object
+      properties:
+        valid:
+          type: boolean
+        ticket:
+          $ref: '#/components/schemas/Ticket'
+        message:
+          type: string

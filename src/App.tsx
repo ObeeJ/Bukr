@@ -25,11 +25,14 @@ import PrivacyPolicy from "@/pages/PrivacyPolicy";
 import NotFound from "@/pages/NotFound";
 import Tickets from "@/pages/Tickets";
 import ScannerPage from "@/pages/ScannerPage";
-import PurchasePage from "@/pages/PurchasePage";
+import PaymentVerify from "@/pages/PaymentVerify";
 import UserDashboard from "@/pages/UserDashboard";
+import PurchasePage from "@/pages/PurchasePage";
 import BottomNavigation from "@/components/BottomNavigation";
 import MobileGuard from "@/components/MobileGuard";
 import { useToast } from "@/components/ui/use-toast";
+
+import ScannerManagement from "@/pages/ScannerManagement";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -194,6 +197,14 @@ const AppRoutes = () => {
         }
       />
       <Route
+        path="/events/:id/edit"
+        element={
+          <ProtectedRoute requiredUserType="organizer">
+            <CreateEvent />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/dashboard"
         element={
           <ProtectedRoute requiredUserType="organizer">
@@ -206,6 +217,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <EventDetail />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/events/:eventId/scanners"
+        element={
+          <ProtectedRoute requiredUserType="organizer">
+            <ScannerManagement />
           </ProtectedRoute>
         }
       />
@@ -226,6 +245,10 @@ const AppRoutes = () => {
         }
       />
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+      <Route
+        path="/payment/verify/:reference"
+        element={<PaymentVerify />}
+      />
       <Route
         path="/purchase/:eventKey"
         element={

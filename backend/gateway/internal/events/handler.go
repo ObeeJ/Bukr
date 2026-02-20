@@ -1,3 +1,31 @@
+/**
+ * CONTROLLER LAYER - Event HTTP Handlers
+ * 
+ * Event Handler: The event orchestrator - managing event lifecycle
+ * 
+ * Architecture Layer: Controller (Layer 2)
+ * Dependencies: Service layer (event business logic)
+ * Responsibility: HTTP request/response handling for events
+ * 
+ * Public Endpoints (no auth):
+ * - GET /api/v1/events: List/search events
+ * - GET /api/v1/events/categories: Get event categories
+ * - GET /api/v1/events/:id: Get event by ID
+ * - GET /api/v1/events/key/:eventKey: Get event by URL slug
+ * 
+ * Protected Endpoints (auth required):
+ * - GET /api/v1/events/me: List organizer's events
+ * - POST /api/v1/events: Create event (organizer only)
+ * - PUT /api/v1/events/:id: Update event (owner only)
+ * - DELETE /api/v1/events/:id: Delete event (owner only)
+ * 
+ * Features:
+ * - Pagination (page, limit)
+ * - Filtering (category, status)
+ * - Search (title, description, location)
+ * - URL-friendly slugs (event_key)
+ */
+
 package events
 
 import (
@@ -9,6 +37,9 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+/**
+ * Handler: Event controller
+ */
 type Handler struct {
 	service *Service
 }
@@ -17,22 +48,47 @@ func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
 }
 
+/**
+ * RegisterPublicRoutes: Mount public event endpoints
+ */
 func (h *Handler) RegisterPublicRoutes(router fiber.Router) {
 	router.Get("/", h.ListEvents)
-	router.Get("/search", h.ListEvents) // same handler, uses query params
+	router.Get("/search", h.ListEvents)    // Same handler, uses query params
 	router.Get("/categories", h.GetCategories)
 	router.Get("/key/:eventKey", h.GetByEventKey)
 	router.Get("/:id", h.GetByID)
 }
 
+/**
+ * RegisterProtectedRoutes: Mount organizer-only endpoints
+ */
 func (h *Handler) RegisterProtectedRoutes(router fiber.Router) {
 	router.Get("/me", h.ListMyEvents)
 	router.Post("/", h.CreateEvent)
 	router.Put("/:id", h.UpdateEvent)
 	router.Delete("/:id", h.DeleteEvent)
+	
+	// Free ticket claiming handled by proxy - just validate here
+	// Actual route registered in main.go to proxy to Rust
+	
+	// Scanner management (organizer only)
+	router.Post("/:id/scanners", h.AssignScanner)
+	router.Get("/:id/scanners", h.ListScanners)
+	router.Delete("/:id/scanners/:scanner_id", h.RemoveScanner)
 }
 
-// GET /api/v1/events
+/**
+ * ListEvents: List/search events with pagination
+ * 
+ * GET /api/v1/events?page=1&limit=20&category=music&status=active&search=concert
+ * 
+ * Query params:
+ * - page: Page number (default 1)
+ * - limit: Items per page (default 20, max 50)
+ * - category: Filter by category
+ * - status: Filter by status (default active)
+ * - search: Search title/description/location
+ */
 func (h *Handler) ListEvents(c *fiber.Ctx) error {
 	q := ListEventsQuery{
 		Page:     queryInt(c, "page", 1),
@@ -50,7 +106,12 @@ func (h *Handler) ListEvents(c *fiber.Ctx) error {
 	return shared.Success(c, fiber.StatusOK, result)
 }
 
-// GET /api/v1/events/categories
+/**
+ * GetCategories: Get distinct event categories
+ * 
+ * GET /api/v1/events/categories
+ * Returns list of active event categories
+ */
 func (h *Handler) GetCategories(c *fiber.Ctx) error {
 	categories, err := h.service.GetCategories(c.Context())
 	if err != nil {
@@ -60,7 +121,11 @@ func (h *Handler) GetCategories(c *fiber.Ctx) error {
 	return shared.Success(c, fiber.StatusOK, fiber.Map{"categories": categories})
 }
 
-// GET /api/v1/events/:id
+/**
+ * GetByID: Get event by UUID
+ * 
+ * GET /api/v1/events/:id
+ */
 func (h *Handler) GetByID(c *fiber.Ctx) error {
 	id := c.Params("id")
 
@@ -75,7 +140,12 @@ func (h *Handler) GetByID(c *fiber.Ctx) error {
 	return shared.Success(c, fiber.StatusOK, event)
 }
 
-// GET /api/v1/events/key/:eventKey
+/**
+ * GetByEventKey: Get event by URL slug
+ * 
+ * GET /api/v1/events/key/:eventKey
+ * Example: /api/v1/events/key/summer-fest-2024-a3f2
+ */
 func (h *Handler) GetByEventKey(c *fiber.Ctx) error {
 	eventKey := c.Params("eventKey")
 
@@ -90,7 +160,12 @@ func (h *Handler) GetByEventKey(c *fiber.Ctx) error {
 	return shared.Success(c, fiber.StatusOK, event)
 }
 
-// GET /api/v1/events/me (organizer only)
+/**
+ * ListMyEvents: List organizer's events
+ * 
+ * GET /api/v1/events/me?page=1&limit=20
+ * Requires authentication, organizer only
+ */
 func (h *Handler) ListMyEvents(c *fiber.Ctx) error {
 	claims := middleware.GetUserClaims(c)
 	if claims == nil {
@@ -108,7 +183,13 @@ func (h *Handler) ListMyEvents(c *fiber.Ctx) error {
 	return shared.Success(c, fiber.StatusOK, result)
 }
 
-// POST /api/v1/events (organizer only)
+/**
+ * CreateEvent: Create new event
+ * 
+ * POST /api/v1/events
+ * Requires authentication, organizer only
+ * Generates unique event_key from title
+ */
 func (h *Handler) CreateEvent(c *fiber.Ctx) error {
 	claims := middleware.GetUserClaims(c)
 	if claims == nil {
@@ -134,7 +215,12 @@ func (h *Handler) CreateEvent(c *fiber.Ctx) error {
 	return shared.Success(c, fiber.StatusCreated, event)
 }
 
-// PUT /api/v1/events/:id (organizer owner only)
+/**
+ * UpdateEvent: Update event details
+ * 
+ * PUT /api/v1/events/:id
+ * Requires authentication, owner only
+ */
 func (h *Handler) UpdateEvent(c *fiber.Ctx) error {
 	claims := middleware.GetUserClaims(c)
 	if claims == nil {
@@ -162,7 +248,12 @@ func (h *Handler) UpdateEvent(c *fiber.Ctx) error {
 	return shared.Success(c, fiber.StatusOK, event)
 }
 
-// DELETE /api/v1/events/:id (organizer owner only)
+/**
+ * DeleteEvent: Delete event
+ * 
+ * DELETE /api/v1/events/:id
+ * Requires authentication, owner only
+ */
 func (h *Handler) DeleteEvent(c *fiber.Ctx) error {
 	claims := middleware.GetUserClaims(c)
 	if claims == nil {
@@ -181,6 +272,9 @@ func (h *Handler) DeleteEvent(c *fiber.Ctx) error {
 	return shared.Success(c, fiber.StatusOK, fiber.Map{"message": "Event deleted"})
 }
 
+/**
+ * queryInt: Helper to parse integer query params
+ */
 func queryInt(c *fiber.Ctx, key string, defaultVal int) int {
 	val := c.Query(key)
 	if val == "" {

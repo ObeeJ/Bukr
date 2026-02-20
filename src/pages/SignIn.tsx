@@ -1,3 +1,39 @@
+// ============================================================================
+// SIGN IN PAGE - AUTHENTICATION GATEWAY
+// ============================================================================
+// Layer 1: PRESENTATION - User authentication interface
+//
+// ARCHITECTURE ROLE:
+// - Handles user login via email/password
+// - Integrates with AuthContext for global auth state
+// - Provides user-friendly error messages (not raw API errors)
+// - Supports OAuth providers (Google, Twitter) - UI ready, backend TBD
+//
+// REACT PATTERNS:
+// 1. Controlled Form Inputs: React state controls input values
+//    Value flows: User types -> onChange -> setState -> value prop
+//    This is "single source of truth" - state is the boss
+// 2. Form Submission: preventDefault() stops page reload
+// 3. Async/Await: Modern promise handling (cleaner than .then())
+// 4. Error Handling: try/catch with user-friendly messages
+//
+// FORM STATE MANAGEMENT:
+// - formData object: Holds email and password
+// - showPassword boolean: Toggles password visibility
+// - isLoading boolean: Prevents double-submission
+//
+// ERROR HANDLING STRATEGY:
+// - Catch specific error messages from API
+// - Translate technical errors to user-friendly language
+// - Use toast notifications (non-blocking, auto-dismiss)
+//
+// UX PATTERNS:
+// - Password visibility toggle (eye icon)
+// - Remember me checkbox (future feature)
+// - Forgot password link (future feature)
+// - Loading state on button (prevents double-click)
+// ============================================================================
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,27 +45,39 @@ import AnimatedLogo from "@/components/AnimatedLogo";
 import { toast } from "sonner";
 
 const SignIn = () => {
+  // CONTEXT CONSUMPTION - Get signIn function from AuthContext
   const { signIn } = useAuth();
-  const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  
+  // LOCAL STATE - Form-specific state (not global)
+  const [showPassword, setShowPassword] = useState(false); // Password visibility toggle
+  const [isLoading, setIsLoading] = useState(false); // Prevents double-submission
+  
+  // CONTROLLED FORM STATE - The "single source of truth" pattern
+  // React controls the input values, not the DOM
   const [formData, setFormData] = useState({
     email: "",
     password: ""
   });
 
+  // FORM SUBMISSION HANDLER - The main event
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
+    e.preventDefault(); // CRITICAL: Prevents page reload (default form behavior)
+    setIsLoading(true); // Disable submit button
 
     try {
+      // Call AuthContext signIn method (which calls API)
       await signIn(formData.email, formData.password);
+      
+      // SUCCESS: Show success toast
       toast.success("Welcome back! 🎉", {
         description: "You've successfully signed in."
       });
+      // Note: Navigation happens automatically in AuthContext after successful login
     } catch (err: any) {
       console.error('Sign in error:', err);
 
-      // User-friendly error messages
+      // ERROR HANDLING - Translate technical errors to human language
+      // This is UX gold: users don't care about HTTP status codes
       if (err.message?.includes('Invalid login credentials')) {
         toast.error("Oops! Wrong credentials 🔐", {
           description: "Double-check your email and password, then try again."
@@ -43,12 +91,13 @@ const SignIn = () => {
           description: "Check your internet connection and try again."
         });
       } else {
+        // Fallback for unknown errors
         toast.error("Couldn't sign in 😕", {
           description: err.message || "Something went wrong. Please try again."
         });
       }
     } finally {
-      setIsLoading(false);
+      setIsLoading(false); // Re-enable submit button (runs whether success or error)
     }
   };
 
@@ -74,10 +123,13 @@ const SignIn = () => {
 
 
 
-          {/* Form */}
+          {/* FORM - Controlled components pattern */}
+          {/* Each input's value is controlled by React state */}
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* EMAIL INPUT - Standard controlled input */}
             <div className="space-y-2">
               <Label htmlFor="email" className="text-sm font-medium">Email</Label>
+              {/* HTML5 validation: must be valid email format */}
               <Input
                 id="email"
                 type="email"
@@ -89,9 +141,12 @@ const SignIn = () => {
               />
             </div>
 
+            {/* PASSWORD INPUT - With visibility toggle */}
             <div className="space-y-2">
               <Label htmlFor="password" className="text-sm font-medium">Password</Label>
+              {/* Relative positioning for absolute button */}
               <div className="relative">
+                {/* Dynamic type based on state */}
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
@@ -101,6 +156,9 @@ const SignIn = () => {
                   className="glass-card border-glass-border bg-glass/20 pr-10 h-11 text-base"
                   required
                 />
+                {/* TOGGLE BUTTON - Absolute positioned inside input */}
+                {/* CRITICAL: type="button" prevents form submission */}
+                {/* Toggle boolean state */}
                 <Button
                   type="button"
                   variant="ghost"
@@ -113,6 +171,7 @@ const SignIn = () => {
               </div>
             </div>
 
+            {/* REMEMBER ME & FORGOT PASSWORD - Future features */}
             <div className="flex items-center justify-between text-sm">
               <label className="flex items-center gap-2">
                 <input type="checkbox" className="rounded" />
@@ -123,17 +182,23 @@ const SignIn = () => {
               </Link>
             </div>
 
+            {/* SUBMIT BUTTON - With loading state */}
+            {/* disabled prop prevents double-submission */}
+            {/* type="submit" triggers form onSubmit */}
+            {/* Disable during API call */}
             <Button
               type="submit"
               variant="glow"
               className="w-full h-12 text-base font-medium mt-6 cta"
               disabled={isLoading}
             >
+              {/* CONDITIONAL TEXT - Show loading state */}
               {isLoading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
 
-          {/* OAuth Buttons (optional) */}
+          {/* OAUTH BUTTONS - UI ready, backend integration pending */}
+          {/* This is common in MVPs: build UI first, wire up later */}
           <div className="space-y-3">
             <div className="relative">
               <div className="absolute inset-0 flex items-center">

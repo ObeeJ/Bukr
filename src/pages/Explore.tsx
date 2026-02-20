@@ -16,9 +16,14 @@ const Explore = () => {
   useEffect(() => {
     const fetchEvents = async () => {
       setLoading(true);
-      const data = await getAllEvents();
-      setEvents(data);
-      setLoading(false);
+      try {
+        const data = await getAllEvents();
+        setEvents(data);
+      } catch (error) {
+        toast.error('Failed to load events');
+      } finally {
+        setLoading(false);
+      }
     };
     fetchEvents();
   }, []);

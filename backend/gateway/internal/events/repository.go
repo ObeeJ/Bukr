@@ -1,3 +1,27 @@
+/**
+ * REPOSITORY LAYER - Event Database Operations
+ * 
+ * Event Repository: The event vault - storing and retrieving events
+ * 
+ * Architecture Layer: Repository (Layer 5)
+ * Dependencies: Database (PostgreSQL via pgx)
+ * Responsibility: CRUD operations for events table
+ * 
+ * Database Table: events
+ * Key columns:
+ * - id: UUID primary key
+ * - organizer_id: Foreign key to users
+ * - event_key: URL-friendly slug (unique)
+ * - status: active, cancelled, completed
+ * - total_tickets, available_tickets: Inventory tracking
+ * 
+ * Complex Operations:
+ * - Dynamic filtering (category, status, search)
+ * - Pagination with total count
+ * - JOIN with users for organizer info
+ * - URL slug generation from title
+ */
+
 package events
 
 import (
@@ -10,6 +34,9 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+/**
+ * Repository: Event data access
+ */
 type Repository struct {
 	db *pgxpool.Pool
 }
@@ -18,11 +45,12 @@ func NewRepository(db *pgxpool.Pool) *Repository {
 	return &Repository{db: db}
 }
 
+// SQL fragments for reusable queries
 const baseSelectFields = `
 	e.id::text, e.organizer_id::text, e.title, e.description,
 	e.date::text, e.time::text, e.end_date::text, e.location,
 	e.price, e.currency, e.category, e.emoji, e.event_key,
-	e.status, e.total_tickets, e.available_tickets,
+	e.status, e.total_tickets, e.available_tickets, e.requires_payment,
 	e.thumbnail_url, e.video_url, e.flier_url, e.is_featured,
 	e.created_at, e.updated_at,
 	u.name, u.org_name`
@@ -31,13 +59,16 @@ const baseFromJoin = `
 	FROM events e
 	JOIN users u ON e.organizer_id = u.id`
 
+/**
+ * scanEvent: Helper to scan database row into Event struct
+ */
 func scanEvent(scan func(dest ...interface{}) error) (*Event, error) {
 	ev := &Event{}
 	err := scan(
 		&ev.ID, &ev.OrganizerID, &ev.Title, &ev.Description,
 		&ev.Date, &ev.Time, &ev.EndDate, &ev.Location,
 		&ev.Price, &ev.Currency, &ev.Category, &ev.Emoji, &ev.EventKey,
-		&ev.Status, &ev.TotalTickets, &ev.AvailableTickets,
+		&ev.Status, &ev.TotalTickets, &ev.AvailableTickets, &ev.RequiresPayment,
 		&ev.ThumbnailURL, &ev.VideoURL, &ev.FlierURL, &ev.IsFeatured,
 		&ev.CreatedAt, &ev.UpdatedAt,
 		&ev.OrganizerName, &ev.OrganizerOrgName,
@@ -45,19 +76,35 @@ func scanEvent(scan func(dest ...interface{}) error) (*Event, error) {
 	return ev, err
 }
 
+/**
+ * GetByID: Get event by UUID
+ */
 func (r *Repository) GetByID(ctx context.Context, id string) (*Event, error) {
 	query := fmt.Sprintf("SELECT %s %s WHERE e.id = $1", baseSelectFields, baseFromJoin)
 	row := r.db.QueryRow(ctx, query, id)
 	return scanEvent(row.Scan)
 }
 
+/**
+ * GetByEventKey: Get event by URL slug
+ */
 func (r *Repository) GetByEventKey(ctx context.Context, eventKey string) (*Event, error) {
 	query := fmt.Sprintf("SELECT %s %s WHERE e.event_key = $1", baseSelectFields, baseFromJoin)
 	row := r.db.QueryRow(ctx, query, eventKey)
 	return scanEvent(row.Scan)
 }
 
+/**
+ * List: List events with filtering and pagination
+ * 
+ * Supports:
+ * - Category filter
+ * - Status filter (default: active)
+ * - Search (title, description, location)
+ * - Pagination (max 50 per page)
+ */
 func (r *Repository) List(ctx context.Context, q ListEventsQuery) ([]Event, int, error) {
+	// Normalize pagination
 	if q.Page < 1 {
 		q.Page = 1
 	}
@@ -65,16 +112,19 @@ func (r *Repository) List(ctx context.Context, q ListEventsQuery) ([]Event, int,
 		q.Limit = 20
 	}
 
+	// Build dynamic WHERE clause
 	var conditions []string
 	var args []interface{}
 	argIdx := 1
 
+	// Filter by category
 	if q.Category != "" {
 		conditions = append(conditions, fmt.Sprintf("e.category = $%d", argIdx))
 		args = append(args, q.Category)
 		argIdx++
 	}
 
+	// Filter by status (default: active)
 	if q.Status != "" {
 		conditions = append(conditions, fmt.Sprintf("e.status = $%d", argIdx))
 		args = append(args, q.Status)
@@ -85,25 +135,27 @@ func (r *Repository) List(ctx context.Context, q ListEventsQuery) ([]Event, int,
 		argIdx++
 	}
 
+	// Search across title, description, location
 	if q.Search != "" {
 		conditions = append(conditions, fmt.Sprintf("(e.title ILIKE $%d OR e.description ILIKE $%d OR e.location ILIKE $%d)", argIdx, argIdx, argIdx))
 		args = append(args, "%"+q.Search+"%")
 		argIdx++
 	}
 
+	// Build WHERE clause
 	whereClause := ""
 	if len(conditions) > 0 {
 		whereClause = "WHERE " + strings.Join(conditions, " AND ")
 	}
 
-	// Count total
+	// Count total matching events
 	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM events e %s", whereClause)
 	var total int
 	if err := r.db.QueryRow(ctx, countQuery, args...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
-	// Fetch page
+	// Fetch paginated results
 	offset := (q.Page - 1) * q.Limit
 	args = append(args, q.Limit, offset)
 
@@ -130,7 +182,13 @@ func (r *Repository) List(ctx context.Context, q ListEventsQuery) ([]Event, int,
 	return events, total, nil
 }
 
+/**
+ * ListByOrganizer: List organizer's events
+ * 
+ * Only returns events owned by organizer
+ */
 func (r *Repository) ListByOrganizer(ctx context.Context, organizerID string, page, limit int) ([]Event, int, error) {
+	// Normalize pagination
 	if page < 1 {
 		page = 1
 	}
@@ -170,38 +228,47 @@ func (r *Repository) ListByOrganizer(ctx context.Context, organizerID string, pa
 	return events, total, nil
 }
 
+/**
+ * Create: Create new event
+ * 
+ * Generates unique event_key from title
+ * Default currency: NGN
+ */
 func (r *Repository) Create(ctx context.Context, organizerID string, req CreateEventRequest) (*Event, error) {
+	// Default currency
 	currency := req.Currency
 	if currency == "" {
 		currency = "NGN"
 	}
 
-	// Generate event key from title
+	// Default requires_payment based on price
+	requiresPayment := true
+	if req.RequiresPayment != nil {
+		requiresPayment = *req.RequiresPayment
+	} else if req.Price == 0 {
+		requiresPayment = false
+	}
+
+	// Generate URL-friendly slug
 	eventKey := generateEventKey(req.Title)
 
-	query := fmt.Sprintf(`
-		INSERT INTO events (organizer_id, title, description, date, time, end_date, location, price, currency, category, emoji, event_key, total_tickets, available_tickets, thumbnail_url, video_url, flier_url)
-		VALUES ($1, $2, $3, $4::date, $5::time, $6::date, $7, $8, $9, $10, $11, $12, $13, $13, $14, $15, $16)
-		RETURNING %s`, "e.id::text, e.organizer_id::text, e.title, e.description, e.date::text, e.time::text, e.end_date::text, e.location, e.price, e.currency, e.category, e.emoji, e.event_key, e.status, e.total_tickets, e.available_tickets, e.thumbnail_url, e.video_url, e.flier_url, e.is_featured, e.created_at, e.updated_at")
-
-	// We need to do a two-step: insert then join-fetch, because RETURNING can't join
+	// Insert event (available_tickets = total_tickets initially)
 	var ev Event
 	err := r.db.QueryRow(ctx, `
-		INSERT INTO events (organizer_id, title, description, date, time, end_date, location, price, currency, category, emoji, event_key, total_tickets, available_tickets, thumbnail_url, video_url, flier_url)
-		VALUES ($1, $2, $3, $4::date, $5::time, $6::date, $7, $8, $9, $10, $11, $12, $13, $13, $14, $15, $16)
-		RETURNING id::text, organizer_id::text, title, description, date::text, time::text, end_date::text, location, price, currency, category, emoji, event_key, status, total_tickets, available_tickets, thumbnail_url, video_url, flier_url, is_featured, created_at, updated_at`,
+		INSERT INTO events (organizer_id, title, description, date, time, end_date, location, price, currency, category, emoji, event_key, total_tickets, available_tickets, requires_payment, thumbnail_url, video_url, flier_url)
+		VALUES ($1, $2, $3, $4::date, $5::time, $6::date, $7, $8, $9, $10, $11, $12, $13, $13, $14, $15, $16, $17)
+		RETURNING id::text, organizer_id::text, title, description, date::text, time::text, end_date::text, location, price, currency, category, emoji, event_key, status, total_tickets, available_tickets, requires_payment, thumbnail_url, video_url, flier_url, is_featured, created_at, updated_at`,
 		organizerID, req.Title, req.Description, req.Date, req.Time, req.EndDate,
 		req.Location, req.Price, currency, req.Category, req.Emoji, eventKey,
-		req.TotalTickets, req.ThumbnailURL, req.VideoURL, req.FlierURL,
+		req.TotalTickets, requiresPayment, req.ThumbnailURL, req.VideoURL, req.FlierURL,
 	).Scan(
 		&ev.ID, &ev.OrganizerID, &ev.Title, &ev.Description,
 		&ev.Date, &ev.Time, &ev.EndDate, &ev.Location,
 		&ev.Price, &ev.Currency, &ev.Category, &ev.Emoji, &ev.EventKey,
-		&ev.Status, &ev.TotalTickets, &ev.AvailableTickets,
+		&ev.Status, &ev.TotalTickets, &ev.AvailableTickets, &ev.RequiresPayment,
 		&ev.ThumbnailURL, &ev.VideoURL, &ev.FlierURL, &ev.IsFeatured,
 		&ev.CreatedAt, &ev.UpdatedAt,
 	)
-	_ = query // suppress unused
 
 	if err != nil {
 		return nil, err
@@ -210,6 +277,12 @@ func (r *Repository) Create(ctx context.Context, organizerID string, req CreateE
 	return &ev, nil
 }
 
+/**
+ * Update: Update event details
+ * 
+ * Partial update using dynamic SET clause
+ * Only owner can update
+ */
 func (r *Repository) Update(ctx context.Context, id, organizerID string, req UpdateEventRequest) (*Event, error) {
 	// Build dynamic SET clause
 	var setClauses []string
@@ -273,7 +346,11 @@ func (r *Repository) Update(ctx context.Context, id, organizerID string, req Upd
 	if req.FlierURL != nil {
 		addField("flier_url", *req.FlierURL)
 	}
+	if req.RequiresPayment != nil {
+		addField("requires_payment", *req.RequiresPayment)
+	}
 
+	// No changes, return existing
 	if len(setClauses) == 0 {
 		return r.GetByID(ctx, id)
 	}
@@ -283,7 +360,7 @@ func (r *Repository) Update(ctx context.Context, id, organizerID string, req Upd
 	query := fmt.Sprintf(`
 		UPDATE events SET %s
 		WHERE id = $%d AND organizer_id = $%d
-		RETURNING id::text, organizer_id::text, title, description, date::text, time::text, end_date::text, location, price, currency, category, emoji, event_key, status, total_tickets, available_tickets, thumbnail_url, video_url, flier_url, is_featured, created_at, updated_at`,
+		RETURNING id::text, organizer_id::text, title, description, date::text, time::text, end_date::text, location, price, currency, category, emoji, event_key, status, total_tickets, available_tickets, requires_payment, thumbnail_url, video_url, flier_url, is_featured, created_at, updated_at`,
 		strings.Join(setClauses, ", "), argIdx, argIdx+1,
 	)
 
@@ -292,7 +369,7 @@ func (r *Repository) Update(ctx context.Context, id, organizerID string, req Upd
 		&ev.ID, &ev.OrganizerID, &ev.Title, &ev.Description,
 		&ev.Date, &ev.Time, &ev.EndDate, &ev.Location,
 		&ev.Price, &ev.Currency, &ev.Category, &ev.Emoji, &ev.EventKey,
-		&ev.Status, &ev.TotalTickets, &ev.AvailableTickets,
+		&ev.Status, &ev.TotalTickets, &ev.AvailableTickets, &ev.RequiresPayment,
 		&ev.ThumbnailURL, &ev.VideoURL, &ev.FlierURL, &ev.IsFeatured,
 		&ev.CreatedAt, &ev.UpdatedAt,
 	)
@@ -303,6 +380,11 @@ func (r *Repository) Update(ctx context.Context, id, organizerID string, req Upd
 	return &ev, nil
 }
 
+/**
+ * Delete: Delete event
+ * 
+ * Only owner can delete
+ */
 func (r *Repository) Delete(ctx context.Context, id, organizerID string) error {
 	result, err := r.db.Exec(ctx,
 		"DELETE FROM events WHERE id = $1 AND organizer_id = $2", id, organizerID,
@@ -316,6 +398,11 @@ func (r *Repository) Delete(ctx context.Context, id, organizerID string) error {
 	return nil
 }
 
+/**
+ * GetCategories: Get distinct event categories
+ * 
+ * Only returns categories from active events
+ */
 func (r *Repository) GetCategories(ctx context.Context) ([]string, error) {
 	rows, err := r.db.Query(ctx,
 		"SELECT DISTINCT category FROM events WHERE status = 'active' ORDER BY category",
@@ -336,8 +423,21 @@ func (r *Repository) GetCategories(ctx context.Context) ([]string, error) {
 	return categories, nil
 }
 
-// generateEventKey creates a URL-friendly slug from the title with a short random suffix.
+/**
+ * generateEventKey: Create URL-friendly slug from title
+ * 
+ * Format: {slug}-{random}
+ * Example: summer-fest-2024-a3f2
+ * 
+ * Steps:
+ * 1. Lowercase and clean title
+ * 2. Replace spaces with hyphens
+ * 3. Remove non-alphanumeric chars
+ * 4. Truncate to 40 chars
+ * 5. Add 4-char random hex suffix
+ */
 func generateEventKey(title string) string {
+	// Clean and normalize title
 	slug := strings.ToLower(title)
 	slug = strings.Map(func(r rune) rune {
 		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
@@ -346,25 +446,28 @@ func generateEventKey(title string) string {
 		if r == ' ' || r == '-' {
 			return '-'
 		}
-		return -1
+		return -1    // Remove char
 	}, slug)
 
-	// Trim consecutive dashes and edges
+	// Clean up consecutive dashes
 	for strings.Contains(slug, "--") {
 		slug = strings.ReplaceAll(slug, "--", "-")
 	}
 	slug = strings.Trim(slug, "-")
 
+	// Truncate if too long
 	if len(slug) > 40 {
 		slug = slug[:40]
 	}
 
-	// Append short random suffix
+	// Add random suffix for uniqueness
 	suffix := fmt.Sprintf("%04x", uint16(time.Now().UnixNano()))
 	return slug + "-" + suffix
 }
 
-// TotalPages calculates total pages for pagination.
+/**
+ * TotalPages: Calculate total pages for pagination
+ */
 func TotalPages(total, limit int) int {
 	return int(math.Ceil(float64(total) / float64(limit)))
 }
