@@ -6,6 +6,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+preview.log
 
 node_modules
 dist
@@ -27,8 +28,41 @@ dist-ssr
 .env
 .env.*
 
+# Documentation (kept in docs/ folder)
+*.md
+!README.md
+!QUICKSTART.md
+!CONTRIBUTING.md
+!LICENSE.md
+!docs/**/*.md
+
+# Test files
+*.test.ts
+*.test.tsx
+*.test.js
+*.test.jsx
+*_test.go
+*_test.rs
+*.spec.ts
+*.spec.js
+tests/
+test/
+__tests__/
+coverage/
+.nyc_output/
+
 # Plan files
 .plan
 
 # Rust build artifacts
 backend/core/target/
+
+# Go build artifacts
+backend/gateway/gateway
+backend/gateway/main
+
+# Backend PIDs
+.backend-pids
+gateway.log
+rust-core.log
+*.test.js.snap
