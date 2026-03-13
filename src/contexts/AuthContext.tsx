@@ -86,8 +86,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
    * Check for existing session and listen for changes
    */
   useEffect(() => {
-    // Check active session
+    // Safety net — if Supabase never responds, unblock the UI after 3s
+    const timeout = setTimeout(() => setIsLoading(false), 3000);
+
+    // getSession handles the initial load — resolves immediately from local storage
     supabase.auth.getSession().then(({ data: { session } }) => {
+      clearTimeout(timeout);
       if (session) {
         fetchUserProfile();
       } else {
@@ -95,10 +99,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     });
 
-    // Listen for auth state changes (login, logout, token refresh)
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    // onAuthStateChange handles subsequent changes (login, logout, token refresh)
+    // Skip INITIAL_SESSION — getSession already handled it above
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'INITIAL_SESSION') return;
       if (session) {
         fetchUserProfile();
       } else {
@@ -107,7 +111,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      clearTimeout(timeout);
+      subscription.unsubscribe();
+    };
   }, []);
 
   /**
