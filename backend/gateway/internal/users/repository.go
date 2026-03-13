@@ -66,6 +66,10 @@ func NewRepository(db *pgxpool.Pool) *Repository {
  * @returns User or error if not found
  */
 func (r *Repository) GetByID(ctx context.Context, id string) (*User, error) {
+	// No DB in dev mode — return a stub so the handler doesn't panic
+	if r.db == nil {
+		return &User{ID: id, Email: "dev@bukr.test", Name: "Dev User", UserType: "user", IsActive: true}, nil
+	}
 	user := &User{}
 	err := r.db.QueryRow(ctx,
 		`SELECT id::text, supabase_uid, email, name, phone, user_type, org_name, avatar_url, is_active, created_at, updated_at
@@ -124,6 +128,9 @@ func (r *Repository) GetBySupabaseUID(ctx context.Context, supabaseUID string) (
  * @returns Updated user or error
  */
 func (r *Repository) UpdateProfile(ctx context.Context, id string, req UpdateProfileRequest) (*User, error) {
+	if r.db == nil {
+		return &User{ID: id, Email: "dev@bukr.test", Name: "Dev User", UserType: "user", IsActive: true}, nil
+	}
 	user := &User{}
 	err := r.db.QueryRow(ctx,
 		`UPDATE users SET
@@ -158,6 +165,9 @@ func (r *Repository) UpdateProfile(ctx context.Context, id string, req UpdatePro
  * @returns Completed user or error
  */
 func (r *Repository) CompleteProfile(ctx context.Context, id string, req CompleteProfileRequest) (*User, error) {
+	if r.db == nil {
+		return &User{ID: id, Email: "dev@bukr.test", Name: "Dev User", UserType: req.UserType, IsActive: true}, nil
+	}
 	user := &User{}
 	err := r.db.QueryRow(ctx,
 		`UPDATE users SET
@@ -190,6 +200,9 @@ func (r *Repository) CompleteProfile(ctx context.Context, id string, req Complet
  * @returns Error if operation fails
  */
 func (r *Repository) Deactivate(ctx context.Context, id string) error {
+	if r.db == nil {
+		return nil
+	}
 	_, err := r.db.Exec(ctx,
 		`UPDATE users SET is_active = false WHERE id = $1`, id,
 	)
