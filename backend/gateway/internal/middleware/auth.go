@@ -15,6 +15,13 @@ package middleware
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	"math/big"
+	"net/http"
 	"strings"
 	"time"
 
@@ -59,7 +66,48 @@ const (
  * @param db - Database pool for user lookup
  * @returns Fiber middleware handler
  */
-func RequireAuth(jwtSecret string, db *pgxpool.Pool) fiber.Handler {
+// FetchSupabasePublicKey fetches the EC public key from Supabase JWKS endpoint.
+// Called once at startup — cheap network call, cached for the lifetime of the process.
+func FetchSupabasePublicKey(supabaseURL string) (*ecdsa.PublicKey, error) {
+	resp, err := http.Get(supabaseURL + "/auth/v1/.well-known/jwks.json")
+	if err != nil {
+		return nil, fmt.Errorf("jwks fetch failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var jwks struct {
+		Keys []struct {
+			Kty string `json:"kty"`
+			Crv string `json:"crv"`
+			X   string `json:"x"`
+			Y   string `json:"y"`
+		} `json:"keys"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&jwks); err != nil {
+		return nil, fmt.Errorf("jwks decode failed: %w", err)
+	}
+	if len(jwks.Keys) == 0 {
+		return nil, fmt.Errorf("no keys in jwks response")
+	}
+
+	k := jwks.Keys[0]
+	xBytes, err := base64.RawURLEncoding.DecodeString(k.X)
+	if err != nil {
+		return nil, fmt.Errorf("jwks x decode: %w", err)
+	}
+	yBytes, err := base64.RawURLEncoding.DecodeString(k.Y)
+	if err != nil {
+		return nil, fmt.Errorf("jwks y decode: %w", err)
+	}
+
+	return &ecdsa.PublicKey{
+		Curve: elliptic.P256(),
+		X:     new(big.Int).SetBytes(xBytes),
+		Y:     new(big.Int).SetBytes(yBytes),
+	}, nil
+}
+
+func RequireAuth(pubKey *ecdsa.PublicKey, db *pgxpool.Pool) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// Step 1: Extract Authorization header
 		// Format: "Bearer <token>"
@@ -77,14 +125,12 @@ func RequireAuth(jwtSecret string, db *pgxpool.Pool) fiber.Handler {
 		tokenString := parts[1]
 
 		// Step 3: Parse and validate JWT
-		// This checks signature, expiration, and claims structure
+		// Supabase now issues ES256 (ECDSA P-256) tokens — verify against public key
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			// Verify signing method is HMAC (what Supabase uses)
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			if _, ok := token.Method.(*jwt.SigningMethodECDSA); !ok {
 				return nil, jwt.ErrSignatureInvalid
 			}
-			// Return secret for signature verification
-			return []byte(jwtSecret), nil
+			return pubKey, nil
 		})
 
 		if err != nil || !token.Valid {

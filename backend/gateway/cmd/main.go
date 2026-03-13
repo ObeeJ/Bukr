@@ -68,6 +68,14 @@ func main() {
 		defer db.Close()
 	}
 
+	// Fetch Supabase EC public key for JWT verification (ES256)
+	// Supabase now uses asymmetric keys — no shared secret needed
+	pubKey, err := middleware.FetchSupabasePublicKey(cfg.SupabaseURL)
+	if err != nil {
+		log.Fatalf("Failed to fetch Supabase public key: %v", err)
+	}
+	log.Println("Supabase EC public key loaded")
+
 	// Initialize Redis client (optional, graceful degradation)
 	rdb := shared.NewRedisClient(cfg.RedisURL)
 	if rdb != nil {
@@ -126,7 +134,7 @@ func main() {
 	// PROTECTED ROUTES (authentication required)
 	
 	// Auth middleware (validates JWT, provisions users)
-	auth := middleware.RequireAuth(cfg.SupabaseJWTSecret, db)
+	auth := middleware.RequireAuth(pubKey, db)
 
 	// Users (profile management)
 	usersGroup := v1.Group("/users", auth)
