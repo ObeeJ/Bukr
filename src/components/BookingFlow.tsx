@@ -44,31 +44,20 @@ const BookingFlow = ({ isOpen, onClose, event }: BookingFlowProps) => {
   const { saveTicket } = useTicket();
   const { user } = useAuth();
   
-  const applyPromoCode = () => {
+  const applyPromoCode = async () => {
     setIsProcessing(true);
-    
-    // Validate promo code using context
-    const validPromo = validatePromo(event.id, promoCode.toUpperCase());
-    
-    setTimeout(() => {
-      setIsProcessing(false);
-      
+    try {
+      const validPromo = await validatePromo(event.id, promoCode.toUpperCase());
       if (validPromo) {
         setDiscount(validPromo.discountPercentage);
         setPromoApplied(true);
-        
-        toast({
-          title: "Promo code applied",
-          description: `You got a ${validPromo.discountPercentage}% discount!`,
-        });
+        toast({ title: "Promo code applied", description: `You got a ${validPromo.discountPercentage}% discount!` });
       } else {
-        toast({
-          title: "Invalid promo code",
-          description: "The promo code you entered is invalid or expired.",
-          variant: "destructive"
-        });
+        toast({ title: "Invalid promo code", description: "The promo code you entered is invalid or expired.", variant: "destructive" });
       }
-    }, 500);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleQuantitySubmit = () => {
@@ -92,7 +81,9 @@ const BookingFlow = ({ isOpen, onClose, event }: BookingFlowProps) => {
           userName: user.name || 'User',
           ticketType: 'General Admission',
           quantity: quantity,
-          price: `$${totalPrice.toFixed(2)}`
+          price: `$${totalPrice.toFixed(2)}`,
+          status: 'valid',
+          purchaseDate: new Date().toISOString(),
         });
       }
       
@@ -105,7 +96,7 @@ const BookingFlow = ({ isOpen, onClose, event }: BookingFlowProps) => {
       navigator.share({
         title: `My ticket for ${event.title}`,
         text: `Check out my ticket for ${event.title} on ${event.date}!`,
-        url: window.location.href,
+        url: globalThis.location.href,
       });
     } else {
       alert(`Sharing ticket for ${event.title}`);
@@ -124,6 +115,7 @@ const BookingFlow = ({ isOpen, onClose, event }: BookingFlowProps) => {
           <button
             key={star}
             onClick={() => setRating(star)}
+            aria-label={`Rate ${star} star${star > 1 ? 's' : ''}`}
             className="focus:outline-none"
           >
             <Star
@@ -137,8 +129,12 @@ const BookingFlow = ({ isOpen, onClose, event }: BookingFlowProps) => {
     );
   };
 
+  // Extracted from nested ternary — simpler to read and extend
+  const ratingLabels = ['Tap a star to rate', 'Not very excited', 'Somewhat excited', 'Excited', 'Very excited', 'Extremely excited!'];
+  const ratingLabel = ratingLabels[rating];
+
   // Calculate price with discount
-  const basePrice = parseFloat(event.price.replace('$', ''));
+  const basePrice = Number.parseFloat(event.price?.replace('$', '') ?? '0');
   const discountAmount = basePrice * (discount / 100);
   const finalPrice = basePrice - discountAmount;
   const totalPrice = finalPrice * quantity;
@@ -160,17 +156,7 @@ const BookingFlow = ({ isOpen, onClose, event }: BookingFlowProps) => {
               </div>
               {renderStars()}
               <p className="text-center text-muted-foreground mb-6">
-                {rating === 0
-                  ? "Tap a star to rate"
-                  : rating === 1
-                  ? "Not very excited"
-                  : rating === 2
-                  ? "Somewhat excited"
-                  : rating === 3
-                  ? "Excited"
-                  : rating === 4
-                  ? "Very excited"
-                  : "Extremely excited!"}
+                {ratingLabel}
               </p>
             </div>
             <div className="flex justify-end">
@@ -211,7 +197,7 @@ const BookingFlow = ({ isOpen, onClose, event }: BookingFlowProps) => {
                     min="1"
                     max="10"
                     value={quantity}
-                    onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
+                    onChange={(e) => setQuantity(Number.parseInt(e.target.value) || 1)}
                     className="text-center"
                   />
                   <Button
