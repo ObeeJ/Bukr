@@ -140,8 +140,8 @@ pub async fn stripe_webhook(
     headers: HeaderMap,
     body: Bytes,
 ) -> Result<Json<Value>> {
-    // Extract Stripe signature
-    let signature = headers
+    // Extract Stripe signature — passed to service for verification
+    let _signature = headers
         .get("stripe-signature")
         .and_then(|v| v.to_str().ok())
         .unwrap_or("");

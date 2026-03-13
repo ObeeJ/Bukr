@@ -84,7 +84,7 @@ pub async fn get_event_analytics(
     .map_err(AppError::Database)?;
 
     // Extract statistics
-    let total_sold: i64 = ticket_stats.get("total_sold");
+    let _total_sold: i64 = ticket_stats.get("total_sold");
     let total_revenue: rust_decimal::Decimal = ticket_stats.get("total_revenue");
     let avg_rating: f64 = ticket_stats.get("avg_rating");
     let scanned: i64 = ticket_stats.get("scanned");
