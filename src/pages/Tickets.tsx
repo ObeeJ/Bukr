@@ -34,6 +34,16 @@ const Tickets = () => {
     setTicketDetailsOpen(true);
   };
 
+  // Refresh list after a transfer — the transferred ticket is gone from this wallet
+  const handleTransferred = async () => {
+    setTicketDetailsOpen(false);
+    setSelectedTicket(null);
+    if (user?.email) {
+      const updated = await getUserTickets(user.email);
+      setTickets(updated || []);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen pt-8 pb-24 px-4 responsive-spacing">
@@ -99,7 +109,7 @@ const Tickets = () => {
               onClick={() => viewTicket(ticket)}
               className="cursor-pointer"
             >
-              <TicketCard ticket={ticket} />
+              <TicketCard ticket={ticket} onTransferred={handleTransferred} />
             </div>
           ))}
         </div>
@@ -117,7 +127,7 @@ const Tickets = () => {
 
       <Dialog open={ticketDetailsOpen} onOpenChange={setTicketDetailsOpen}>
         <DialogContent className="glass-card border-glass-border max-w-md mx-4 rounded-[var(--radius)]">
-          {selectedTicket && <TicketCard ticket={selectedTicket} />}
+          {selectedTicket && <TicketCard ticket={selectedTicket} onTransferred={handleTransferred} />}
         </DialogContent>
       </Dialog>
     </div>

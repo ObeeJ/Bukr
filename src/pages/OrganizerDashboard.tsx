@@ -6,11 +6,174 @@ import { useEvent } from "@/contexts/EventContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, BarChart, Settings, Plus, Users, Edit, Trash2 } from "lucide-react";
+import { Calendar, BarChart, Settings, Plus, Users, Edit, TrendingUp, Ticket, DollarSign } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AnimatedLogo from "@/components/AnimatedLogo";
 import EmptyState from "@/components/EmptyState";
 import { Event } from "@/types";
+import { getEventAnalytics } from "@/api/analytics";
+import { useToast } from "@/components/ui/use-toast";
+import {
+  BarChart as ReBarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  LineChart,
+  Line,
+} from "recharts";
+
+// ─── Analytics Tab ────────────────────────────────────────────────────────────
+// Fetches real analytics for each event and renders Recharts visualizations.
+// Wired to GET /analytics/events/:id — no more placeholder text.
+
+interface EventAnalyticsData {
+  title: string;
+  sold: number;
+  scanned: number;
+  available: number;
+  revenue: number;
+  currency: string;
+}
+
+const AnalyticsTab = ({ events }: { events: Event[] }) => {
+  const { toast } = useToast();
+  const [data, setData] = useState<EventAnalyticsData[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!events.length) { setLoading(false); return; }
+
+    Promise.all(
+      events.map(async (e) => {
+        try {
+          const a = await getEventAnalytics(e.id);
+          return {
+            title: e.title.length > 14 ? e.title.slice(0, 14) + '…' : e.title,
+            sold: a.soldTickets,
+            scanned: a.usedTickets,
+            available: a.totalTickets - a.soldTickets,
+            revenue: Number(a.revenue) || 0,
+            currency: a.currency || 'USD',
+          } as EventAnalyticsData;
+        } catch {
+          return null;
+        }
+      })
+    ).then(results => {
+      setData(results.filter(Boolean) as EventAnalyticsData[]);
+      setLoading(false);
+    });
+  }, [events]);
+
+  const totalRevenue = data.reduce((s, d) => s + d.revenue, 0);
+  const totalSold = data.reduce((s, d) => s + d.sold, 0);
+  const totalScanned = data.reduce((s, d) => s + d.scanned, 0);
+  const currency = data[0]?.currency || 'USD';
+  const currencySymbol = currency === 'NGN' ? '₦' : '$';
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {[1,2,3].map(i => <div key={i} className="h-28 bg-muted animate-pulse rounded-lg" />)}
+      </div>
+    );
+  }
+
+  if (!data.length) {
+    return (
+      <Card className="glass-card">
+        <CardContent className="h-40 flex items-center justify-center">
+          <p className="text-muted-foreground font-montserrat">No analytics data yet. Create events and sell tickets to see insights.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* KPI row */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="glass-card hover-glow">
+          <CardHeader className="pb-2 flex flex-row items-center justify-between">
+            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-primary">{currencySymbol}{totalRevenue.toLocaleString()}</div>
+          </CardContent>
+        </Card>
+        <Card className="glass-card hover-glow">
+          <CardHeader className="pb-2 flex flex-row items-center justify-between">
+            <CardTitle className="text-sm font-medium">Tickets Sold</CardTitle>
+            <Ticket className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-primary">{totalSold.toLocaleString()}</div>
+          </CardContent>
+        </Card>
+        <Card className="glass-card hover-glow">
+          <CardHeader className="pb-2 flex flex-row items-center justify-between">
+            <CardTitle className="text-sm font-medium">Attendance Rate</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-primary">
+              {totalSold > 0 ? Math.round((totalScanned / totalSold) * 100) : 0}%
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Tickets sold per event */}
+      <Card className="glass-card hover-glow">
+        <CardHeader>
+          <CardTitle className="font-medium">Tickets Sold per Event</CardTitle>
+          <CardDescription className="font-montserrat">Sold vs scanned (attended)</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={240}>
+            <ReBarChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+              <XAxis dataKey="title" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip
+                contentStyle={{ background: 'rgba(0,0,0,0.8)', border: 'none', borderRadius: 8 }}
+                labelStyle={{ color: '#fff' }}
+              />
+              <Bar dataKey="sold" name="Sold" fill="hsl(var(--primary))" radius={[4,4,0,0]} />
+              <Bar dataKey="scanned" name="Attended" fill="hsl(var(--primary) / 0.4)" radius={[4,4,0,0]} />
+            </ReBarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      {/* Revenue per event */}
+      <Card className="glass-card hover-glow">
+        <CardHeader>
+          <CardTitle className="font-medium">Revenue per Event</CardTitle>
+          <CardDescription className="font-montserrat">Total revenue ({currency})</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+              <XAxis dataKey="title" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip
+                contentStyle={{ background: 'rgba(0,0,0,0.8)', border: 'none', borderRadius: 8 }}
+                formatter={(v: number) => [`${currencySymbol}${v.toLocaleString()}`, 'Revenue']}
+              />
+              <Line type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 4 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
 
 const OrganizerDashboard = () => {
   const { user } = useAuth();
@@ -224,17 +387,7 @@ const OrganizerDashboard = () => {
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-4">
-          <Card className="glass-card hover-glow">
-            <CardHeader>
-              <CardTitle className="font-medium">Revenue Overview</CardTitle>
-              <CardDescription className="font-montserrat">Last 30 days</CardDescription>
-            </CardHeader>
-            <CardContent className="h-80 flex items-center justify-center">
-              <p className="text-muted-foreground font-montserrat">
-                Analytics charts will be displayed here
-              </p>
-            </CardContent>
-          </Card>
+          <AnalyticsTab events={events} />
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-4">

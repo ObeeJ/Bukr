@@ -13,12 +13,13 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Star, Download, Share2, Check, Loader2, Tag, ArrowLeft } from "lucide-react";
+import { Star, Download, Share2, Check, Loader2, Tag, ArrowLeft, Bitcoin } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import AnimatedLogo from "@/components/AnimatedLogo";
 import { Event } from "@/types";
+import QRCode from "react-qr-code";
 
 const PurchasePage = () => {
   const { eventKey } = useParams<{ eventKey: string }>();
@@ -402,10 +403,10 @@ const PurchasePage = () => {
                     </div>
                   </div>
                 </div>
-                <div className="flex justify-end">
+                <div className="flex flex-col gap-2">
                   <Button
                     variant="glow"
-                    className="logo font-medium hover-glow"
+                    className="logo font-medium hover-glow w-full"
                     onClick={handleQuantitySubmit}
                     disabled={isProcessing}
                   >
@@ -417,6 +418,16 @@ const PurchasePage = () => {
                     ) : (
                       "Pay with Paystack"
                     )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="logo font-medium w-full opacity-50 cursor-not-allowed"
+                    disabled
+                    title="Coming soon"
+                  >
+                    <Bitcoin className="mr-2 h-4 w-4" />
+                    Pay with Crypto
+                    <span className="ml-2 text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">Soon</span>
                   </Button>
                 </div>
               </>
@@ -437,11 +448,14 @@ const PurchasePage = () => {
                 </DialogHeader>
                 <div className="py-6">
                   <div className="bg-glass/20 p-4 rounded-xl mb-4">
-                    <img
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${ticketId}`}
-                      alt="Ticket QR Code"
-                      className="w-48 h-48 mx-auto mb-4"
-                    />
+                    <div className="bg-white p-3 rounded-lg w-fit mx-auto mb-4">
+                      <QRCode
+                        value={JSON.stringify({ ticketId, eventKey: event.eventKey })}
+                        size={180}
+                        style={{ height: 'auto', maxWidth: '100%', width: '100%' }}
+                        viewBox="0 0 256 256"
+                      />
+                    </div>
                     <div className="text-center">
                       <p className="text-sm text-muted-foreground font-montserrat">Ticket ID</p>
                       <p className="font-mono font-medium logo">{ticketId}</p>

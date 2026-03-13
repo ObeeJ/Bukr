@@ -11,10 +11,11 @@ import { assignScanner, listScanners, removeScanner } from '@/api/events';
 
 interface Scanner {
   id: string;
-  userId: string;
-  userName?: string;
-  email?: string;
+  scannerUserId: string;
+  scannerName?: string;
+  scannerEmail?: string;
   assignedAt: string;
+  isActive: boolean;
 }
 
 const ScannerManagement = () => {
@@ -23,7 +24,7 @@ const ScannerManagement = () => {
   const [scanners, setScanners] = useState<Scanner[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
-  const [userId, setUserId] = useState('');
+  const [email, setEmail] = useState('');
   const [adding, setAdding] = useState(false);
 
   useEffect(() => {
@@ -47,16 +48,16 @@ const ScannerManagement = () => {
   };
 
   const handleAdd = async () => {
-    if (!eventId || !userId.trim()) {
-      toast.error('Please enter a user ID');
+    if (!eventId || !email.trim()) {
+      toast.error('Please enter an email address');
       return;
     }
 
     setAdding(true);
     try {
-      await assignScanner(eventId, userId);
+      await assignScanner(eventId, email.trim());
       toast.success('Scanner assigned successfully');
-      setUserId('');
+      setEmail('');
       setOpen(false);
       fetchScanners();
     } catch (error: any) {
@@ -107,15 +108,16 @@ const ScannerManagement = () => {
               </DialogHeader>
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="userId">User ID or Email</Label>
+                  <Label htmlFor="scannerEmail">Scanner Email</Label>
                   <Input
-                    id="userId"
-                    placeholder="Enter user ID or email"
-                    value={userId}
-                    onChange={(e) => setUserId(e.target.value)}
+                    id="scannerEmail"
+                    type="email"
+                    placeholder="scanner@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    The user will be able to scan tickets for this event
+                    The user must have a Bukr account. They will be able to scan tickets for this event.
                   </p>
                 </div>
                 <Button onClick={handleAdd} className="w-full" disabled={adding}>
@@ -157,7 +159,7 @@ const ScannerManagement = () => {
                   <CardTitle className="flex items-center justify-between">
                     <div className="flex items-center">
                       <UserCheck className="h-5 w-5 mr-2 text-primary" />
-                      <span>{scanner.userName || scanner.email || scanner.userId}</span>
+                      <span>{scanner.scannerName || scanner.scannerEmail || scanner.scannerUserId}</span>
                     </div>
                     <Button
                       variant="ghost"
@@ -170,9 +172,10 @@ const ScannerManagement = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-sm text-muted-foreground space-y-1">
-                    <p>User ID: {scanner.userId}</p>
-                    {scanner.email && <p>Email: {scanner.email}</p>}
+                    <p>User ID: {scanner.scannerUserId}</p>
+                    {scanner.scannerEmail && <p>Email: {scanner.scannerEmail}</p>}
                     <p>Assigned: {new Date(scanner.assignedAt).toLocaleDateString()}</p>
+                    <p>Status: {scanner.isActive ? '✓ Active' : '✗ Inactive'}</p>
                   </div>
                 </CardContent>
               </Card>

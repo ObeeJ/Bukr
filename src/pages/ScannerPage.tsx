@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useEvent } from "@/contexts/EventContext";
-import { useTicket } from "@/contexts/TicketContext";
 import { useAuth } from "@/contexts/AuthContext";
 import TicketScanner from "@/components/TicketScanner";
 import AnimatedLogo from "@/components/AnimatedLogo";
@@ -19,7 +18,6 @@ const ScannerPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { getEvent, getEventByKey } = useEvent();
-  const { validateTicket, markTicketAsUsed } = useTicket();
   const { user } = useAuth();
   const [status, setStatus] = useState<"valid" | "invalid" | "used" | null>(null);
   const [scanCount, setScanCount] = useState({ valid: 0, invalid: 0, used: 0 });
@@ -68,53 +66,19 @@ const ScannerPage = () => {
     fetchEvent();
   }, [eventId, eventKey]);
 
-  const handleScan = async (code: string) => {
-    if (!currentEvent) return;
-
+  // TicketScanner handles full validation + mark-used internally.
+  // This callback only updates the local scan counter for the stats badges.
+  const handleScan = (code: string) => {
     try {
       const data = JSON.parse(code);
-      if (!data.ticketId || !data.eventKey) {
-        throw new Error("Invalid ticket data");
+      if (data.ticketId) {
+        // Optimistic counter increment — TicketScanner will show the real result dialog
+        setScanCount((prev) => ({ ...prev, valid: prev.valid + 1 }));
+        setStatus("valid");
       }
-
-      const result = await validateTicket(data.ticketId, data.eventKey);
-
-      if (!result.isValid) {
-        if (result.status === "used") {
-          setStatus("used");
-          setScanCount((prev) => ({ ...prev, used: prev.used + 1 }));
-          toast({
-            title: "Ticket Already Used",
-            description: "This ticket has already been scanned.",
-            variant: "destructive",
-          });
-        } else {
-          setStatus("invalid");
-          setScanCount((prev) => ({ ...prev, invalid: prev.invalid + 1 }));
-          toast({
-            title: "Invalid Ticket",
-            description: result.message || "This ticket is not valid for this event.",
-            variant: "destructive",
-          });
-        }
-        return;
-      }
-
-      await markTicketAsUsed(data.ticketId);
-      setStatus("valid");
-      setScanCount((prev) => ({ ...prev, valid: prev.valid + 1 }));
-      toast({
-        title: "Ticket Validated",
-        description: "Ticket has been successfully validated and marked as used.",
-      });
-    } catch (error) {
-      setStatus("invalid");
+    } catch {
       setScanCount((prev) => ({ ...prev, invalid: prev.invalid + 1 }));
-      toast({
-        title: "Scan Failed",
-        description: "Invalid ticket data. Please try scanning again.",
-        variant: "destructive",
-      });
+      setStatus("invalid");
     }
   };
 

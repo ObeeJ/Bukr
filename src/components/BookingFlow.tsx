@@ -5,7 +5,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { v4 as uuid } from 'uuid';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Star, Download, Share2, Check, Loader2, Tag } from "lucide-react";
+import { Star, Download, Share2, Check, Loader2, Tag, Bitcoin } from "lucide-react";
+import QRCode from 'react-qr-code';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
@@ -277,10 +278,10 @@ const BookingFlow = ({ isOpen, onClose, event }: BookingFlowProps) => {
                 </div>
               </div>
             </div>
-            <div className="flex justify-end">
+            <div className="flex flex-col gap-2">
               <Button
                 variant="glow"
-                className="logo font-medium"
+                className="logo font-medium w-full"
                 onClick={handleQuantitySubmit}
               >
                 {isProcessing ? (
@@ -291,6 +292,16 @@ const BookingFlow = ({ isOpen, onClose, event }: BookingFlowProps) => {
                 ) : (
                   "Pay with Paystack"
                 )}
+              </Button>
+              <Button
+                variant="outline"
+                className="logo font-medium w-full opacity-50 cursor-not-allowed"
+                disabled
+                title="Coming soon"
+              >
+                <Bitcoin className="mr-2 h-4 w-4" />
+                Pay with Crypto
+                <span className="ml-2 text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">Soon</span>
               </Button>
             </div>
           </>
@@ -311,11 +322,9 @@ const BookingFlow = ({ isOpen, onClose, event }: BookingFlowProps) => {
             </DialogHeader>
             <div className="py-6">
               <div className="bg-white p-4 rounded-xl mb-4">
-                <img 
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${ticketId}`} 
-                  alt="Ticket QR Code" 
-                  className="w-48 h-48 mx-auto mb-4"
-                />
+                <div className="flex justify-center mb-4">
+                  <QRCode value={ticketId || ''} size={192} />
+                </div>
                 <div className="text-center">
                   <p className="text-sm text-muted-foreground">Ticket ID</p>
                   <p className="font-mono font-medium">{ticketId}</p>
