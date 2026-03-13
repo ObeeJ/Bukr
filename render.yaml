@@ -1,0 +1,115 @@
+# Render Blueprint — Bukr Full Stack
+# Deploys: Go Gateway + Rust Core + Redis + Frontend (static site)
+# https://render.com/docs/blueprint-spec
+#
+# Deploy order: Redis → bukr-core → bukr-gateway → bukr-frontend
+# Render resolves fromService references automatically.
+
+services:
+  # ── Frontend (React/Vite static site) ──────────────────────────────────────
+  - type: web
+    name: bukr-frontend
+    runtime: static
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    pullRequestPreviewsEnabled: false
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+    routes:
+      # SPA fallback — all routes serve index.html so React Router works
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          name: bukr-gateway
+          type: web
+          property: host
+
+  # ── Go API Gateway ──────────────────────────────────────────────────────────
+  - type: web
+    name: bukr-gateway
+    runtime: docker
+    dockerfilePath: ./backend/gateway/Dockerfile
+    dockerContext: ./backend/gateway
+    region: oregon
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: "8080"
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          name: bukr-redis
+          type: redis
+          property: connectionString
+      # Render internal networking: bukr-core is reachable via its service host
+      - key: RUST_SERVICE_URL
+        fromService:
+          name: bukr-core
+          type: web
+          property: host
+      # Set to your actual Render frontend URL after first deploy
+      # Format: https://bukr-frontend.onrender.com
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: LOG_LEVEL
+        value: "info"
+
+  # ── Rust Core Service ───────────────────────────────────────────────────────
+  - type: web
+    name: bukr-core
+    runtime: docker
+    dockerfilePath: ./backend/core/Dockerfile
+    dockerContext: ./backend/core
+    region: oregon
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: "8081"
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          name: bukr-redis
+          type: redis
+          property: connectionString
+      # REQUIRED: HMAC secret for QR nonce signing — set a strong random value
+      # Generate with: openssl rand -hex 32
+      - key: QR_HMAC_SECRET
+        sync: false
+      - key: PAYSTACK_SECRET_KEY
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: PAYSTACK_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: RUST_LOG
+        value: "bukr_core=info,tower_http=info"
+
+  # ── Redis ───────────────────────────────────────────────────────────────────
+  - type: redis
+    name: bukr-redis
+    region: oregon
+    plan: starter
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: [] # internal access only

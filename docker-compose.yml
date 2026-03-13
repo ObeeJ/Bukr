@@ -1,0 +1,100 @@
+# docker-compose.yml — Bukr full-stack local development
+#
+# Usage:
+#   docker compose up --build        # start everything
+#   docker compose up --build -d     # start in background
+#   docker compose logs -f gateway   # tail a specific service
+#   docker compose down              # stop everything
+#
+# Services:
+#   redis     → localhost:6379
+#   core      → localhost:8081  (Rust — tickets, scanner, payments)
+#   gateway   → localhost:8080  (Go — auth, events, CRUD)
+#   frontend  → localhost:3000  (React/Vite via Nginx)
+#
+# The frontend Nginx proxies /api/* to the gateway so there are
+# no CORS issues in local dev — everything is same-origin from
+# the browser's perspective.
+
+services:
+
+  # ── Redis ─────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── Rust Core ─────────────────────────────────────────────────────────────
+  core:
+    build:
+      context: ./backend/core
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      PORT: "8081"
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: redis://redis:6379
+      QR_HMAC_SECRET: ${QR_HMAC_SECRET:-bukr-dev-secret-change-in-production}
+      PAYSTACK_SECRET_KEY: ${PAYSTACK_SECRET_KEY:-}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      PAYSTACK_WEBHOOK_SECRET: ${PAYSTACK_WEBHOOK_SECRET:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      ALLOWED_ORIGINS: "http://localhost:3000,http://localhost:5173"
+      RUST_LOG: "bukr_core=info,tower_http=info"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8081/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Go Gateway ────────────────────────────────────────────────────────────
+  gateway:
+    build:
+      context: ./backend/gateway
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: redis://redis:6379
+      RUST_SERVICE_URL: http://core:8081
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY}
+      SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET}
+      ALLOWED_ORIGINS: "http://localhost:3000,http://localhost:5173"
+      LOG_LEVEL: "info"
+    depends_on:
+      redis:
+        condition: service_healthy
+      core:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Frontend (Nginx serving built React app) ──────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      gateway:
+        condition: service_healthy
