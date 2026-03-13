@@ -191,7 +191,13 @@ export interface ScanValidationResult {
   isValid: boolean;
   status: 'valid' | 'used' | 'invalid';
   message: string;
-  ticket?: Ticket;
+  ticket?: {
+    ticketId: string;
+    userName: string;
+    ticketType: string;
+    quantity: number;
+    scannedAt?: string;
+  };
 }
 
 export interface ScannerStats {

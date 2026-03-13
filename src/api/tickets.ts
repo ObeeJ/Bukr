@@ -16,14 +16,24 @@
 import api, { mapFromApi, mapToApi } from '@/lib/api';
 import { Ticket, PurchaseTicketRequest, PurchaseResponse } from '@/types';
 
-/** POST /tickets/purchase - Purchase tickets */
+/**
+ * purchaseTicket
+ * High-level: Initiates a ticket purchase for an event (handles payment + ticket creation).
+ * Low-level: Converts the PurchaseTicketRequest to snake_case, POSTs to /tickets/purchase,
+ * and returns a PurchaseResponse (which includes payment intent or confirmation details).
+ */
 export const purchaseTicket = async (req: PurchaseTicketRequest): Promise<PurchaseResponse> => {
   const payload = mapToApi(req);
   const { data } = await api.post('/tickets/purchase', payload);
   return mapFromApi<PurchaseResponse>(data);
 };
 
-/** GET /tickets/me - Current user's tickets */
+/**
+ * getMyTickets
+ * High-level: Fetches all tickets owned by the currently authenticated user.
+ * Low-level: GETs /tickets/me (JWT-scoped), extracts the `tickets` array from
+ * the response envelope. Returns [] on error so the tickets screen renders safely.
+ */
 export const getMyTickets = async (): Promise<Ticket[]> => {
   try {
     const { data } = await api.get('/tickets/me');
@@ -35,7 +45,12 @@ export const getMyTickets = async (): Promise<Ticket[]> => {
   }
 };
 
-/** GET /tickets/event/:eventId - Event tickets (organizer) */
+/**
+ * getEventTickets
+ * High-level: Fetches all tickets sold for a specific event (organizer view).
+ * Low-level: GETs /tickets/event/:eventId and extracts the `tickets` array.
+ * Protected — only the event owner/organizer can access this.
+ */
 export const getEventTickets = async (eventId: string): Promise<Ticket[]> => {
   try {
     const { data } = await api.get(`/tickets/event/${eventId}`);
@@ -45,4 +60,16 @@ export const getEventTickets = async (eventId: string): Promise<Ticket[]> => {
     console.error('Error fetching event tickets:', error);
     return [];
   }
+};
+
+/**
+ * transferTicket
+ * High-level: Permanently transfers ownership of a ticket to another user by email.
+ * Low-level: POSTs { to_email } to /tickets/:ticketId/transfer.
+ * Irreversible — the original owner loses access after this call.
+ * Returns transferId and timestamp for audit trail.
+ */
+export const transferTicket = async (ticketId: string, toEmail: string): Promise<{ transferId: string; transferredAt: string }> => {
+  const { data } = await api.post(`/tickets/${ticketId}/transfer`, { to_email: toEmail });
+  return mapFromApi(data);
 };

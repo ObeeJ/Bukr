@@ -1,3 +1,18 @@
+/**
+ * INFRASTRUCTURE LAYER - Axios HTTP Client
+ *
+ * High-level: The single HTTP client the entire frontend uses to talk to the Go gateway.
+ * Handles auth token injection and response envelope unwrapping automatically,
+ * so every API module just calls api.get/post and gets clean typed data back.
+ *
+ * Low-level:
+ * - Request interceptor: reads the active Supabase session and attaches
+ *   `Authorization: Bearer <jwt>` to every outgoing request.
+ * - Response interceptor: unwraps the `{ status, data, error }` envelope
+ *   returned by the backend. On success it strips the wrapper and returns
+ *   `response.data = body.data`. On error it extracts the backend message
+ *   and rejects with a plain Error so callers get a readable message.
+ */
 import axios from 'axios';
 import { supabase } from './supabase';
 
@@ -8,7 +23,8 @@ const api = axios.create({
   },
 });
 
-// Attach Supabase JWT token to every request
+// Attach Supabase JWT to every outgoing request.
+// Without this, every protected endpoint returns 401.
 api.interceptors.request.use(
   async (config) => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -20,8 +36,8 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Unwrap the API response envelope: { status, data, error } → data
-// Also handle error responses from the backend
+// Unwrap { status, data, error } → data on success.
+// On error, surface the backend's human-readable message instead of a generic axios error.
 api.interceptors.response.use(
   (response) => {
     const body = response.data;
@@ -51,10 +67,17 @@ api.interceptors.response.use(
 
 export default api;
 
-// =====================
-// snake_case ↔ camelCase mapping utilities
-// =====================
-
+/**
+ * snake_case ↔ camelCase mapping utilities
+ *
+ * High-level: The backend speaks snake_case (Go/Rust convention), the frontend speaks
+ * camelCase (JS convention). These two functions bridge that gap recursively so
+ * neither side has to care about the other's naming style.
+ *
+ * Low-level: Both functions walk the object tree. Arrays are mapped element-by-element.
+ * Plain objects get their keys transformed. Primitives and Dates pass through unchanged.
+ * mapFromApi is called on every API response; mapToApi is called before every POST/PUT/PATCH.
+ */
 type AnyObject = Record<string, any>;
 
 function toCamelCase(str: string): string {
@@ -65,7 +88,13 @@ function toSnakeCase(str: string): string {
   return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 }
 
-/** Recursively convert all keys in an object from snake_case to camelCase */
+/**
+ * mapFromApi
+ * High-level: Converts a raw backend response (snake_case keys) into a camelCase object
+ * the frontend TypeScript types expect.
+ * Low-level: Recursively walks arrays and objects, applying toCamelCase to every key.
+ * Leaves primitives and Date instances untouched.
+ */
 export function mapFromApi<T = any>(obj: any): T {
   if (Array.isArray(obj)) {
     return obj.map(mapFromApi) as T;
@@ -80,7 +109,12 @@ export function mapFromApi<T = any>(obj: any): T {
   return obj;
 }
 
-/** Recursively convert all keys in an object from camelCase to snake_case */
+/**
+ * mapToApi
+ * High-level: Converts a camelCase frontend payload into the snake_case shape the
+ * backend expects before sending a POST/PUT/PATCH request.
+ * Low-level: Mirror of mapFromApi — same recursive walk, applies toSnakeCase to keys.
+ */
 export function mapToApi<T = any>(obj: any): T {
   if (Array.isArray(obj)) {
     return obj.map(mapToApi) as T;

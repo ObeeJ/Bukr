@@ -16,13 +16,23 @@
 import api, { mapFromApi, mapToApi } from '@/lib/api';
 import { User } from '@/types';
 
-/** GET /users/me - Get current user profile */
+/**
+ * getProfile
+ * High-level: Loads the full profile of the currently authenticated user.
+ * Low-level: GETs /users/me (JWT-protected) and maps the response to a typed User.
+ * Used on profile screens and to seed auth context on app load.
+ */
 export const getProfile = async (): Promise<User> => {
   const { data } = await api.get('/users/me');
   return mapFromApi<User>(data);
 };
 
-/** PATCH /users/me - Update profile */
+/**
+ * updateProfile
+ * High-level: Updates editable fields on the current user's profile.
+ * Low-level: Converts the partial update to snake_case, PATCHes /users/me,
+ * and returns the updated User. Only provided fields are changed.
+ */
 export const updateProfile = async (updates: {
   name?: string;
   phone?: string;
@@ -33,7 +43,12 @@ export const updateProfile = async (updates: {
   return mapFromApi<User>(data);
 };
 
-/** POST /users/me/complete - Complete profile after signup */
+/**
+ * completeProfile
+ * High-level: Finalizes a new user's profile after OAuth/email signup.
+ * Low-level: POSTs required fields (name, userType, optional orgName) to
+ * /users/me/complete. Must be called before the user can access protected features.
+ */
 export const completeProfile = async (req: {
   name: string;
   userType: string;
@@ -44,7 +59,13 @@ export const completeProfile = async (req: {
   return mapFromApi<User>(data);
 };
 
-/** DELETE /users/me - Deactivate account */
+/**
+ * deactivateAccount
+ * High-level: Soft-deletes or deactivates the current user's account.
+ * Low-level: Sends DELETE /users/me with no body. The backend handles
+ * cleanup (sessions, data retention). Irreversible from the client —
+ * confirm with the user before calling.
+ */
 export const deactivateAccount = async (): Promise<void> => {
   await api.delete('/users/me');
 };
