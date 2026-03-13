@@ -23,5 +23,7 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/setupTests.ts',
+    // Integration tests in tests/e2e/ require live backends — run separately via test:e2e
+    exclude: ['**/node_modules/**', 'tests/e2e/**', '**/*.e2e.*'],
   },
 })

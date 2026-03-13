@@ -1,6 +1,23 @@
+/**
+ * DOMAIN LAYER - Zod Validation Schemas
+ *
+ * High-level: Client-side validation rules that mirror the backend’s business
+ * rules. Running these before hitting the API gives instant feedback to the
+ * user and prevents obviously bad requests from ever leaving the browser.
+ *
+ * Low-level: Each schema is a Zod object. The exported `*Input` types are
+ * inferred directly from the schemas so form types and validation stay in sync
+ * automatically — change the schema, the type updates for free.
+ */
 import { z } from 'zod';
 
-// Event validation
+/**
+ * createEventSchema
+ * High-level: Validates the create-event form before submission.
+ * Low-level: Enforces field lengths, future-date constraint on `date`,
+ * HH:MM format on `time`, and the cross-field rule that availableTickets
+ * cannot exceed totalTickets.
+ */
 export const createEventSchema = z.object({
   title: z.string().min(3).max(200),
   description: z.string().min(10).max(5000),
@@ -18,7 +35,12 @@ export const createEventSchema = z.object({
   message: 'Available tickets cannot exceed total tickets',
 });
 
-// Ticket purchase validation
+/**
+ * purchaseTicketSchema
+ * High-level: Validates the ticket purchase form before calling the purchase API.
+ * Low-level: Enforces UUID format on eventId, quantity bounds (1–10 matching
+ * backend rule), and restricts paymentProvider to known values.
+ */
 export const purchaseTicketSchema = z.object({
   eventId: z.string().uuid(),
   quantity: z.number().int().min(1).max(10),
@@ -28,7 +50,12 @@ export const purchaseTicketSchema = z.object({
   excitementRating: z.number().int().min(1).max(5).optional(),
 });
 
-// Promo code validation
+/**
+ * createPromoSchema
+ * High-level: Validates the promo code creation form.
+ * Low-level: Enforces uppercase-alphanumeric-hyphen format on `code`,
+ * 0–100 range on discount, and the cross-field rule that startDate < endDate.
+ */
 export const createPromoSchema = z.object({
   eventId: z.string().uuid(),
   code: z.string().min(3).max(50).regex(/^[A-Z0-9-]+$/),
@@ -45,7 +72,12 @@ export const createPromoSchema = z.object({
   message: 'Start date must be before end date',
 });
 
-// User profile validation
+/**
+ * updateProfileSchema
+ * High-level: Validates the profile update form.
+ * Low-level: Enforces name length, E.164-compatible phone regex, and
+ * optional orgName length. All fields are optional so partial updates work.
+ */
 export const updateProfileSchema = z.object({
   name: z.string().min(2).max(100),
   phone: z.string().regex(/^\+?[1-9]\d{9,14}$/).optional(),

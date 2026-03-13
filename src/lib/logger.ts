@@ -1,6 +1,19 @@
 /**
- * Production-ready logging utility
- * Replaces console.log with structured logging
+ * INFRASTRUCTURE LAYER - Structured Logger
+ *
+ * High-level: Drop-in replacement for console.log that adds log levels,
+ * timestamps, and production-ready structured output. All app code should
+ * use this instead of raw console calls so logs are consistent and
+ * console.log statements don’t leak into production builds.
+ *
+ * Low-level:
+ * - In development (import.meta.env.DEV): pretty-prints with emoji prefixes
+ *   so logs are easy to scan in the browser console.
+ * - In production: emits JSON lines suitable for log aggregation tools
+ *   (Datadog, CloudWatch, etc.).
+ * - debug level is suppressed in production to avoid noise.
+ * - error level has a hook for Sentry integration (commented out — uncomment
+ *   and install @sentry/browser when ready).
  */
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
@@ -12,6 +25,12 @@ interface LogContext {
 class Logger {
   private readonly isDev = import.meta.env.DEV;
 
+  /**
+   * log (private)
+   * High-level: Core logging method — all public methods delegate here.
+   * Low-level: Builds a log entry object, then either pretty-prints it
+   * (dev) or serialises it to JSON (prod). Skips debug logs in production.
+   */
   private log(level: LogLevel, message: string, context?: LogContext) {
     if (!this.isDev && level === 'debug') return;
 
@@ -39,18 +58,22 @@ class Logger {
     }
   }
 
+  /** debug — verbose tracing, suppressed in production */
   debug(message: string, context?: LogContext) {
     this.log('debug', message, context);
   }
 
+  /** info — normal operational events (page loads, API calls) */
   info(message: string, context?: LogContext) {
     this.log('info', message, context);
   }
 
+  /** warn — unexpected but recoverable situations */
   warn(message: string, context?: LogContext) {
     this.log('warn', message, context);
   }
 
+  /** error — failures that need attention; hooks into Sentry in production */
   error(message: string, context?: LogContext) {
     this.log('error', message, context);
   }
