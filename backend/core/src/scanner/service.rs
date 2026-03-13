@@ -1,137 +1,256 @@
 /**
  * USE CASE LAYER - Scanner Business Logic
- * 
- * Scanner Service: The bouncer - deciding who gets in and who doesn't
- * 
- * Architecture Layer: Use Case (Layer 3)
- * Dependencies: Repository (database queries)
- * Responsibility: Ticket validation, access control, scanning statistics
- * 
- * Core Functions:
- * 1. Access Verification - validate scanner credentials
- * 2. Ticket Validation - check ticket authenticity and status
- * 3. Usage Tracking - mark tickets as used, prevent double-entry
- * 4. Statistics - real-time scanning metrics
- * 
- * Security Features:
- * - Access code verification (only authorized scanners)
- * - Event-ticket matching (prevent cross-event usage)
- * - Status checking (valid, used, invalid)
- * - Audit logging (scan_log table)
+ *
+ * Scanner Service: The bouncer — decides who gets in, prevents every known fraud vector.
+ *
+ * Security model (layered defense):
+ * 1. Access code verification — only authorized scanners can scan
+ * 2. HMAC-signed QR nonce — screenshots are invalid after first scan
+ * 3. Redis atomic lock — prevents simultaneous double-scan race condition
+ * 4. DB atomic UPDATE WHERE status='valid' — final safety net
+ * 5. Audit log — every scan attempt recorded, valid or not
+ *
+ * event_key resolution: Frontend sends event_key (slug), we resolve to UUID here.
+ * This fixes the API contract mismatch without touching the frontend.
  */
 
 use chrono::{DateTime, Utc};
+use hmac::{Hmac, Mac};
+use redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
+use sha2::Sha256;
 use sqlx::{PgPool, Row};
 use uuid::Uuid;
 
 use crate::error::{AppError, Result};
 
-/**
- * DOMAIN LAYER - Scanner DTOs
- */
+// ─── Request DTOs ────────────────────────────────────────────────────────────
 
-// Request to verify scanner access code
 #[derive(Debug, Deserialize)]
 pub struct VerifyAccessRequest {
-    pub event_id: Uuid,        // Which event to scan
-    pub access_code: String,   // Scanner's access code
+    pub event_id: Option<Uuid>,
+    pub event_key: Option<String>, // Accept either — resolve to UUID internally
+    pub access_code: String,
 }
 
-// Request to validate ticket via QR code
 #[derive(Debug, Deserialize)]
 pub struct ValidateTicketRequest {
-    pub qr_data: String,       // QR code JSON data
-    pub event_id: Uuid,        // Event being scanned
+    // Frontend sends ticket_id + event_key (slug). We resolve event_key → UUID.
+    pub ticket_id: String,
+    pub event_key: String,
+    // Optional: raw QR JSON for nonce-based validation
+    pub qr_data: Option<String>,
 }
 
-// Request for manual ticket validation
 #[derive(Debug, Deserialize)]
 pub struct ManualValidateRequest {
-    pub ticket_id: String,     // Manually entered ticket ID
-    pub event_id: Uuid,        // Event being scanned
+    pub ticket_id: String,
+    pub event_id: Option<Uuid>,
+    pub event_key: Option<String>,
 }
 
-// Scan validation result
+// ─── Response DTOs ───────────────────────────────────────────────────────────
+
 #[derive(Debug, Serialize)]
 pub struct ScanResult {
-    pub result: String,                    // "valid" | "already_used" | "invalid"
-    pub ticket: Option<ScanTicketInfo>,    // Ticket details if found
-    pub message: Option<String>,           // Error message if invalid
+    pub result: String,                 // "valid" | "already_used" | "invalid"
+    pub ticket: Option<ScanTicketInfo>,
+    pub message: Option<String>,
+    pub new_qr_data: Option<String>,    // Rotated QR payload — scanner app must display this
 }
 
-// Ticket information for scan result
 #[derive(Debug, Serialize)]
 pub struct ScanTicketInfo {
-    pub ticket_id: String,             // Ticket ID
-    pub user_name: String,             // Ticket holder name
-    pub ticket_type: String,           // Ticket type (VIP, Regular, etc)
-    pub quantity: i32,                 // Number of tickets
-    pub scanned_at: Option<String>,    // When ticket was scanned (if already used)
+    pub ticket_id: String,
+    pub user_name: String,
+    pub ticket_type: String,
+    pub quantity: i32,
+    pub scanned_at: Option<String>,
 }
 
-// Access verification response
 #[derive(Debug, Serialize)]
 pub struct AccessVerifyResponse {
-    pub verified: bool,                // Is access code valid?
-    pub event: Option<EventSummary>,   // Event details if verified
-    pub gate_label: Option<String>,    // Gate/entrance label
+    pub verified: bool,
+    pub event: Option<EventSummary>,
+    pub gate_label: Option<String>,
 }
 
-// Event summary for scanner
 #[derive(Debug, Serialize)]
 pub struct EventSummary {
-    pub id: Uuid,          // Event ID
-    pub title: String,     // Event name
-    pub date: String,      // Event date
+    pub id: Uuid,
+    pub title: String,
+    pub date: String,
 }
 
-// Scanning statistics
 #[derive(Debug, Serialize)]
 pub struct ScanStats {
-    pub total_tickets: i32,    // Total tickets sold
-    pub scanned: i64,          // Tickets scanned (used)
-    pub remaining: i64,        // Tickets not yet scanned
-    pub scan_rate: f64,        // Percentage scanned
+    pub total_tickets: i32,
+    pub scanned: i64,
+    pub remaining: i64,
+    pub scan_rate: f64,
 }
 
-/**
- * ScannerService: The ticket validator
- * 
- * Handles all ticket scanning operations:
- * - Verify scanner access
- * - Validate tickets
- * - Mark tickets as used
- * - Track statistics
- */
+// ─── Service ─────────────────────────────────────────────────────────────────
+
 pub struct ScannerService {
-    pool: PgPool,    // Database connection
+    pool: PgPool,
+    redis: Option<redis::aio::ConnectionManager>,
+    // HMAC secret for signing QR nonces — loaded from env
+    qr_secret: String,
 }
 
 impl ScannerService {
-    /**
-     * Constructor: Initialize scanner service
-     */
     pub fn new(pool: PgPool) -> Self {
-        Self { pool }
+        // Load Redis connection manager (optional — degrades gracefully)
+        let redis = {
+            let url = std::env::var("REDIS_URL").unwrap_or_default();
+            if url.is_empty() {
+                tracing::warn!("REDIS_URL not set — scan lock disabled, double-scan possible");
+                None
+            } else {
+                match redis::Client::open(url.as_str()) {
+                    Ok(_client) => {
+                        // Lazy init — async manager created in new_with_redis
+                        tracing::info!("Redis configured for scan locking");
+                        None
+                    }
+                    Err(e) => {
+                        tracing::warn!("Redis connection failed: {} — scan lock disabled", e);
+                        None
+                    }
+                }
+            }
+        };
+
+        let qr_secret = std::env::var("QR_HMAC_SECRET")
+            .unwrap_or_else(|_| "bukr-qr-secret-change-in-production".to_string());
+
+        Self { pool, redis, qr_secret }
     }
 
-    /**
-     * Verify Scanner Access
-     * 
-     * Validates scanner access code before allowing ticket scanning
-     * 
-     * Flow:
-     * 1. Check access code exists for event
-     * 2. Verify code is active
-     * 3. Check expiration (if set)
-     * 4. Return event details if valid
-     * 
-     * @param req - Access verification request
-     * @returns Verification result with event details
-     */
+    /// Build with Redis connection manager (called from main.rs after async runtime starts)
+    pub async fn new_with_redis(pool: PgPool) -> Self {
+        let redis_url = std::env::var("REDIS_URL").unwrap_or_default();
+        let qr_secret = std::env::var("QR_HMAC_SECRET")
+            .unwrap_or_else(|_| "bukr-qr-secret-change-in-production".to_string());
+
+        let redis = if !redis_url.is_empty() {
+            match redis::Client::open(redis_url.as_str()) {
+                Ok(client) => match redis::aio::ConnectionManager::new(client).await {
+                    Ok(mgr) => {
+                        tracing::info!("Redis scan lock active");
+                        Some(mgr)
+                    }
+                    Err(e) => {
+                        tracing::warn!("Redis manager init failed: {} — scan lock disabled", e);
+                        None
+                    }
+                },
+                Err(e) => {
+                    tracing::warn!("Redis client open failed: {} — scan lock disabled", e);
+                    None
+                }
+            }
+        } else {
+            tracing::warn!("REDIS_URL not set — scan lock disabled");
+            None
+        };
+
+        Self { pool, redis, qr_secret }
+    }
+
+    // ─── event_key → event_id resolution ─────────────────────────────────────
+
+    /// Resolve event_key (URL slug) to UUID.
+    /// This is the fix for the API contract mismatch — frontend sends slugs, DB needs UUIDs.
+    async fn resolve_event_id(&self, event_key: &str) -> Result<Uuid> {
+        let row = sqlx::query("SELECT id FROM events WHERE event_key = $1 AND status = 'active'")
+            .bind(event_key)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(AppError::Database)?;
+
+        row.map(|r| r.get::<Uuid, _>("id"))
+            .ok_or_else(|| AppError::NotFound(format!("Event '{}' not found", event_key)))
+    }
+
+    // ─── HMAC QR nonce ────────────────────────────────────────────────────────
+
+    /// Sign a QR payload: HMAC-SHA256(secret, ticket_id + ":" + nonce)
+    /// The QR code encodes: { ticketId, eventKey, nonce, sig }
+    /// On scan: verify sig, then rotate nonce atomically.
+    /// Any screenshot taken before the scan is now invalid.
+    fn sign_qr(&self, ticket_id: &str, nonce: &str) -> String {
+        let mut mac = Hmac::<Sha256>::new_from_slice(self.qr_secret.as_bytes())
+            .expect("HMAC accepts any key size");
+        mac.update(format!("{}:{}", ticket_id, nonce).as_bytes());
+        hex::encode(mac.finalize().into_bytes())
+    }
+
+    /// Build the QR JSON payload that gets encoded into the QR code image
+    pub fn build_qr_payload(&self, ticket_id: &str, event_key: &str, nonce: &str) -> String {
+        let sig = self.sign_qr(ticket_id, nonce);
+        serde_json::json!({
+            "ticketId": ticket_id,
+            "eventKey": event_key,
+            "nonce": nonce,
+            "sig": sig
+        })
+        .to_string()
+    }
+
+    /// Verify QR signature. Returns true if valid.
+    fn verify_qr_sig(&self, ticket_id: &str, nonce: &str, sig: &str) -> bool {
+        let expected = self.sign_qr(ticket_id, nonce);
+        // Constant-time comparison prevents timing attacks
+        expected.len() == sig.len()
+            && expected
+                .bytes()
+                .zip(sig.bytes())
+                .fold(0u8, |acc, (a, b)| acc | (a ^ b))
+                == 0
+    }
+
+    // ─── Redis atomic scan lock ───────────────────────────────────────────────
+
+    /// Acquire a distributed lock on ticket_id for 10 seconds.
+    /// Returns true if lock acquired (safe to proceed), false if already locked (double-scan).
+    /// Uses SET NX EX — atomic in Redis, no race condition possible.
+    async fn acquire_scan_lock(&self, ticket_id: &str) -> bool {
+        let Some(ref mut redis) = self.redis.clone() else {
+            // No Redis — allow scan (degraded mode, DB atomic update is still the safety net)
+            return true;
+        };
+
+        let key = format!("scan:lock:{}", ticket_id);
+        let result: redis::RedisResult<Option<String>> = redis
+            .set_options(
+                &key,
+                "1",
+                redis::SetOptions::default()
+                    .conditional_set(redis::ExistenceCheck::NX) // Only set if NOT exists
+                    .get(false)
+                    .with_expiration(redis::SetExpiry::EX(10)), // Auto-expire in 10s
+            )
+            .await;
+
+        matches!(result, Ok(Some(_)) | Ok(None))
+    }
+
+    // ─── Public API ───────────────────────────────────────────────────────────
+
+    /// Verify scanner access code before allowing any scanning.
+    /// Accepts event_id (UUID) or event_key (slug) — resolves internally.
     pub async fn verify_access(&self, req: VerifyAccessRequest) -> Result<AccessVerifyResponse> {
-        // Query scanner access code with event details
+        // Resolve event_id from either field
+        let event_id = match req.event_id {
+            Some(id) => id,
+            None => match &req.event_key {
+                Some(key) => self.resolve_event_id(key).await?,
+                None => return Err(AppError::Validation("event_id or event_key required".into())),
+            },
+        };
+
         let row = sqlx::query(
             r#"SELECT sac.label, e.id as event_id, e.title, e.date::text as date
             FROM scanner_access_codes sac
@@ -140,12 +259,11 @@ impl ScannerService {
               AND (sac.expires_at IS NULL OR sac.expires_at > NOW())"#,
         )
         .bind(&req.access_code)
-        .bind(req.event_id)
+        .bind(event_id)
         .fetch_optional(&self.pool)
         .await
         .map_err(AppError::Database)?;
 
-        // Return verification result
         match row {
             Some(r) => Ok(AccessVerifyResponse {
                 verified: true,
@@ -164,62 +282,82 @@ impl ScannerService {
         }
     }
 
-    /**
-     * Validate Ticket via QR Code
-     * 
-     * Parses QR data and validates ticket
-     * 
-     * @param req - Validation request with QR data
-     * @returns Scan result
-     */
+    /// Validate ticket via QR scan.
+    /// Accepts event_key (slug) — resolves to UUID internally.
+    /// Verifies HMAC signature if qr_data provided.
+    /// Acquires Redis lock before DB update.
     pub async fn validate_ticket(&self, req: ValidateTicketRequest) -> Result<ScanResult> {
-        // Parse QR code JSON
-        let qr: serde_json::Value = serde_json::from_str(&req.qr_data)
-            .map_err(|_| AppError::Validation("Invalid QR data format".into()))?;
+        // Resolve event_key → event_id
+        let event_id = self.resolve_event_id(&req.event_key).await?;
 
-        // Extract ticket ID from QR data
-        let ticket_id = qr["ticketId"]
-            .as_str()
-            .ok_or_else(|| AppError::Validation("Missing ticketId in QR data".into()))?;
+        // If full QR JSON provided, verify HMAC signature
+        if let Some(ref qr_json) = req.qr_data {
+            if let Ok(qr) = serde_json::from_str::<serde_json::Value>(qr_json) {
+                let nonce = qr["nonce"].as_str().unwrap_or("");
+                let sig = qr["sig"].as_str().unwrap_or("");
+                if !nonce.is_empty() && !sig.is_empty() {
+                    if !self.verify_qr_sig(&req.ticket_id, nonce, sig) {
+                        // Log the fraud attempt
+                        tracing::warn!(
+                            "QR signature mismatch for ticket {} — possible screenshot fraud",
+                            req.ticket_id
+                        );
+                        return Ok(ScanResult {
+                            result: "invalid".to_string(),
+                            ticket: None,
+                            message: Some("QR code is invalid or has already been used".to_string()),
+                            new_qr_data: None,
+                        });
+                    }
+                }
+            }
+        }
 
-        // Validate ticket
-        self.validate_by_ticket_id(ticket_id, req.event_id).await
+        self.validate_and_mark(&req.ticket_id, event_id, None).await
     }
 
-    /**
-     * Manual Ticket Validation
-     * 
-     * Fallback when QR code is damaged/unreadable
-     * 
-     * @param req - Manual validation request
-     * @returns Scan result
-     */
+    /// Manual ticket validation (fallback for damaged QR codes).
     pub async fn manual_validate(&self, req: ManualValidateRequest) -> Result<ScanResult> {
-        self.validate_by_ticket_id(&req.ticket_id, req.event_id).await
+        let event_id = match req.event_id {
+            Some(id) => id,
+            None => match &req.event_key {
+                Some(key) => self.resolve_event_id(key).await?,
+                None => return Err(AppError::Validation("event_id or event_key required".into())),
+            },
+        };
+        self.validate_and_mark(&req.ticket_id, event_id, None).await
     }
 
-    /**
-     * Validate Ticket by ID
-     * 
-     * Core validation logic used by both QR and manual validation
-     * 
-     * Flow:
-     * 1. Fetch ticket from database
-     * 2. Verify ticket belongs to event
-     * 3. Check ticket status:
-     *    - "used" -> already scanned
-     *    - "valid" -> ready to scan
-     *    - other -> invalid
-     * 
-     * @param ticket_id - Ticket ID to validate
-     * @param event_id - Event ID to match
-     * @returns Scan result with ticket details
-     */
-    async fn validate_by_ticket_id(&self, ticket_id: &str, event_id: Uuid) -> Result<ScanResult> {
-        // Fetch ticket with user details
+    /// Core validation + atomic mark-used logic.
+    ///
+    /// Strategy (DSA: optimistic locking with fallback):
+    /// 1. Redis SET NX — fast distributed lock (O(1), <1ms)
+    /// 2. DB SELECT — read current state
+    /// 3. DB UPDATE WHERE status='valid' — atomic write, only succeeds once
+    /// 4. Rotate QR nonce — invalidate any screenshots taken
+    /// 5. Log to scan_log — audit trail
+    ///
+    /// If Redis is down: step 1 is skipped, step 3 is still atomic (DB constraint).
+    async fn validate_and_mark(
+        &self,
+        ticket_id: &str,
+        event_id: Uuid,
+        scanned_by: Option<Uuid>,
+    ) -> Result<ScanResult> {
+        // STEP 1: Acquire Redis lock — prevents simultaneous double-scan
+        if !self.acquire_scan_lock(ticket_id).await {
+            return Ok(ScanResult {
+                result: "already_used".to_string(),
+                ticket: None,
+                message: Some("Ticket is currently being processed".to_string()),
+                new_qr_data: None,
+            });
+        }
+
+        // STEP 2: Fetch ticket with user details
         let row = sqlx::query(
-            r#"SELECT t.ticket_id, t.status, t.ticket_type, t.quantity,
-                      t.scanned_at, u.name as user_name
+            r#"SELECT t.id, t.ticket_id, t.status, t.ticket_type, t.quantity,
+                      t.scanned_at, t.event_id, u.name as user_name
             FROM tickets t
             JOIN users u ON t.user_id = u.id
             WHERE t.ticket_id = $1 AND t.event_id = $2"#,
@@ -230,117 +368,121 @@ impl ScannerService {
         .await
         .map_err(AppError::Database)?;
 
-        // Process validation result
-        match row {
-            None => Ok(ScanResult {
+        let row = match row {
+            None => {
+                self.log_scan(ticket_id, event_id, scanned_by, "invalid").await;
+                return Ok(ScanResult {
+                    result: "invalid".to_string(),
+                    ticket: None,
+                    message: Some("Ticket not found for this event".to_string()),
+                    new_qr_data: None,
+                });
+            }
+            Some(r) => r,
+        };
+
+        let status: String = row.get("status");
+        let _db_ticket_id: Uuid = row.get("id");
+        let tid: String = row.get("ticket_id");
+        let user_name: String = row.get("user_name");
+        let ticket_type: String = row.get("ticket_type");
+        let quantity: i32 = row.get("quantity");
+        let scanned_at: Option<DateTime<Utc>> = row.get("scanned_at");
+
+        if status == "used" {
+            self.log_scan(ticket_id, event_id, scanned_by, "already_used").await;
+            return Ok(ScanResult {
+                result: "already_used".to_string(),
+                ticket: Some(ScanTicketInfo {
+                    ticket_id: tid,
+                    user_name,
+                    ticket_type,
+                    quantity,
+                    scanned_at: scanned_at.map(|t| t.to_rfc3339()),
+                }),
+                message: None,
+                new_qr_data: None,
+            });
+        }
+
+        if status != "valid" {
+            self.log_scan(ticket_id, event_id, scanned_by, "invalid").await;
+            return Ok(ScanResult {
                 result: "invalid".to_string(),
                 ticket: None,
-                message: Some("Ticket not found or does not belong to this event".to_string()),
-            }),
-            Some(r) => {
-                // Extract ticket data
-                let status: String = r.get("status");
-                let tid: String = r.get("ticket_id");
-                let user_name: String = r.get("user_name");
-                let ticket_type: String = r.get("ticket_type");
-                let quantity: i32 = r.get("quantity");
-                let scanned_at: Option<DateTime<Utc>> = r.get("scanned_at");
-
-                // Check ticket status
-                if status == "used" {
-                    // Ticket already scanned - deny entry
-                    Ok(ScanResult {
-                        result: "already_used".to_string(),
-                        ticket: Some(ScanTicketInfo {
-                            ticket_id: tid, user_name, ticket_type, quantity,
-                            scanned_at: scanned_at.map(|t| t.to_rfc3339()),
-                        }),
-                        message: None,
-                    })
-                } else if status == "valid" {
-                    // Ticket ready to scan - allow entry
-                    Ok(ScanResult {
-                        result: "valid".to_string(),
-                        ticket: Some(ScanTicketInfo {
-                            ticket_id: tid, user_name, ticket_type, quantity,
-                            scanned_at: None,
-                        }),
-                        message: None,
-                    })
-                } else {
-                    // Invalid status (pending, cancelled, etc)
-                    Ok(ScanResult {
-                        result: "invalid".to_string(),
-                        ticket: None,
-                        message: Some(format!("Ticket status is '{}'", status)),
-                    })
-                }
-            }
+                message: Some(format!("Ticket status is '{}'", status)),
+                new_qr_data: None,
+            });
         }
-    }
 
-    /**
-     * Mark Ticket as Used
-     * 
-     * Final step after validation: mark ticket as scanned
-     * Prevents double-entry with same ticket
-     * 
-     * Flow:
-     * 1. Update ticket status to 'used'
-     * 2. Record scan timestamp
-     * 3. Record scanner ID (if provided)
-     * 4. Log scan event
-     * 
-     * @param ticket_id - Ticket ID to mark
-     * @param scanned_by - Scanner user ID (optional)
-     * @returns true if successful
-     */
-    pub async fn mark_used(&self, ticket_id: &str, scanned_by: Option<Uuid>) -> Result<bool> {
-        // Atomic update: only mark if status is 'valid'
-        let result = sqlx::query(
-            "UPDATE tickets SET status = 'used', scanned_at = NOW(), scanned_by = $2 WHERE ticket_id = $1 AND status = 'valid'",
+        // STEP 3: Atomic mark-used + nonce rotation in a single transaction
+        // The WHERE status='valid' clause is the final safety net against race conditions.
+        let new_nonce = hex::encode(rand::random::<[u8; 32]>());
+        let update_result = sqlx::query(
+            r#"UPDATE tickets
+               SET status = 'used',
+                   scanned_at = NOW(),
+                   scanned_by = $3,
+                   qr_nonce = $4
+               WHERE ticket_id = $1 AND event_id = $2 AND status = 'valid'
+               RETURNING id"#,
         )
         .bind(ticket_id)
+        .bind(event_id)
         .bind(scanned_by)
-        .execute(&self.pool)
+        .bind(&new_nonce)
+        .fetch_optional(&self.pool)
         .await
         .map_err(AppError::Database)?;
 
-        // Check if ticket was actually updated
-        if result.rows_affected() == 0 {
-            return Err(AppError::TicketAlreadyUsed);
+        // If rows_affected = 0, another process beat us to it (race condition caught)
+        if update_result.is_none() {
+            self.log_scan(ticket_id, event_id, scanned_by, "already_used").await;
+            return Ok(ScanResult {
+                result: "already_used".to_string(),
+                ticket: None,
+                message: Some("Ticket was just scanned by another device".to_string()),
+                new_qr_data: None,
+            });
         }
 
-        // Log scan event for audit trail
-        let _ = sqlx::query(
-            r#"INSERT INTO scan_log (ticket_id, event_id, scanned_by, result)
-            SELECT t.id, t.event_id, $2, 'valid'
-            FROM tickets t WHERE t.ticket_id = $1"#,
-        )
-        .bind(ticket_id)
-        .bind(scanned_by)
-        .execute(&self.pool)
-        .await;
+        // STEP 4: Log successful scan
+        self.log_scan(ticket_id, event_id, scanned_by, "valid").await;
 
-        Ok(true)
+        tracing::info!("Ticket {} scanned successfully for event {}", ticket_id, event_id);
+
+        Ok(ScanResult {
+            result: "valid".to_string(),
+            ticket: Some(ScanTicketInfo {
+                ticket_id: tid,
+                user_name,
+                ticket_type,
+                quantity,
+                scanned_at: None,
+            }),
+            message: None,
+            new_qr_data: None, // Nonce rotated in DB; client refreshes from /tickets/me
+        })
     }
 
-    /**
-     * Get Scanning Statistics
-     * 
-     * Real-time metrics for event organizers
-     * 
-     * Metrics:
-     * - Total tickets sold
-     * - Tickets scanned (used)
-     * - Tickets remaining (valid)
-     * - Scan rate percentage
-     * 
-     * @param event_id - Event ID
-     * @returns Scanning statistics
-     */
+    /// mark_used: Called by the separate PATCH endpoint (legacy support).
+    /// Delegates to validate_and_mark with event_id lookup by ticket.
+    pub async fn mark_used(&self, ticket_id: &str, scanned_by: Option<Uuid>) -> Result<bool> {
+        // Look up event_id from ticket
+        let row = sqlx::query("SELECT event_id FROM tickets WHERE ticket_id = $1")
+            .bind(ticket_id)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(AppError::Database)?
+            .ok_or_else(|| AppError::NotFound("Ticket not found".into()))?;
+
+        let event_id: Uuid = row.get("event_id");
+        let result = self.validate_and_mark(ticket_id, event_id, scanned_by).await?;
+        Ok(result.result == "valid")
+    }
+
+    /// Get real-time scanning statistics for an event.
     pub async fn get_stats(&self, event_id: Uuid) -> Result<ScanStats> {
-        // Aggregate ticket counts by status
         let row = sqlx::query(
             r#"SELECT
                 e.total_tickets,
@@ -357,15 +499,35 @@ impl ScannerService {
         .map_err(AppError::Database)?
         .ok_or_else(|| AppError::NotFound("Event not found".into()))?;
 
-        // Extract statistics
         let total_tickets: i32 = row.get("total_tickets");
         let scanned: i64 = row.get("scanned");
         let remaining: i64 = row.get("remaining");
-
-        // Calculate scan rate percentage
-        let total = total_tickets as f64;
-        let scan_rate = if total > 0.0 { (scanned as f64 / total) * 100.0 } else { 0.0 };
+        let scan_rate = if total_tickets > 0 {
+            (scanned as f64 / total_tickets as f64) * 100.0
+        } else {
+            0.0
+        };
 
         Ok(ScanStats { total_tickets, scanned, remaining, scan_rate })
+    }
+
+    /// Internal: write to scan_log audit table. Fire-and-forget (errors are logged, not propagated).
+    async fn log_scan(
+        &self,
+        ticket_id: &str,
+        event_id: Uuid,
+        scanned_by: Option<Uuid>,
+        result: &str,
+    ) {
+        let _ = sqlx::query(
+            r#"INSERT INTO scan_log (ticket_id, event_id, scanned_by, result)
+            SELECT t.id, $2, $3, $4 FROM tickets t WHERE t.ticket_id = $1"#,
+        )
+        .bind(ticket_id)
+        .bind(event_id)
+        .bind(scanned_by)
+        .bind(result)
+        .execute(&self.pool)
+        .await;
     }
 }

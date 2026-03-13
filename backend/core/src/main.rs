@@ -46,7 +46,7 @@ use axum::{
     routing::{get, patch, post, delete},
     Router,
 };
-use tower_http::cors::{Any, CorsLayer};
+use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 
 /**
@@ -84,7 +84,7 @@ async fn main() {
 
     // Build router with all routes
     let app = if let Some(pool) = pool {
-        build_router(pool, cfg)
+        build_router(pool, cfg).await
     } else {
         // Health-only mode when database unavailable
         Router::new()
@@ -113,7 +113,7 @@ async fn main() {
  * @param cfg - Application configuration
  * @returns Configured Axum router
  */
-fn build_router(pool: sqlx::PgPool, cfg: config::Config) -> Router {
+async fn build_router(pool: sqlx::PgPool, cfg: config::Config) -> Router {
     // REPOSITORY LAYER: Initialize repositories
     let promo_repo = promos::repository::PromoRepository::new(pool.clone());
     let ticket_repo = tickets::repository::TicketRepository::new(pool.clone());
@@ -121,7 +121,7 @@ fn build_router(pool: sqlx::PgPool, cfg: config::Config) -> Router {
     // USE CASE LAYER: Initialize services with dependencies
     let ticket_service = Arc::new(tickets::service::TicketService::new(ticket_repo, promo_repo.clone()));
     let promo_service = Arc::new(promos::service::PromoService::new(promo_repo));
-    let scanner_service = Arc::new(scanner::service::ScannerService::new(pool.clone()));
+    let scanner_service = Arc::new(scanner::service::ScannerService::new_with_redis(pool.clone()).await);
     let payment_service = Arc::new(payments::service::PaymentService::new(
         pool.clone(),
         cfg.paystack_secret_key,
@@ -139,6 +139,11 @@ fn build_router(pool: sqlx::PgPool, cfg: config::Config) -> Router {
         .route("/event/{event_id}", get(tickets::handler::get_event_tickets))
         .route("/claim-free", post(tickets::handler::claim_free_ticket))
         .with_state(ticket_service);
+
+    // Transfer route uses pool directly (different state type)
+    let transfer_routes = Router::new()
+        .route("/{ticket_id}/transfer", post(tickets::transfer::transfer_ticket))
+        .with_state(Arc::new(pool.clone()));
 
     // Promo routes: Discount code management
     let promo_routes = Router::new()
@@ -171,22 +176,31 @@ fn build_router(pool: sqlx::PgPool, cfg: config::Config) -> Router {
         .route("/dashboard", get(analytics::handler::get_dashboard_summary))
         .with_state(pool);
 
-    // MIDDLEWARE LAYER: Configure CORS
+    // MIDDLEWARE LAYER: Configure CORS — restrict to known origins in production
+    let allowed_origin = std::env::var("ALLOWED_ORIGINS")
+        .unwrap_or_else(|_| "http://localhost:5173".to_string());
+
     let cors = CorsLayer::new()
-        .allow_origin(Any)      // Allow all origins (configure for production)
-        .allow_methods(Any)     // Allow all HTTP methods
-        .allow_headers(Any);    // Allow all headers
+        .allow_origin(
+            allowed_origin
+                .split(',')
+                .filter_map(|s| s.trim().parse::<axum::http::HeaderValue>().ok())
+                .collect::<Vec<_>>(),
+        )
+        .allow_methods([axum::http::Method::GET, axum::http::Method::POST, axum::http::Method::PUT, axum::http::Method::PATCH, axum::http::Method::DELETE])
+        .allow_headers([axum::http::header::AUTHORIZATION, axum::http::header::CONTENT_TYPE, "x-user-id".parse().unwrap()]);
 
     // Compose all routes into main router
     Router::new()
         .route("/health", get(health))
         .nest("/api/v1/tickets", ticket_routes)
+        .nest("/api/v1/tickets", transfer_routes)
         .nest("/api/v1", promo_routes)
         .nest("/api/v1/scanner", scanner_routes)
         .nest("/api/v1/payments", payment_routes)
         .nest("/api/v1/analytics", analytics_routes)
-        .layer(cors)                        // CORS middleware
-        .layer(TraceLayer::new_for_http())  // Request logging
+        .layer(cors)
+        .layer(TraceLayer::new_for_http())
 }
 
 /**
