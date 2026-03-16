@@ -33,6 +33,7 @@ import MobileGuard from "@/components/MobileGuard";
 import { useToast } from "@/components/ui/use-toast";
 
 import ScannerManagement from "@/pages/ScannerManagement";
+import ResetPassword from "@/pages/ResetPassword";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -257,6 +258,7 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
