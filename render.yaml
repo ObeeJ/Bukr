@@ -27,10 +27,11 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_API_URL
-        fromService:
-          name: bukr-gateway
-          type: web
-          property: host
+        value: https://bukr-gateway.onrender.com/api/v1
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_ANON_KEY
+        sync: false
 
   # ── Go API Gateway ──────────────────────────────────────────────────────────
   - type: web
