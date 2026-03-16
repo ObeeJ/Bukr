@@ -175,16 +175,6 @@ const SignIn = () => {
               </div>
             </div>
 
-            {/* REMEMBER ME & FORGOT PASSWORD - Future features */}
-            <div className="flex items-center justify-between text-sm">
-              <label className="flex items-center gap-2">
-                <input type="checkbox" className="rounded" />
-                <span className="text-muted-foreground">Remember me</span>
-              </label>
-              <Link to="/forgot-password" className="text-primary hover:text-primary-glow transition-colors">
-                Forgot password?
-              </Link>
-            </div>
 
             {/* SUBMIT BUTTON - With loading state */}
             {/* disabled prop prevents double-submission */}
