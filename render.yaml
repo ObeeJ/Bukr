@@ -41,7 +41,7 @@ services:
     dockerfilePath: ./backend/gateway/Dockerfile
     dockerContext: ./backend/gateway
     region: oregon
-    plan: starter
+    plan: free
     healthCheckPath: /health
     envVars:
       - key: PORT
@@ -79,7 +79,7 @@ services:
     dockerfilePath: ./backend/core/Dockerfile
     dockerContext: ./backend/core
     region: oregon
-    plan: starter
+    plan: free
     healthCheckPath: /health
     envVars:
       - key: PORT
@@ -112,6 +112,6 @@ services:
   - type: redis
     name: bukr-redis
     region: oregon
-    plan: starter
+    plan: free
     maxmemoryPolicy: allkeys-lru
     ipAllowList: [] # internal access only
