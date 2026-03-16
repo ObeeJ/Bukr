@@ -104,17 +104,22 @@ export default function SignUp() {
       console.error('Sign up error:', error);
 
       // ERROR HANDLING - User-friendly messages
-      if (error.message?.includes('already registered') || error.message?.includes('already exists')) {
-        toast.error("Email already taken 📧", {
-          description: "This email is already registered. Try signing in instead."
+      const msg = error.message?.toLowerCase() || "";
+      if (msg.includes("already registered") || msg.includes("already exists")) {
+        toast.error("Email already taken", {
+          description: "This email's already in the club. Try signing in instead."
         });
-      } else if (error.message?.includes('invalid email')) {
-        toast.error("Invalid email format ✉️", {
-          description: "Please enter a valid email address."
+      } else if (msg.includes("invalid email")) {
+        toast.error("Invalid email", {
+          description: "That email doesn't look right. Double-check the format."
+        });
+      } else if (msg.includes("rate limit") || msg.includes("too many")) {
+        toast.error("Too many attempts", {
+          description: "Slow down! Try again in a minute."
         });
       } else {
-        toast.error("Signup failed 😕", {
-          description: error.message || "Something went wrong. Please try again."
+        toast.error("Signup hit a snag", {
+          description: error.message || "Something went sideways. Try again in a moment."
         });
       }
     } finally {

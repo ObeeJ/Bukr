@@ -78,22 +78,26 @@ const SignIn = () => {
 
       // ERROR HANDLING - Translate technical errors to human language
       // This is UX gold: users don't care about HTTP status codes
-      if (err.message?.includes('Invalid login credentials')) {
-        toast.error("Oops! Wrong credentials 🔐", {
-          description: "Double-check your email and password, then try again."
+      const msg = err.message?.toLowerCase() || "";
+      if (msg.includes("invalid login credentials") || msg.includes("invalid credentials")) {
+        toast.error("Wrong email or password", {
+          description: "Even the best of us mistype — double-check and try again."
         });
-      } else if (err.message?.includes('Email not confirmed')) {
-        toast.error("Email not verified ✉️", {
-          description: "Please check your inbox and verify your email first."
+      } else if (msg.includes("email not confirmed") || msg.includes("not confirmed")) {
+        toast.error("Email not confirmed yet", {
+          description: "Your inbox is waiting. Confirm your email and come back."
         });
-      } else if (err.message?.includes('network') || err.message?.includes('fetch')) {
-        toast.error("Connection issue 📡", {
-          description: "Check your internet connection and try again."
+      } else if (msg.includes("network") || msg.includes("fetch")) {
+        toast.error("Connection issue", {
+          description: "Can't reach the server. Check your connection and try again."
+        });
+      } else if (msg.includes("rate limit") || msg.includes("too many")) {
+        toast.error("Too many attempts", {
+          description: "Take a breath. Try again in a minute."
         });
       } else {
-        // Fallback for unknown errors
-        toast.error("Couldn't sign in 😕", {
-          description: err.message || "Something went wrong. Please try again."
+        toast.error("Couldn't sign in", {
+          description: err.message || "Something went sideways. Try again — we believe in you."
         });
       }
     } finally {

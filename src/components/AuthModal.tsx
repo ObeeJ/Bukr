@@ -4,10 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Eye, EyeOff, User, Building } from "lucide-react";
+import { Eye, EyeOff, User, Building, AlertCircle, CheckCircle } from "lucide-react";
 import AnimatedLogo from "./AnimatedLogo";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -15,35 +14,95 @@ interface AuthModalProps {
   defaultTab?: "signin" | "signup";
 }
 
+// Maps raw Supabase/API error messages to witty, human-friendly feedback
+const getErrorMessage = (error: any, type: "signin" | "signup"): string => {
+  const msg = error?.message?.toLowerCase() || "";
+
+  if (msg.includes("invalid login credentials") || msg.includes("invalid credentials")) {
+    return "Wrong email or password. Even the best of us mistype — give it another shot.";
+  }
+  if (msg.includes("email not confirmed") || msg.includes("not confirmed")) {
+    return "Your email is playing hard to get. Check your inbox and confirm it first.";
+  }
+  if (msg.includes("already registered") || msg.includes("already exists") || msg.includes("user already")) {
+    return "This email's already in the system. Try signing in instead.";
+  }
+  if (msg.includes("password") && msg.includes("short")) {
+    return "That password's too short. Give it at least 6 characters to work with.";
+  }
+  if (msg.includes("invalid email") || msg.includes("valid email")) {
+    return "That email doesn't look right. Double-check the format.";
+  }
+  if (msg.includes("network") || msg.includes("fetch") || msg.includes("failed to fetch")) {
+    return "Can't reach the server right now. Check your connection and try again.";
+  }
+  if (msg.includes("rate limit") || msg.includes("too many")) {
+    return "Slow down! Too many attempts. Take a breath and try again in a minute.";
+  }
+  return type === "signin"
+    ? "Something went sideways. Try again — we believe in you."
+    : "Signup hit a snag. Try again in a moment.";
+};
+
+const FeedbackBanner = ({ type, message }: { type: "error" | "success"; message: string }) => (
+  <div className={`flex items-start gap-2 rounded-lg px-3 py-2 text-sm ${
+    type === "error"
+      ? "bg-destructive/15 border border-destructive/30 text-destructive-foreground"
+      : "bg-success/15 border border-success/30 text-success-foreground"
+  }`}>
+    {type === "error"
+      ? <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-destructive" />
+      : <CheckCircle className="w-4 h-4 mt-0.5 shrink-0 text-success" />
+    }
+    <span>{message}</span>
+  </div>
+);
+
 const AuthModal = ({ isOpen, onClose, defaultTab = "signin" }: AuthModalProps) => {
   const [showPassword, setShowPassword] = useState(false);
   const [userType, setUserType] = useState<"user" | "organizer">("user");
+  const [isLoading, setIsLoading] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: "error" | "success"; message: string } | null>(null);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
     name: "",
     orgName: "",
-    phone: ""
   });
   const { signIn, signUp } = useAuth();
-  const navigate = useNavigate();
+
+  const clearFeedback = () => setFeedback(null);
 
   const handleSubmit = async (type: "signin" | "signup") => {
+    clearFeedback();
+    setIsLoading(true);
     try {
       if (type === "signin") {
         await signIn(formData.email, formData.password);
+        setFeedback({ type: "success", message: "You're in. Bukr makes ticket booking faster and more affordable." });
+        setTimeout(onClose, 800);
       } else {
+        if (!formData.name.trim()) {
+          setFeedback({ type: "error", message: "We need your name." });
+          return;
+        }
+        if (formData.password.length < 6) {
+          setFeedback({ type: "error", message: "Password needs at least 6 characters. Make it count." });
+          return;
+        }
         await signUp({
-          id: `USER-${Date.now()}`,
           name: formData.name,
           email: formData.email,
-          userType: userType,
-          orgName: userType === 'organizer' ? formData.orgName : undefined
+          password: formData.password,
+          userType,
+          orgName: userType === "organizer" ? formData.orgName : undefined,
         });
+        setFeedback({ type: "success", message: "Account created! Check your email to confirm and you're good to go." });
       }
-      onClose();
     } catch (error) {
-      console.error("Auth error:", error);
+      setFeedback({ type: "error", message: getErrorMessage(error, type) });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -55,25 +114,32 @@ const AuthModal = ({ isOpen, onClose, defaultTab = "signin" }: AuthModalProps) =
             <AnimatedLogo size="md" className="mb-2" />
             <DialogTitle className="text-foreground">Welcome to Bukr</DialogTitle>
             <DialogDescription>
-              Sign in or create an account to manage your events.
+              Sign in or create an account to start booking moments.
             </DialogDescription>
           </div>
         </DialogHeader>
 
-        <Tabs defaultValue={defaultTab} className="w-full">
+        <Tabs defaultValue={defaultTab} className="w-full" onValueChange={clearFeedback}>
           <TabsList className="grid w-full grid-cols-2 glass-card">
             <TabsTrigger value="signin">Sign In</TabsTrigger>
             <TabsTrigger value="signup">Sign Up</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="signin" className="space-y-4">
+          {/* Feedback banner — shown above both tabs */}
+          {feedback && (
+            <div className="mt-3">
+              <FeedbackBanner type={feedback.type} message={feedback.message} />
+            </div>
+          )}
+
+          <TabsContent value="signin" className="space-y-4 mt-4">
             <div className="space-y-4">
               <div>
                 <Label htmlFor="signin-email">Email</Label>
                 <Input
                   id="signin-email"
                   type="email"
-                  placeholder="Enter your email"
+                  placeholder="you@example.com"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="glass-card border-glass-border bg-glass/20"
@@ -105,15 +171,15 @@ const AuthModal = ({ isOpen, onClose, defaultTab = "signin" }: AuthModalProps) =
                 onClick={() => handleSubmit("signin")}
                 variant="glow"
                 className="w-full"
+                disabled={isLoading}
               >
-                Sign In
+                {isLoading ? "Signing in..." : "Sign In"}
               </Button>
             </div>
           </TabsContent>
 
-          <TabsContent value="signup" className="space-y-4">
-            {/* User Type Selection */}
-            <div className="grid grid-cols-2 gap-2 mb-4">
+          <TabsContent value="signup" className="space-y-4 mt-4">
+            <div className="grid grid-cols-2 gap-2">
               <Button
                 type="button"
                 variant={userType === "user" ? "glow" : "outline"}
@@ -121,7 +187,7 @@ const AuthModal = ({ isOpen, onClose, defaultTab = "signin" }: AuthModalProps) =
                 onClick={() => setUserType("user")}
               >
                 <User className="w-4 h-4" />
-                User
+                I'm a User
               </Button>
               <Button
                 type="button"
@@ -130,7 +196,7 @@ const AuthModal = ({ isOpen, onClose, defaultTab = "signin" }: AuthModalProps) =
                 onClick={() => setUserType("organizer")}
               >
                 <Building className="w-4 h-4" />
-                Organizer
+                I'm an Organizer
               </Button>
             </div>
 
@@ -139,7 +205,7 @@ const AuthModal = ({ isOpen, onClose, defaultTab = "signin" }: AuthModalProps) =
                 <Label htmlFor="signup-name">Full Name</Label>
                 <Input
                   id="signup-name"
-                  placeholder="Enter your full name"
+                  placeholder="What should we call you?"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="glass-card border-glass-border bg-glass/20"
@@ -151,7 +217,7 @@ const AuthModal = ({ isOpen, onClose, defaultTab = "signin" }: AuthModalProps) =
                   <Label htmlFor="org-name">Organization Name</Label>
                   <Input
                     id="org-name"
-                    placeholder="Enter organization name"
+                    placeholder="Your brand, your stage"
                     value={formData.orgName}
                     onChange={(e) => setFormData({ ...formData, orgName: e.target.value })}
                     className="glass-card border-glass-border bg-glass/20"
@@ -164,7 +230,7 @@ const AuthModal = ({ isOpen, onClose, defaultTab = "signin" }: AuthModalProps) =
                 <Input
                   id="signup-email"
                   type="email"
-                  placeholder="Enter your email"
+                  placeholder="you@example.com"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="glass-card border-glass-border bg-glass/20"
@@ -177,7 +243,7 @@ const AuthModal = ({ isOpen, onClose, defaultTab = "signin" }: AuthModalProps) =
                   <Input
                     id="signup-password"
                     type={showPassword ? "text" : "password"}
-                    placeholder="Create a password"
+                    placeholder="Make it something you'll remember"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     className="glass-card border-glass-border bg-glass/20 pr-10"
@@ -198,8 +264,11 @@ const AuthModal = ({ isOpen, onClose, defaultTab = "signin" }: AuthModalProps) =
                 onClick={() => handleSubmit("signup")}
                 variant="glow"
                 className="w-full"
+                disabled={isLoading}
               >
-                Sign Up as {userType === "organizer" ? "Organizer" : "User"}
+                {isLoading
+                  ? "Creating your account..."
+                  : `Join as ${userType === "organizer" ? "Organizer" : "User"}`}
               </Button>
             </div>
           </TabsContent>
