@@ -6,41 +6,41 @@
 
 @layer base {
 
-  /* Typography - Clash Display for Headers/Buttons, Montserrat Alternates for Body */
+  /* ── Typography ─────────────────────────────────────────────────────────────
+   * Body:    Montserrat — clean, readable, no fuss
+   * Titles:  Clash Display — bold, loud, owns the room
+   * Captions: Clash Grotesk — same family, softer touch
+   * Logo/Brand: Clash Display — always
+   * ────────────────────────────────────────────────────────────────────────── */
+
+  /* Base: everything starts as Montserrat */
   * {
-    font-family: 'Montserrat Alternates', sans-serif;
-  }
-
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
-    font-family: 'Clash Display', sans-serif;
-    font-weight: 600;
-  }
-
-  /* CTA Buttons use Clash Display */
-  button,
-  .btn,
-  .cta,
-  .brand,
-  .logo {
-    font-family: 'Clash Display', sans-serif !important;
-    font-weight: 600;
-  }
-
-  /* Ensure all text inputs and body text use Montserrat Alternates */
-  body,
-  p,
-  span,
-  input,
-  textarea,
-  select,
-  label {
-    font-family: 'Montserrat Alternates', sans-serif !important;
+    font-family: 'Montserrat', sans-serif;
     font-weight: 400;
+  }
+
+  /* Titles and headers: Clash Display */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Clash Display', sans-serif;
+    font-weight: 700;
+  }
+
+  /* Body text: plain Montserrat */
+  body, p, li, input, textarea, select {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 400;
+  }
+
+  /* Captions and labels: Clash Grotesk */
+  caption, label, small, .caption {
+    font-family: 'Clash Grotesk', sans-serif;
+    font-weight: 400;
+  }
+
+  /* Logo, brand name, bold UI text: Clash Display */
+  .logo, .brand, .cta, .watermark {
+    font-family: 'Clash Display', sans-serif;
+    font-weight: 700;
   }
 
   :root {
@@ -266,7 +266,15 @@
   }
 
   .font-montserrat {
-    font-family: 'Montserrat Alternates', sans-serif;
+    font-family: 'Montserrat', sans-serif;
+  }
+
+  .font-clash {
+    font-family: 'Clash Display', sans-serif;
+  }
+
+  .font-clash-grotesk {
+    font-family: 'Clash Grotesk', sans-serif;
   }
 }
 
