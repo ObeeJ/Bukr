@@ -34,6 +34,8 @@ import { useToast } from "@/components/ui/use-toast";
 
 import ScannerManagement from "@/pages/ScannerManagement";
 import ResetPassword from "@/pages/ResetPassword";
+import Auth from "@/pages/Auth";
+import AuthCallback from "@/pages/AuthCallback";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -117,6 +119,7 @@ const AppRoutes = () => {
       <Route path="/" element={<Landing />} />
       <Route path="/signin" element={<SignIn />} />
       <Route path="/signup" element={<SignUp />} />
+      <Route path="/auth" element={<Auth />} />
       <Route
         path="/app"
         element={
@@ -259,6 +262,7 @@ const AppRoutes = () => {
         }
       />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

@@ -140,11 +140,15 @@ pub async fn stripe_webhook(
     headers: HeaderMap,
     body: Bytes,
 ) -> Result<Json<Value>> {
-    // Extract Stripe signature — passed to service for verification
-    let _signature = headers
+    let signature = headers
         .get("stripe-signature")
         .and_then(|v| v.to_str().ok())
         .unwrap_or("");
+
+    // Reject immediately if signature is missing or invalid
+    if !service.verify_stripe_signature(&body, signature) {
+        return Err(AppError::Unauthorized);
+    }
 
     // Parse JSON payload
     let payload: Value = serde_json::from_slice(&body)

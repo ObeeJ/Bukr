@@ -78,6 +78,16 @@ func LoadConfig() *Config {
 		log.Println("WARNING: DATABASE_URL not set, database features will be unavailable")
 	}
 
+	// Fail fast if critical secrets are missing in production
+	if os.Getenv("APP_ENV") == "production" {
+		if cfg.SupabaseURL == "" || cfg.SupabaseKey == "" {
+			log.Fatal("FATAL: SUPABASE_URL and SUPABASE_SERVICE_KEY are required in production")
+		}
+		if cfg.DatabaseURL == "" {
+			log.Fatal("FATAL: DATABASE_URL is required in production")
+		}
+	}
+
 	return cfg
 }
 

@@ -129,35 +129,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signUp = async (data: SignupData) => {
     setIsLoading(true);
     try {
-      // 1. Sign up with Supabase
+      // Store profile data so AuthCallback can complete it after email confirmation.
+      // This survives the redirect because it's in localStorage, not memory.
+      localStorage.setItem("bukr_pending_profile", JSON.stringify({
+        name: data.name,
+        userType: data.userType,
+        orgName: data.orgName,
+      }));
+
+      // 1. Sign up with Supabase — redirectTo tells it where to send the confirmation link
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/#/auth/callback`,
+        },
       });
 
       if (authError) throw authError;
 
       if (authData.session) {
-        // 2. Complete profile in backend
-        await completeProfile({
-          name: data.name,
-          userType: data.userType,
-          orgName: data.orgName,
-        });
-
-        // 3. Fetch full profile
+        // No email confirmation required (e.g. disabled in Supabase dashboard)
+        localStorage.removeItem("bukr_pending_profile");
+        await completeProfile({ name: data.name, userType: data.userType, orgName: data.orgName });
         await fetchUserProfile();
-
-        // 4. Navigate based on user type
-        if (data.userType === 'organizer') {
-          navigate("/dashboard");
-        } else {
-          navigate("/app");
-        }
-      } else {
-        // Email confirmation required
-        alert("Please check your email to confirm your account.");
+        navigate(data.userType === 'organizer' ? "/dashboard" : "/app");
       }
+      // If session is null, email confirmation is required — AuthCallback handles the rest.
     } catch (error) {
       console.error('SignUp error:', error);
       throw error;

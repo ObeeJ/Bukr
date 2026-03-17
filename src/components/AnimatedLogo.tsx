@@ -45,13 +45,9 @@ const AnimatedLogo = ({ size = 'md', className = '', clickable = false }: Animat
     lg: 'text-6xl md:text-8xl'        // SHOUTING (but responsive shouting)
   };
 
-  // The actual logo markup - separated for reusability (DRY principle, baby!)
   const logoContent = (
     <div className={`${sizeClasses[size]} ${className} animate-logo-load logo`}>
-      {/* The main text - glowing because we're not basic */}
       <span className="text-glow">Bukr</span>
-      
-      {/* The bouncing dot - our signature move, like Nike's swoosh but rounder */}
       <span 
         className="text-primary inline-block ml-0.5 text-[0.3em] relative -top-1 animate-dot-bounce" 
         style={{ borderRadius: '50%' }}

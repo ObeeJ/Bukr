@@ -334,6 +334,42 @@ impl PaymentService {
      * @param signature - x-paystack-signature header value
      * @returns true if signature is valid
      */
+    /// Verify Stripe webhook signature using HMAC-SHA256 + timestamp tolerance.
+    /// Stripe signs with `t=timestamp,v1=signature` format in the header.
+    pub fn verify_stripe_signature(&self, body: &[u8], signature_header: &str) -> bool {
+        // Development mode: skip verification
+        if self.stripe_webhook_secret.is_empty() {
+            return true;
+        }
+        if signature_header.is_empty() {
+            return false;
+        }
+
+        // Parse t= and v1= from header
+        let mut timestamp = "";
+        let mut v1_sig = "";
+        for part in signature_header.split(',') {
+            if let Some(t) = part.strip_prefix("t=") { timestamp = t; }
+            if let Some(v) = part.strip_prefix("v1=") { v1_sig = v; }
+        }
+        if timestamp.is_empty() || v1_sig.is_empty() {
+            return false;
+        }
+
+        // Signed payload = timestamp + "." + body
+        let signed_payload = format!("{}.{}", timestamp, String::from_utf8_lossy(body));
+
+        use hmac::{Hmac, Mac};
+        use sha2::Sha256;
+        let mut mac = Hmac::<Sha256>::new_from_slice(self.stripe_webhook_secret.as_bytes())
+            .expect("HMAC accepts any key size");
+        mac.update(signed_payload.as_bytes());
+        let expected = hex::encode(mac.finalize().into_bytes());
+
+        // Constant-time comparison
+        expected == v1_sig
+    }
+
     pub fn verify_paystack_signature(&self, body: &[u8], signature: &str) -> bool {
         // Development mode: skip verification
         if self.paystack_webhook_secret.is_empty() {
