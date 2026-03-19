@@ -9,4 +9,3 @@ src/test
 backend
 docker-compose.yml
 Dockerfile.frontend
-nginx.conf
