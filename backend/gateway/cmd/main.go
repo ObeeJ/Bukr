@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"fmt"
 	"log"
 	"os"
@@ -35,11 +36,18 @@ func main() {
 		defer db.Close()
 	}
 
-	pubKey, err := middleware.FetchSupabasePublicKey(cfg.SupabaseURL)
-	if err != nil {
-		log.Fatalf("Failed to fetch Supabase public key: %v", err)
+	var pubKey *ecdsa.PublicKey
+	if cfg.SupabaseURL != "" {
+		key, err := middleware.FetchSupabasePublicKey(cfg.SupabaseURL)
+		if err != nil {
+			log.Printf("WARNING: Failed to fetch Supabase public key: %v — auth endpoints will return 503", err)
+		} else {
+			pubKey = key
+			log.Println("Supabase EC public key loaded")
+		}
+	} else {
+		log.Println("WARNING: SUPABASE_URL not set — auth endpoints disabled")
 	}
-	log.Println("Supabase EC public key loaded")
 
 	rdb := shared.NewRedisClient(cfg.RedisURL)
 	if rdb != nil {
