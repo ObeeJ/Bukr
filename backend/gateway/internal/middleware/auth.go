@@ -134,6 +134,12 @@ func RequireAuth(pubKey *ecdsa.PublicKey, db *pgxpool.Pool, rdb ...*redis.Client
 		redisClient = rdb[0]
 	}
 	return func(c *fiber.Ctx) error {
+		// Guard: pubKey is nil when SUPABASE_URL was missing or JWKS fetch failed at startup.
+		// Return 503 explicitly — a nil key passed to jwt.Parse causes a panic.
+		if pubKey == nil {
+			return shared.Error(c, fiber.StatusServiceUnavailable, shared.CodeInternalError, "Auth service unavailable — SUPABASE_URL not configured")
+		}
+
 		// Step 1: Extract Authorization header
 		// Format: "Bearer <token>"
 		authHeader := c.Get("Authorization")
