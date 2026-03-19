@@ -11,8 +11,7 @@ export const getFavorites = async (): Promise<FavoriteEvent[]> => {
   try {
     const { data } = await api.get('/favorites');
     return mapFromApi<FavoriteEvent[]>(data?.favorites || data || []);
-  } catch (error) {
-    console.error('Error fetching favorites:', error);
+  } catch {
     return [];
   }
 };

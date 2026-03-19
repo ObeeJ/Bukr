@@ -11,8 +11,7 @@ export const getEventPromos = async (eventId: string): Promise<PromoCode[]> => {
   try {
     const { data } = await api.get(`/promos/event/${eventId}`);
     return mapFromApi<PromoCode[]>(data?.promos || data || []);
-  } catch (error) {
-    console.error('Error fetching promos:', error);
+  } catch {
     return [];
   }
 };

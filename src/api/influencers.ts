@@ -11,8 +11,7 @@ export const getInfluencers = async (): Promise<Influencer[]> => {
   try {
     const { data } = await api.get('/influencers');
     return mapFromApi<Influencer[]>(data?.influencers || data || []);
-  } catch (error) {
-    console.error('Error fetching influencers:', error);
+  } catch {
     return [];
   }
 };

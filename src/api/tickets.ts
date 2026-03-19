@@ -39,8 +39,7 @@ export const getMyTickets = async (): Promise<Ticket[]> => {
     const { data } = await api.get('/tickets/me');
     const mapped = mapFromApi<{ tickets: Ticket[] }>(data);
     return mapped.tickets || [];
-  } catch (error) {
-    console.error('Error fetching tickets:', error);
+  } catch {
     return [];
   }
 };
@@ -56,8 +55,7 @@ export const getEventTickets = async (eventId: string): Promise<Ticket[]> => {
     const { data } = await api.get(`/tickets/event/${eventId}`);
     const mapped = mapFromApi<{ tickets: Ticket[] }>(data);
     return mapped.tickets || [];
-  } catch (error) {
-    console.error('Error fetching event tickets:', error);
+  } catch {
     return [];
   }
 };

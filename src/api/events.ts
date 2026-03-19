@@ -41,8 +41,7 @@ export const getAllEvents = async (params?: ListEventsParams): Promise<Event[]> 
     const { data } = await api.get('/events', { params });
     const mapped = mapFromApi<EventListResponse>(data);
     return mapped.events || [];
-  } catch (error) {
-    console.error('Error fetching events:', error);
+  } catch {
     return [];
   }
 };
@@ -69,8 +68,7 @@ export const getMyEvents = async (params?: { page?: number; limit?: number }): P
     const { data } = await api.get('/events/me', { params });
     const mapped = mapFromApi<EventListResponse>(data);
     return mapped.events || [];
-  } catch (error) {
-    console.error('Error fetching my events:', error);
+  } catch {
     return [];
   }
 };
@@ -85,8 +83,7 @@ export const getEventById = async (id: string): Promise<Event | null> => {
   try {
     const { data } = await api.get(`/events/${id}`);
     return mapFromApi<Event>(data);
-  } catch (error) {
-    console.error('Error fetching event:', error);
+  } catch {
     return null;
   }
 };
@@ -101,8 +98,7 @@ export const getEventByKey = async (eventKey: string): Promise<Event | null> => 
   try {
     const { data } = await api.get(`/events/key/${eventKey}`);
     return mapFromApi<Event>(data);
-  } catch (error) {
-    console.error('Error fetching event by key:', error);
+  } catch {
     return null;
   }
 };
@@ -127,8 +123,7 @@ export const getCategories = async (): Promise<string[]> => {
   try {
     const { data } = await api.get('/events/categories');
     return data?.categories || [];
-  } catch (error) {
-    console.error('Error fetching categories:', error);
+  } catch {
     return [];
   }
 };
