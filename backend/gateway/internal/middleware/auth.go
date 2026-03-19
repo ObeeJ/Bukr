@@ -23,12 +23,14 @@ import (
 	"math/big"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/bukr/gateway/internal/shared"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 )
 
 /**
@@ -45,8 +47,25 @@ type UserClaims struct {
 
 // Context keys - where we store user info in the request context
 const (
-	LocalsUserClaims = "user_claims"  // Full claims object
-	LocalsUserID     = "user_id"      // Just the ID for convenience
+	LocalsUserClaims = "user_claims" // Full claims object
+	LocalsUserID     = "user_id"     // Just the ID for convenience
+)
+
+// userCacheEntry holds a resolved user record with its expiry.
+// Stored in Redis (distributed) and in a local sync.Map (L1 in-process cache).
+type userCacheEntry struct {
+	UserID   string
+	UserType string
+	ExpiresAt time.Time
+}
+
+// l1Cache is a process-local cache that sits in front of Redis.
+// A cache hit here costs ~100ns vs ~500µs for a Redis round-trip.
+// TTL is intentionally short (30s) so user_type changes propagate quickly.
+var (
+	l1Cache    sync.Map
+	l1CacheTTL = 30 * time.Second
+	redisCacheTTL = 5 * time.Minute
 )
 
 /**
@@ -107,7 +126,13 @@ func FetchSupabasePublicKey(supabaseURL string) (*ecdsa.PublicKey, error) {
 	}, nil
 }
 
-func RequireAuth(pubKey *ecdsa.PublicKey, db *pgxpool.Pool) fiber.Handler {
+// RequireAuth builds the auth middleware.
+// rdb is optional — if nil, only the L1 in-process cache is used.
+func RequireAuth(pubKey *ecdsa.PublicKey, db *pgxpool.Pool, rdb ...*redis.Client) fiber.Handler {
+	var redisClient *redis.Client
+	if len(rdb) > 0 {
+		redisClient = rdb[0]
+	}
 	return func(c *fiber.Ctx) error {
 		// Step 1: Extract Authorization header
 		// Format: "Bearer <token>"
@@ -153,9 +178,9 @@ func RequireAuth(pubKey *ecdsa.PublicKey, db *pgxpool.Pool) fiber.Handler {
 			return shared.Error(c, fiber.StatusUnauthorized, shared.CodeUnauthorized, "Invalid token: missing subject")
 		}
 
-		// Step 5: Resolve user in our database
-		// This links Supabase auth user to our internal user record
-		userClaims, err := resolveUser(c.Context(), db, supabaseUID, email)
+		// Step 5: Resolve user — L1 cache → Redis → DB (in that order).
+		// The DB is only hit on first request or after cache expiry.
+		userClaims, err := resolveUser(c.Context(), db, redisClient, supabaseUID, email)
 		if err != nil {
 			return shared.Error(c, fiber.StatusInternalServerError, shared.CodeInternalError, "Failed to resolve user")
 		}
@@ -198,6 +223,19 @@ func RequireOrganizer() fiber.Handler {
 	}
 }
 
+func RequireAdmin() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		claims, ok := c.Locals(LocalsUserClaims).(*UserClaims)
+		if !ok || claims == nil {
+			return shared.Error(c, fiber.StatusUnauthorized, shared.CodeUnauthorized, "Authentication required")
+		}
+		if claims.UserType != "admin" {
+			return shared.Error(c, fiber.StatusForbidden, shared.CodeForbidden, "Admin access required")
+		}
+		return c.Next()
+	}
+}
+
 /**
  * GetUserClaims: Helper to extract user claims from request context
  * 
@@ -229,49 +267,88 @@ func GetUserClaims(c *fiber.Ctx) *UserClaims {
  * @param email - User's email
  * @returns UserClaims with our internal user ID and type
  */
-func resolveUser(ctx context.Context, db *pgxpool.Pool, supabaseUID, email string) (*UserClaims, error) {
-	// If no database, return minimal claims (dev mode)
+// resolveUser resolves a Supabase UID to our internal user record.
+// Cache hierarchy: L1 (sync.Map, 30s) → Redis (5min) → PostgreSQL.
+// The DB is only hit on a user's very first request or after all caches expire.
+func resolveUser(ctx context.Context, db *pgxpool.Pool, rdb *redis.Client, supabaseUID, email string) (*UserClaims, error) {
 	if db == nil {
-		return &UserClaims{
-			UserID:   supabaseUID,
-			Email:    email,
-			UserType: "user",
-		}, nil
+		return &UserClaims{UserID: supabaseUID, Email: email, UserType: "user"}, nil
 	}
 
-	var userID, userType string
+	cacheKey := "user:resolve:" + supabaseUID
 
-	// Try to find existing user by supabase_uid
+	// ── L1: in-process sync.Map (sub-microsecond) ─────────────────────────────
+	if v, ok := l1Cache.Load(cacheKey); ok {
+		entry := v.(userCacheEntry)
+		if time.Now().Before(entry.ExpiresAt) {
+			return &UserClaims{UserID: entry.UserID, Email: email, UserType: entry.UserType}, nil
+		}
+		l1Cache.Delete(cacheKey) // expired
+	}
+
+	// ── L2: Redis (sub-millisecond, shared across instances) ──────────────────
+	if rdb != nil {
+		val, err := rdb.Get(ctx, cacheKey).Result()
+		if err == nil && len(val) > 0 {
+			// Stored as "userID:userType"
+			parts := strings.SplitN(val, ":", 2)
+			if len(parts) == 2 {
+				entry := userCacheEntry{
+					UserID:    parts[0],
+					UserType:  parts[1],
+					ExpiresAt: time.Now().Add(l1CacheTTL),
+				}
+				l1Cache.Store(cacheKey, entry)
+				return &UserClaims{UserID: parts[0], Email: email, UserType: parts[1]}, nil
+			}
+		}
+	}
+
+	// ── L3: PostgreSQL (source of truth) ──────────────────────────────────────
+	var userID, userType string
 	err := db.QueryRow(ctx,
 		`SELECT id::text, user_type FROM users WHERE supabase_uid = $1`,
 		supabaseUID,
 	).Scan(&userID, &userType)
 
 	if err != nil {
-		// User doesn't exist yet - auto-create from JWT claims
-		// This is the "just-in-time provisioning" magic
+		// First-ever login — provision the user record.
+		// ON CONFLICT handles the race where two simultaneous requests both miss.
 		insertCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
-
-		// INSERT with ON CONFLICT - handles race conditions
-		// If two requests come simultaneously, only one INSERT succeeds
 		err = db.QueryRow(insertCtx,
 			`INSERT INTO users (supabase_uid, email, name, user_type)
 			 VALUES ($1, $2, $3, 'user')
 			 ON CONFLICT (supabase_uid) DO UPDATE SET email = EXCLUDED.email
 			 RETURNING id::text, user_type`,
-			supabaseUID, email, email,  // Use email as default name
+			supabaseUID, email, email,
 		).Scan(&userID, &userType)
-
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	// Return claims with our internal user ID and type
-	return &UserClaims{
-		UserID:   userID,
-		Email:    email,
-		UserType: userType,
-	}, nil
+	// Populate both cache layers so subsequent requests never touch the DB.
+	entry := userCacheEntry{
+		UserID:    userID,
+		UserType:  userType,
+		ExpiresAt: time.Now().Add(l1CacheTTL),
+	}
+	l1Cache.Store(cacheKey, entry)
+	if rdb != nil {
+		// Fire-and-forget — a Redis write failure must never block the request.
+		go rdb.Set(context.Background(), cacheKey, userID+":"+userType, redisCacheTTL)
+	}
+
+	return &UserClaims{UserID: userID, Email: email, UserType: userType}, nil
+}
+
+// InvalidateUserCache removes a user from both cache layers.
+// Call this after a user_type change (e.g. user promoted to organizer).
+func InvalidateUserCache(ctx context.Context, rdb *redis.Client, supabaseUID string) {
+	cacheKey := "user:resolve:" + supabaseUID
+	l1Cache.Delete(cacheKey)
+	if rdb != nil {
+		rdb.Del(ctx, cacheKey)
+	}
 }

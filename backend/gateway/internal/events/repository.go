@@ -49,6 +49,7 @@ func NewRepository(db *pgxpool.Pool) *Repository {
 const baseSelectFields = `
 	e.id::text, e.organizer_id::text, e.title, e.description,
 	e.date::text, e.time::text, e.end_date::text, e.location,
+	e.city, e.event_type, e.latitude, e.longitude, e.online_link,
 	e.price, e.currency, e.category, e.emoji, e.event_key,
 	e.status, e.total_tickets, e.available_tickets, e.requires_payment,
 	e.thumbnail_url, e.video_url, e.flier_url, e.is_featured,
@@ -67,6 +68,7 @@ func scanEvent(scan func(dest ...interface{}) error) (*Event, error) {
 	err := scan(
 		&ev.ID, &ev.OrganizerID, &ev.Title, &ev.Description,
 		&ev.Date, &ev.Time, &ev.EndDate, &ev.Location,
+		&ev.City, &ev.EventType, &ev.Latitude, &ev.Longitude, &ev.OnlineLink,
 		&ev.Price, &ev.Currency, &ev.Category, &ev.Emoji, &ev.EventKey,
 		&ev.Status, &ev.TotalTickets, &ev.AvailableTickets, &ev.RequiresPayment,
 		&ev.ThumbnailURL, &ev.VideoURL, &ev.FlierURL, &ev.IsFeatured,
@@ -94,17 +96,10 @@ func (r *Repository) GetByEventKey(ctx context.Context, eventKey string) (*Event
 	return scanEvent(row.Scan)
 }
 
-/**
- * List: List events with filtering and pagination
- * 
- * Supports:
- * - Category filter
- * - Status filter (default: active)
- * - Search (title, description, location)
- * - Pagination (max 50 per page)
- */
+// List fetches paginated events in a SINGLE query using COUNT(*) OVER().
+// This eliminates the previous double-query pattern (separate COUNT + SELECT)
+// which fired two sequential round-trips to the DB on every page load.
 func (r *Repository) List(ctx context.Context, q ListEventsQuery) ([]Event, int, error) {
-	// Normalize pagination
 	if q.Page < 1 {
 		q.Page = 1
 	}
@@ -112,19 +107,15 @@ func (r *Repository) List(ctx context.Context, q ListEventsQuery) ([]Event, int,
 		q.Limit = 20
 	}
 
-	// Build dynamic WHERE clause
 	var conditions []string
 	var args []interface{}
 	argIdx := 1
 
-	// Filter by category
 	if q.Category != "" {
 		conditions = append(conditions, fmt.Sprintf("e.category = $%d", argIdx))
 		args = append(args, q.Category)
 		argIdx++
 	}
-
-	// Filter by status (default: active)
 	if q.Status != "" {
 		conditions = append(conditions, fmt.Sprintf("e.status = $%d", argIdx))
 		args = append(args, q.Status)
@@ -134,45 +125,65 @@ func (r *Repository) List(ctx context.Context, q ListEventsQuery) ([]Event, int,
 		args = append(args, "active")
 		argIdx++
 	}
-
-	// Search across title, description, location
+	if q.City != "" {
+		conditions = append(conditions, fmt.Sprintf("LOWER(e.city) = LOWER($%d)", argIdx))
+		args = append(args, q.City)
+		argIdx++
+	}
+	if q.EventType != "" {
+		conditions = append(conditions, fmt.Sprintf("e.event_type = $%d", argIdx))
+		args = append(args, q.EventType)
+		argIdx++
+	}
 	if q.Search != "" {
-		conditions = append(conditions, fmt.Sprintf("(e.title ILIKE $%d OR e.description ILIKE $%d OR e.location ILIKE $%d)", argIdx, argIdx, argIdx))
+		conditions = append(conditions, fmt.Sprintf(
+			"(e.title ILIKE $%d OR e.description ILIKE $%d OR e.location ILIKE $%d)",
+			argIdx, argIdx, argIdx,
+		))
 		args = append(args, "%"+q.Search+"%")
 		argIdx++
 	}
 
-	// Build WHERE clause
 	whereClause := ""
 	if len(conditions) > 0 {
 		whereClause = "WHERE " + strings.Join(conditions, " AND ")
 	}
 
-	// Count total matching events
-	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM events e %s", whereClause)
-	var total int
-	if err := r.db.QueryRow(ctx, countQuery, args...).Scan(&total); err != nil {
-		return nil, 0, err
-	}
-
-	// Fetch paginated results
 	offset := (q.Page - 1) * q.Limit
 	args = append(args, q.Limit, offset)
 
-	dataQuery := fmt.Sprintf(
-		"SELECT %s %s %s ORDER BY e.date ASC, e.created_at DESC LIMIT $%d OFFSET $%d",
+	// COUNT(*) OVER() computes the total in the same pass as the data fetch.
+	// One round-trip instead of two — halves DB load on the hottest endpoint.
+	query := fmt.Sprintf(`
+		SELECT %s, COUNT(*) OVER() AS total_count
+		%s
+		%s
+		ORDER BY e.date ASC, e.created_at DESC
+		LIMIT $%d OFFSET $%d`,
 		baseSelectFields, baseFromJoin, whereClause, argIdx, argIdx+1,
 	)
 
-	rows, err := r.db.Query(ctx, dataQuery, args...)
+	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
 		return nil, 0, err
 	}
 	defer rows.Close()
 
 	var events []Event
+	total := 0
 	for rows.Next() {
-		ev, err := scanEvent(rows.Scan)
+		ev := &Event{}
+		err := rows.Scan(
+			&ev.ID, &ev.OrganizerID, &ev.Title, &ev.Description,
+			&ev.Date, &ev.Time, &ev.EndDate, &ev.Location,
+			&ev.City, &ev.EventType, &ev.Latitude, &ev.Longitude, &ev.OnlineLink,
+			&ev.Price, &ev.Currency, &ev.Category, &ev.Emoji, &ev.EventKey,
+			&ev.Status, &ev.TotalTickets, &ev.AvailableTickets, &ev.RequiresPayment,
+			&ev.ThumbnailURL, &ev.VideoURL, &ev.FlierURL, &ev.IsFeatured,
+			&ev.CreatedAt, &ev.UpdatedAt,
+			&ev.OrganizerName, &ev.OrganizerOrgName,
+			&total,
+		)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -188,7 +199,6 @@ func (r *Repository) List(ctx context.Context, q ListEventsQuery) ([]Event, int,
  * Only returns events owned by organizer
  */
 func (r *Repository) ListByOrganizer(ctx context.Context, organizerID string, page, limit int) ([]Event, int, error) {
-	// Normalize pagination
 	if page < 1 {
 		page = 1
 	}
@@ -196,17 +206,9 @@ func (r *Repository) ListByOrganizer(ctx context.Context, organizerID string, pa
 		limit = 20
 	}
 
-	var total int
-	err := r.db.QueryRow(ctx,
-		"SELECT COUNT(*) FROM events WHERE organizer_id = $1", organizerID,
-	).Scan(&total)
-	if err != nil {
-		return nil, 0, err
-	}
-
 	offset := (page - 1) * limit
 	query := fmt.Sprintf(
-		"SELECT %s %s WHERE e.organizer_id = $1 ORDER BY e.created_at DESC LIMIT $2 OFFSET $3",
+		"SELECT %s, COUNT(*) OVER() AS total_count %s WHERE e.organizer_id = $1 ORDER BY e.created_at DESC LIMIT $2 OFFSET $3",
 		baseSelectFields, baseFromJoin,
 	)
 
@@ -217,8 +219,20 @@ func (r *Repository) ListByOrganizer(ctx context.Context, organizerID string, pa
 	defer rows.Close()
 
 	var events []Event
+	total := 0
 	for rows.Next() {
-		ev, err := scanEvent(rows.Scan)
+		ev := &Event{}
+		err := rows.Scan(
+			&ev.ID, &ev.OrganizerID, &ev.Title, &ev.Description,
+			&ev.Date, &ev.Time, &ev.EndDate, &ev.Location,
+			&ev.City, &ev.EventType, &ev.Latitude, &ev.Longitude, &ev.OnlineLink,
+			&ev.Price, &ev.Currency, &ev.Category, &ev.Emoji, &ev.EventKey,
+			&ev.Status, &ev.TotalTickets, &ev.AvailableTickets, &ev.RequiresPayment,
+			&ev.ThumbnailURL, &ev.VideoURL, &ev.FlierURL, &ev.IsFeatured,
+			&ev.CreatedAt, &ev.UpdatedAt,
+			&ev.OrganizerName, &ev.OrganizerOrgName,
+			&total,
+		)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -249,21 +263,54 @@ func (r *Repository) Create(ctx context.Context, organizerID string, req CreateE
 		requiresPayment = false
 	}
 
+	// Default event_type
+	eventType := req.EventType
+	if eventType == "" {
+		eventType = "physical"
+	}
+
+	// Derive city: use provided value, fall back to last comma-segment of location.
+	// Online events always get city = 'Online' regardless of what was sent.
+	city := strings.TrimSpace(req.City)
+	if eventType == "online" {
+		city = "Online"
+	} else if city == "" {
+		parts := strings.Split(req.Location, ",")
+		city = strings.TrimSpace(parts[len(parts)-1])
+		if city == "" {
+			city = strings.TrimSpace(req.Location)
+		}
+	}
+
 	// Generate URL-friendly slug
 	eventKey := generateEventKey(req.Title)
 
 	// Insert event (available_tickets = total_tickets initially)
 	var ev Event
 	err := r.db.QueryRow(ctx, `
-		INSERT INTO events (organizer_id, title, description, date, time, end_date, location, price, currency, category, emoji, event_key, total_tickets, available_tickets, requires_payment, thumbnail_url, video_url, flier_url)
-		VALUES ($1, $2, $3, $4::date, $5::time, $6::date, $7, $8, $9, $10, $11, $12, $13, $13, $14, $15, $16, $17)
-		RETURNING id::text, organizer_id::text, title, description, date::text, time::text, end_date::text, location, price, currency, category, emoji, event_key, status, total_tickets, available_tickets, requires_payment, thumbnail_url, video_url, flier_url, is_featured, created_at, updated_at`,
+		INSERT INTO events
+		  (organizer_id, title, description, date, time, end_date, location, city, event_type,
+		   latitude, longitude, online_link,
+		   price, currency, category, emoji, event_key, total_tickets, available_tickets,
+		   requires_payment, thumbnail_url, video_url, flier_url)
+		VALUES ($1, $2, $3, $4::date, $5::time, $6::date, $7, $8, $9,
+		        $10, $11, $12,
+		        $13, $14, $15, $16, $17, $18, $18,
+		        $19, $20, $21, $22)
+		RETURNING id::text, organizer_id::text, title, description, date::text, time::text,
+		          end_date::text, location, city, event_type, latitude, longitude, online_link,
+		          price, currency, category, emoji,
+		          event_key, status, total_tickets, available_tickets, requires_payment,
+		          thumbnail_url, video_url, flier_url, is_featured, created_at, updated_at`,
 		organizerID, req.Title, req.Description, req.Date, req.Time, req.EndDate,
-		req.Location, req.Price, currency, req.Category, req.Emoji, eventKey,
+		req.Location, city, eventType,
+		req.Latitude, req.Longitude, req.OnlineLink,
+		req.Price, currency, req.Category, req.Emoji, eventKey,
 		req.TotalTickets, requiresPayment, req.ThumbnailURL, req.VideoURL, req.FlierURL,
 	).Scan(
 		&ev.ID, &ev.OrganizerID, &ev.Title, &ev.Description,
 		&ev.Date, &ev.Time, &ev.EndDate, &ev.Location,
+		&ev.City, &ev.EventType, &ev.Latitude, &ev.Longitude, &ev.OnlineLink,
 		&ev.Price, &ev.Currency, &ev.Category, &ev.Emoji, &ev.EventKey,
 		&ev.Status, &ev.TotalTickets, &ev.AvailableTickets, &ev.RequiresPayment,
 		&ev.ThumbnailURL, &ev.VideoURL, &ev.FlierURL, &ev.IsFeatured,
@@ -319,6 +366,25 @@ func (r *Repository) Update(ctx context.Context, id, organizerID string, req Upd
 	if req.Location != nil {
 		addField("location", *req.Location)
 	}
+	if req.City != nil {
+		addField("city", *req.City)
+	}
+	if req.EventType != nil {
+		// Guard against invalid values — DB CHECK constraint will also catch this
+		switch *req.EventType {
+		case "physical", "online", "hybrid":
+			addField("event_type", *req.EventType)
+		}
+	}
+	if req.Latitude != nil {
+		addField("latitude", *req.Latitude)
+	}
+	if req.Longitude != nil {
+		addField("longitude", *req.Longitude)
+	}
+	if req.OnlineLink != nil {
+		addField("online_link", *req.OnlineLink)
+	}
 	if req.Price != nil {
 		addField("price", *req.Price)
 	}
@@ -360,7 +426,11 @@ func (r *Repository) Update(ctx context.Context, id, organizerID string, req Upd
 	query := fmt.Sprintf(`
 		UPDATE events SET %s
 		WHERE id = $%d AND organizer_id = $%d
-		RETURNING id::text, organizer_id::text, title, description, date::text, time::text, end_date::text, location, price, currency, category, emoji, event_key, status, total_tickets, available_tickets, requires_payment, thumbnail_url, video_url, flier_url, is_featured, created_at, updated_at`,
+		RETURNING id::text, organizer_id::text, title, description, date::text, time::text,
+		          end_date::text, location, city, event_type, latitude, longitude, online_link,
+		          price, currency, category, emoji,
+		          event_key, status, total_tickets, available_tickets, requires_payment,
+		          thumbnail_url, video_url, flier_url, is_featured, created_at, updated_at`,
 		strings.Join(setClauses, ", "), argIdx, argIdx+1,
 	)
 
@@ -368,6 +438,7 @@ func (r *Repository) Update(ctx context.Context, id, organizerID string, req Upd
 	err := r.db.QueryRow(ctx, query, args...).Scan(
 		&ev.ID, &ev.OrganizerID, &ev.Title, &ev.Description,
 		&ev.Date, &ev.Time, &ev.EndDate, &ev.Location,
+		&ev.City, &ev.EventType, &ev.Latitude, &ev.Longitude, &ev.OnlineLink,
 		&ev.Price, &ev.Currency, &ev.Category, &ev.Emoji, &ev.EventKey,
 		&ev.Status, &ev.TotalTickets, &ev.AvailableTickets, &ev.RequiresPayment,
 		&ev.ThumbnailURL, &ev.VideoURL, &ev.FlierURL, &ev.IsFeatured,

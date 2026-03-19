@@ -41,25 +41,34 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-/**
- * RustProxy: HTTP client for forwarding to Rust backend
- */
+// RustProxy forwards requests from the Go gateway to the Rust core service.
+// A single shared http.Client with a tuned Transport is used for all requests.
+// This keeps TCP connections alive between calls instead of dialing fresh each time.
 type RustProxy struct {
-	baseURL string         // Rust service URL (e.g., http://localhost:8001)
-	client  *http.Client   // HTTP client with timeout
+	baseURL string
+	client  *http.Client
 }
 
-/**
- * NewRustProxy: Constructor
- * 
- * @param rustServiceURL - Rust backend URL
- * @returns Proxy client with 30s timeout
- */
 func NewRustProxy(rustServiceURL string) *RustProxy {
+	// Transport is the connection pool. All proxy calls go to one host (Rust),
+	// so MaxIdleConnsPerHost is set high to match expected concurrency.
+	// DisableCompression avoids CPU overhead — JSON payloads are already small.
+	transport := &http.Transport{
+		MaxIdleConns:        512,
+		MaxIdleConnsPerHost: 512, // All traffic goes to one host
+		IdleConnTimeout:     90 * time.Second,
+		DisableCompression:  true,
+		// These match Go's defaults but are explicit for auditability:
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
 	return &RustProxy{
 		baseURL: rustServiceURL,
 		client: &http.Client{
-			Timeout: 30 * time.Second,
+			// 10s is generous for an internal service call.
+			// If Rust takes >10s something is seriously wrong.
+			Timeout:   10 * time.Second,
+			Transport: transport,
 		},
 	}
 }

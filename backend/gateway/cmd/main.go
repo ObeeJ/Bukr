@@ -1,104 +1,77 @@
-/**
- * INFRASTRUCTURE LAYER - Application Entry Point
- * 
- * Main: The orchestrator - bootstrapping the Go Gateway
- * 
- * Architecture Layer: Infrastructure (Layer 6)
- * Responsibility: Application startup, dependency injection, routing
- * 
- * Startup Flow:
- * 1. Load environment variables
- * 2. Initialize database and Redis connections
- * 3. Create Fiber app with global middleware
- * 4. Initialize repositories (data access)
- * 5. Initialize services (business logic)
- * 6. Initialize handlers (HTTP controllers)
- * 7. Register routes (public, protected, proxy)
- * 8. Start HTTP server with graceful shutdown
- * 
- * Architecture Pattern: Dependency Injection
- * - Repositories depend on database
- * - Services depend on repositories
- * - Handlers depend on services
- * - Routes compose handlers with middleware
- * 
- * Polyglot Architecture:
- * - Go Gateway: Auth, CRUD (users, events, favorites, influencers)
- * - Rust Core: High-throughput (tickets, payments, scanner, analytics)
- * - Proxy: Seamless forwarding with auth headers
- */
-
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/bukr/gateway/internal/admin"
+	"github.com/bukr/gateway/internal/credits"
 	"github.com/bukr/gateway/internal/events"
 	"github.com/bukr/gateway/internal/favorites"
+	"github.com/bukr/gateway/internal/influencer_portal"
 	"github.com/bukr/gateway/internal/influencers"
 	"github.com/bukr/gateway/internal/middleware"
+	"github.com/bukr/gateway/internal/notifications"
 	"github.com/bukr/gateway/internal/proxy"
 	"github.com/bukr/gateway/internal/shared"
 	"github.com/bukr/gateway/internal/users"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/gofiber/fiber/v2/middleware/recover"
+	redisStorage "github.com/gofiber/storage/redis/v3"
 	"github.com/joho/godotenv"
 )
 
-/**
- * Main: Application entry point
- * 
- * Bootstraps the entire Go Gateway application
- */
 func main() {
-	// Load environment variables from .env file
 	_ = godotenv.Load("../.env")
-
-	// Load configuration from environment
 	cfg := shared.LoadConfig()
 
-	// Initialize database connection pool
 	db := shared.NewDatabasePool(cfg.DatabaseURL)
 	if db != nil {
 		defer db.Close()
 	}
 
-	// Fetch Supabase EC public key for JWT verification (ES256)
-	// Supabase now uses asymmetric keys — no shared secret needed
 	pubKey, err := middleware.FetchSupabasePublicKey(cfg.SupabaseURL)
 	if err != nil {
 		log.Fatalf("Failed to fetch Supabase public key: %v", err)
 	}
 	log.Println("Supabase EC public key loaded")
 
-	// Initialize Redis client (optional, graceful degradation)
 	rdb := shared.NewRedisClient(cfg.RedisURL)
 	if rdb != nil {
 		defer rdb.Close()
 	}
 
-	// Create Fiber application
+	workerCtx, cancelWorker := context.WithCancel(context.Background())
+	defer cancelWorker()
+	notifications.NewWorker(db, rdb).Start(workerCtx)
+
 	app := fiber.New(fiber.Config{
 		AppName:      "Bukr Gateway",
 		ErrorHandler: globalErrorHandler,
 	})
 
-	// Global middleware (applied to all routes)
-	app.Use(recover.New())                          // Panic recovery
-	app.Use(middleware.RequestLogger())             // Request logging
-	app.Use(middleware.SetupCORS(cfg.AllowedOrigins)) // CORS
-	
-	// Rate limiting - global protection against DDoS
+	app.Use(recover.New())
+	app.Use(middleware.RequestLogger())
+	app.Use(middleware.SetupCORS(cfg.AllowedOrigins))
+
+	// Rate limiter backed by Redis so the limit is shared across all gateway
+	// instances. Without Redis, each instance would have its own counter and
+	// the effective limit would be N * 100 per IP under a load balancer.
+	var limiterStore fiber.Storage
+	if cfg.RedisURL != "" {
+		limiterStore = redisStorage.New(redisStorage.Config{URL: cfg.RedisURL})
+	}
 	app.Use(limiter.New(limiter.Config{
-		Max:        100,              // 100 requests
-		Expiration: 60,               // per 60 seconds
+		Max:        100,
+		Expiration: 60,
+		Storage:    limiterStore, // nil = in-memory (fine for single-instance dev)
 		KeyGenerator: func(c *fiber.Ctx) string {
-			return c.IP()             // Rate limit by IP address
+			return c.IP()
 		},
 		LimitReached: func(c *fiber.Ctx) error {
 			return c.Status(429).JSON(shared.APIResponse{
@@ -111,101 +84,121 @@ func main() {
 		},
 	}))
 
-	// Health check endpoint
 	app.Get("/health", func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{
-			"status":  "ok",
-			"service": "bukr-gateway",
-		})
+		return c.JSON(fiber.Map{"status": "ok", "service": "bukr-gateway"})
 	})
 
-	// API v1 base group
 	v1 := app.Group("/api/v1")
 
-	// PUBLIC ROUTES (no authentication required)
-	
-	// Events (public: list, search, get by ID/key)
+	// PUBLIC ROUTES
 	eventsPublic := v1.Group("/events")
 	eventRepo := events.NewRepository(db)
-	eventService := events.NewService(eventRepo)
+	// Pass rdb so the service can cache event lists and individual events.
+	eventService := events.NewService(eventRepo, rdb)
 	eventHandler := events.NewHandler(eventService)
 	eventHandler.RegisterPublicRoutes(eventsPublic)
 
-	// PROTECTED ROUTES (authentication required)
-	
-	// Auth middleware (validates JWT, provisions users)
-	auth := middleware.RequireAuth(pubKey, db)
+	// PROTECTED ROUTES
+	// Pass rdb to RequireAuth so user resolution uses the two-layer cache.
+	auth := middleware.RequireAuth(pubKey, db, rdb)
 
-	// Users (profile management)
 	usersGroup := v1.Group("/users", auth)
 	userRepo := users.NewRepository(db)
 	userService := users.NewService(userRepo)
 	userHandler := users.NewHandler(userService)
 	userHandler.RegisterRoutes(usersGroup)
 
-	// Events (protected: create, update, delete, my events)
 	eventsProtected := v1.Group("/events", auth)
 	eventHandler.RegisterProtectedRoutes(eventsProtected)
 
-	// Favorites (bookmark events)
 	favGroup := v1.Group("/favorites", auth)
 	favRepo := favorites.NewRepository(db)
 	favService := favorites.NewService(favRepo)
 	favHandler := favorites.NewHandler(favService)
 	favHandler.RegisterRoutes(favGroup)
 
-	// Influencers (organizer only - referral management)
 	infGroup := v1.Group("/influencers", auth, middleware.RequireOrganizer())
 	infRepo := influencers.NewRepository(db)
 	infService := influencers.NewService(infRepo, cfg.AllowedOrigins)
 	infHandler := influencers.NewHandler(infService)
 	infHandler.RegisterRoutes(infGroup)
 
-	// PROXY ROUTES (forward to Rust Core service)
-	
-	// Initialize proxy client
+	// PROXY ROUTES
 	rustProxy := proxy.NewRustProxy(cfg.RustServiceURL)
 	proxyHandler := proxy.NewHandler(rustProxy)
 
-	// Tickets (auth required - proxied to Rust)
-	// Stricter rate limit for ticket purchases (prevent inventory exhaustion)
+	// Ticket rate limiter: per-user, Redis-backed when available.
+	var ticketLimiterStore fiber.Storage
+	if cfg.RedisURL != "" {
+		ticketLimiterStore = redisStorage.New(redisStorage.Config{URL: cfg.RedisURL})
+	}
 	ticketGroup := v1.Group("/tickets", auth, limiter.New(limiter.Config{
-		Max:        10,               // 10 requests
-		Expiration: 60,               // per 60 seconds
+		Max:        10,
+		Expiration: 60,
+		Storage:    ticketLimiterStore,
 		KeyGenerator: func(c *fiber.Ctx) string {
-			return c.Locals("user_id").(string) // Rate limit by user
+			return c.Locals("user_id").(string)
 		},
 	}))
 	proxyHandler.RegisterTicketRoutes(ticketGroup)
 
-	// Scanner (auth required - proxied to Rust)
 	scannerGroup := v1.Group("/scanner", auth)
 	proxyHandler.RegisterScannerRoutes(scannerGroup)
 
-	// Payments (auth required for init/verify, webhooks are public)
 	paymentGroup := v1.Group("/payments", auth)
 	proxyHandler.RegisterPaymentRoutes(paymentGroup)
-	proxyHandler.RegisterPaymentWebhooks(v1.Group("/payments")) // Webhooks bypass auth
+	proxyHandler.RegisterPaymentWebhooks(v1.Group("/payments"))
 
-	// Analytics (organizer only - proxied to Rust)
 	analyticsGroup := v1.Group("/analytics", auth, middleware.RequireOrganizer())
 	proxyHandler.RegisterAnalyticsRoutes(analyticsGroup)
 
-	// Promo codes (auth required - proxied to Rust)
 	promoGroup := v1.Group("/promos", auth)
 	proxyHandler.RegisterPromoRoutes(promoGroup)
 
-	// Graceful shutdown handling
+	vendorPublic := v1.Group("/vendors")
+	proxyHandler.RegisterVendorPublicRoutes(vendorPublic)
+
+	vendorProtected := v1.Group("/vendors", auth)
+	proxyHandler.RegisterVendorProtectedRoutes(vendorProtected)
+
+	hireGroup := v1.Group("/vendor-hires", auth)
+	proxyHandler.RegisterHireRoutes(hireGroup)
+
+	reviewGroup := v1.Group("/vendor-reviews", auth, middleware.RequireOrganizer())
+	proxyHandler.RegisterVendorReviewRoutes(reviewGroup)
+
+	inviteGroup := v1.Group("/vendor-invitations", auth)
+	proxyHandler.RegisterVendorInvitationRoutes(inviteGroup)
+
+	vendorSelf := v1.Group("/vendor/me", auth)
+	proxyHandler.RegisterVendorSelfRoutes(vendorSelf)
+
+	infPortalRepo := influencer_portal.NewRepository(db, cfg.AllowedOrigins)
+	infPortalHandler := influencer_portal.NewHandler(infPortalRepo)
+	infPortalGroup := v1.Group("/influencer", auth)
+	infPortalHandler.RegisterRoutes(infPortalGroup)
+	infPortalHandler.RegisterClaimRoute(infPortalGroup)
+
+	paystackSecret := cfg.PaystackSecret
+	creditsRepo := credits.NewRepository(db)
+	creditsService := credits.NewService(creditsRepo, paystackSecret, cfg.AllowedOrigins)
+	creditsHandler := credits.NewHandler(creditsService, paystackSecret)
+	creditsGroup := v1.Group("/credits", auth, middleware.RequireOrganizer())
+	creditsHandler.RegisterRoutes(creditsGroup)
+	creditsHandler.RegisterWebhook(v1.Group("/payments"))
+
+	adminGroup := v1.Group("/admin", auth, middleware.RequireAdmin())
+	adminHandler := admin.NewHandler(db)
+	adminHandler.RegisterRoutes(adminGroup)
+
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-
 	go func() {
 		<-quit
 		log.Println("Shutting down server...")
 		app.Shutdown()
 	}()
 
-	// Start HTTP server
 	addr := fmt.Sprintf(":%s", cfg.Port)
 	log.Printf("Bukr Gateway starting on %s", addr)
 	if err := app.Listen(addr); err != nil {
@@ -213,18 +206,11 @@ func main() {
 	}
 }
 
-/**
- * globalErrorHandler: Centralized error handling
- * 
- * Converts all errors to consistent API response format
- * Extracts HTTP status code from Fiber errors
- */
 func globalErrorHandler(c *fiber.Ctx, err error) error {
 	code := fiber.StatusInternalServerError
 	if e, ok := err.(*fiber.Error); ok {
 		code = e.Code
 	}
-
 	return c.Status(code).JSON(shared.APIResponse{
 		Status: "error",
 		Error: &shared.APIError{

@@ -25,15 +25,16 @@ import (
  * Contains connection strings, secrets, and feature flags
  */
 type Config struct {
-	Port             string  // HTTP port to listen on (default: 8080)
-	SupabaseURL      string  // Supabase project URL
-	SupabaseKey      string  // Supabase service role key (admin access)
-	SupabaseJWTSecret string // JWT secret for token validation
-	DatabaseURL      string  // PostgreSQL connection string
-	RedisURL         string  // Redis connection string (for caching)
-	RustServiceURL   string  // Internal URL to Rust core service
-	AllowedOrigins   string  // CORS allowed origins (comma-separated)
-	LogLevel         string  // Logging level (debug, info, warn, error)
+	Port              string
+	SupabaseURL       string
+	SupabaseKey       string
+	SupabaseJWTSecret string
+	DatabaseURL       string
+	RedisURL          string
+	RustServiceURL    string
+	AllowedOrigins    string
+	LogLevel          string
+	PaystackSecret    string // for credits webhook verification
 }
 
 /**
@@ -71,6 +72,7 @@ func LoadConfig() *Config {
 		
 		// Log level - default to info (not too verbose, not too quiet)
 		LogLevel:         getEnv("LOG_LEVEL", "info"),
+		PaystackSecret:   getEnv("PAYSTACK_SECRET_KEY", ""),
 	}
 
 	// Warn if database URL is missing - app will work but with limited features

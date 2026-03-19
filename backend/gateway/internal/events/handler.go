@@ -91,11 +91,13 @@ func (h *Handler) RegisterProtectedRoutes(router fiber.Router) {
  */
 func (h *Handler) ListEvents(c *fiber.Ctx) error {
 	q := ListEventsQuery{
-		Page:     queryInt(c, "page", 1),
-		Limit:    queryInt(c, "limit", 20),
-		Category: c.Query("category"),
-		Status:   c.Query("status"),
-		Search:   c.Query("search"),
+		Page:      queryInt(c, "page", 1),
+		Limit:     queryInt(c, "limit", 20),
+		Category:  c.Query("category"),
+		Status:    c.Query("status"),
+		Search:    c.Query("search"),
+		City:      c.Query("city"),
+		EventType: c.Query("event_type"),
 	}
 
 	result, err := h.service.List(c.Context(), q)
@@ -207,7 +209,8 @@ func (h *Handler) CreateEvent(c *fiber.Ctx) error {
 	event, err := h.service.Create(c.Context(), claims.UserID, req)
 	if err != nil {
 		if errors.Is(err, shared.ErrValidation) {
-			return shared.Error(c, fiber.StatusBadRequest, shared.CodeValidationError, "Missing required fields: title, date, time, location, total_tickets")
+			// Unwrap to get the specific message (e.g. online_link required)
+			return shared.Error(c, fiber.StatusBadRequest, shared.CodeValidationError, err.Error())
 		}
 		return shared.Error(c, fiber.StatusInternalServerError, shared.CodeInternalError, "Failed to create event")
 	}

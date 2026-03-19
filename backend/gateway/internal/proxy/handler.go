@@ -154,6 +154,85 @@ func (h *Handler) RegisterAnalyticsRoutes(router fiber.Router) {
 }
 
 /**
+ * RegisterVendorRoutes: Forward vendor marketplace endpoints to Rust
+ *
+ * Routes (mix of public and auth-protected — auth enforced in main.go groups):
+ * - GET  /vendors              → search + browse marketplace (public)
+ * - POST /vendors              → register as vendor (auth)
+ * - GET  /vendors/match        → AI matchmaking (organizer)
+ * - GET  /vendors/:id          → vendor profile (public)
+ * - POST /vendors/availability → set availability calendar (vendor)
+ * - POST /vendor-hires         → request hire (organizer)
+ * - POST /vendor-hires/:id/respond   → accept/decline/counter (vendor)
+ * - POST /vendor-hires/:id/complete  → mark completed (organizer)
+ * - POST /vendor-reviews       → submit review (organizer)
+ * - POST /vendor-invitations   → send invite by email (organizer)
+ * - GET  /vendor-invitations/claim/:token → claim invite (public, but needs auth)
+ * - GET  /vendor/me/hires      → vendor's own hire requests (vendor)
+ */
+func (h *Handler) RegisterVendorPublicRoutes(router fiber.Router) {
+	router.Get("/", func(c *fiber.Ctx) error {
+		return h.proxy.Forward(c, "/api/v1/vendors")
+	})
+	router.Get("/match", func(c *fiber.Ctx) error {
+		return h.proxy.Forward(c, "/api/v1/vendors/match")
+	})
+	router.Get("/:id", func(c *fiber.Ctx) error {
+		id := c.Params("id")
+		return h.proxy.Forward(c, fmt.Sprintf("/api/v1/vendors/%s", id))
+	})
+}
+
+func (h *Handler) RegisterVendorProtectedRoutes(router fiber.Router) {
+	router.Post("/", func(c *fiber.Ctx) error {
+		return h.proxy.Forward(c, "/api/v1/vendors")
+	})
+	router.Post("/availability", func(c *fiber.Ctx) error {
+		return h.proxy.Forward(c, "/api/v1/vendors/availability")
+	})
+}
+
+func (h *Handler) RegisterHireRoutes(router fiber.Router) {
+	router.Post("/", func(c *fiber.Ctx) error {
+		return h.proxy.Forward(c, "/api/v1/vendor-hires")
+	})
+	router.Get("/event/:event_id", func(c *fiber.Ctx) error {
+		id := c.Params("event_id")
+		return h.proxy.Forward(c, fmt.Sprintf("/api/v1/vendor-hires/event/%s", id))
+	})
+	router.Post("/:id/respond", func(c *fiber.Ctx) error {
+		id := c.Params("id")
+		return h.proxy.Forward(c, fmt.Sprintf("/api/v1/vendor-hires/%s/respond", id))
+	})
+	router.Post("/:id/complete", func(c *fiber.Ctx) error {
+		id := c.Params("id")
+		return h.proxy.Forward(c, fmt.Sprintf("/api/v1/vendor-hires/%s/complete", id))
+	})
+}
+
+func (h *Handler) RegisterVendorReviewRoutes(router fiber.Router) {
+	router.Post("/", func(c *fiber.Ctx) error {
+		return h.proxy.Forward(c, "/api/v1/vendor-reviews")
+	})
+}
+
+func (h *Handler) RegisterVendorInvitationRoutes(router fiber.Router) {
+	router.Post("/", func(c *fiber.Ctx) error {
+		return h.proxy.Forward(c, "/api/v1/vendor-invitations")
+	})
+	router.Get("/claim/:token", func(c *fiber.Ctx) error {
+		token := c.Params("token")
+		return h.proxy.Forward(c, fmt.Sprintf("/api/v1/vendor-invitations/claim/%s", token))
+	})
+}
+
+func (h *Handler) RegisterVendorSelfRoutes(router fiber.Router) {
+	router.Get("/hires", func(c *fiber.Ctx) error {
+		return h.proxy.Forward(c, "/api/v1/vendor/me/hires")
+	})
+}
+
+/**
  * RegisterPromoRoutes: Forward promo code endpoints to Rust
  * 
  * Routes:

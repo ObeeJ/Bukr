@@ -34,6 +34,11 @@ type CreateEventRequest struct {
 	Time            string   `json:"time" validate:"required"`          // HH:MM:SS
 	EndDate         *string  `json:"end_date"`                          // Optional multi-day
 	Location        string   `json:"location" validate:"required"`
+	City            string   `json:"city"`                              // Extracted city; auto-derived if blank
+	EventType       string   `json:"event_type"`                        // physical | online | hybrid (default: physical)
+	Latitude        *float64 `json:"latitude"`                          // WGS84 — enables distance feature
+	Longitude       *float64 `json:"longitude"`                         // WGS84 — enables distance feature
+	OnlineLink      *string  `json:"online_link"`                       // Required for online/hybrid events
 	Price           float64  `json:"price" validate:"gte=0"`            // Free events = 0
 	Currency        string   `json:"currency"`                          // NGN, USD, etc
 	Category        string   `json:"category" validate:"required"`      // Music, Sports, etc
@@ -54,6 +59,11 @@ type UpdateEventRequest struct {
 	Time            *string  `json:"time"`
 	EndDate         *string  `json:"end_date"`
 	Location        *string  `json:"location"`
+	City            *string  `json:"city"`
+	EventType       *string  `json:"event_type"`      // physical | online | hybrid
+	Latitude        *float64 `json:"latitude"`
+	Longitude       *float64 `json:"longitude"`
+	OnlineLink      *string  `json:"online_link"`
 	Price           *float64 `json:"price"`
 	Currency        *string  `json:"currency"`
 	Category        *string  `json:"category"`
@@ -68,11 +78,13 @@ type UpdateEventRequest struct {
 
 // ListEventsQuery: Event filtering and pagination
 type ListEventsQuery struct {
-	Page     int    `query:"page"`       // Page number (1-indexed)
-	Limit    int    `query:"limit"`      // Items per page
-	Category string `query:"category"`   // Filter by category
-	Status   string `query:"status"`     // Filter by status
-	Search   string `query:"search"`     // Search title/description/location
+	Page      int    `query:"page"`        // Page number (1-indexed)
+	Limit     int    `query:"limit"`       // Items per page
+	Category  string `query:"category"`    // Filter by category
+	Status    string `query:"status"`      // Filter by status
+	Search    string `query:"search"`      // Search title/description/location
+	City      string `query:"city"`        // Filter by city (case-insensitive)
+	EventType string `query:"event_type"`  // Filter by physical | online | hybrid
 }
 
 /**
@@ -88,30 +100,35 @@ type OrganizerInfo struct {
 
 // EventResponse: Public event details
 type EventResponse struct {
-	ID               string        `json:"id"`
-	OrganizerID      string        `json:"organizer_id"`
-	Title            string        `json:"title"`
-	Description      string        `json:"description"`
-	Date             string        `json:"date"`
-	Time             string        `json:"time"`
-	EndDate          *string       `json:"end_date,omitempty"`
-	Location         string        `json:"location"`
-	Price            float64       `json:"price"`
-	Currency         string        `json:"currency"`
-	Category         string        `json:"category"`
-	Emoji            *string       `json:"emoji,omitempty"`
-	EventKey         string        `json:"event_key"`           // URL slug
-	Status           string        `json:"status"`
-	TotalTickets     int           `json:"total_tickets"`
-	AvailableTickets int           `json:"available_tickets"`
-	SoldTickets      int           `json:"sold_tickets"`        // Calculated
-	RequiresPayment  bool          `json:"requires_payment"`    // If false, free to claim
-	ThumbnailURL     *string       `json:"thumbnail_url,omitempty"`
-	VideoURL         *string       `json:"video_url,omitempty"`
-	FlierURL         *string       `json:"flier_url,omitempty"`
-	IsFeatured       bool          `json:"is_featured"`
+	ID               string         `json:"id"`
+	OrganizerID      string         `json:"organizer_id"`
+	Title            string         `json:"title"`
+	Description      string         `json:"description"`
+	Date             string         `json:"date"`
+	Time             string         `json:"time"`
+	EndDate          *string        `json:"end_date,omitempty"`
+	Location         string         `json:"location"`
+	City             string         `json:"city"`
+	EventType        string         `json:"event_type"`
+	Latitude         *float64       `json:"latitude,omitempty"`
+	Longitude        *float64       `json:"longitude,omitempty"`
+	OnlineLink       *string        `json:"online_link,omitempty"`
+	Price            float64        `json:"price"`
+	Currency         string         `json:"currency"`
+	Category         string         `json:"category"`
+	Emoji            *string        `json:"emoji,omitempty"`
+	EventKey         string         `json:"event_key"`
+	Status           string         `json:"status"`
+	TotalTickets     int            `json:"total_tickets"`
+	AvailableTickets int            `json:"available_tickets"`
+	SoldTickets      int            `json:"sold_tickets"`
+	RequiresPayment  bool           `json:"requires_payment"`
+	ThumbnailURL     *string        `json:"thumbnail_url,omitempty"`
+	VideoURL         *string        `json:"video_url,omitempty"`
+	FlierURL         *string        `json:"flier_url,omitempty"`
+	IsFeatured       bool           `json:"is_featured"`
 	Organizer        *OrganizerInfo `json:"organizer,omitempty"`
-	CreatedAt        time.Time     `json:"created_at"`
+	CreatedAt        time.Time      `json:"created_at"`
 }
 
 // EventListResponse: Paginated event list
@@ -142,6 +159,11 @@ type Event struct {
 	Time             string
 	EndDate          *string
 	Location         string
+	City             string
+	EventType        string
+	Latitude         *float64
+	Longitude        *float64
+	OnlineLink       *string
 	Price            float64
 	Currency         string
 	Category         string
@@ -188,6 +210,11 @@ func (e *Event) ToResponse() EventResponse {
 		Time:             e.Time,
 		EndDate:          e.EndDate,
 		Location:         e.Location,
+		City:             e.City,
+		EventType:        e.EventType,
+		Latitude:         e.Latitude,
+		Longitude:        e.Longitude,
+		OnlineLink:       e.OnlineLink,
 		Price:            e.Price,
 		Currency:         e.Currency,
 		Category:         e.Category,
