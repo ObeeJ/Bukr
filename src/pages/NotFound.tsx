@@ -38,9 +38,8 @@ const NotFound = () => {
   // This helps developers identify broken links and user confusion
   // In production, you'd send this to an analytics service
   useEffect(() => {
-    console.error("404 Error: User attempted to access non-existent route:", location.pathname);
-    // TODO: Send to analytics service (Google Analytics, Mixpanel, etc.)
-  }, [location.pathname]); // Re-run if pathname changes
+    // In production, send 404s to an analytics service instead of console
+  }, [location.pathname]);
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">

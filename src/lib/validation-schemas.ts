@@ -46,7 +46,7 @@ export const purchaseTicketSchema = z.object({
   quantity: z.number().int().min(1).max(10),
   ticketType: z.string().optional(),
   promoCode: z.string().optional(),
-  paymentProvider: z.enum(['paystack', 'stripe']),
+  paymentProvider: z.enum(['paystack']),
   excitementRating: z.number().int().min(1).max(5).optional(),
 });
 

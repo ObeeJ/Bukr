@@ -54,12 +54,11 @@ const Events = () => {
   // Called on mount AND after successful create/edit
   const fetchEvents = async () => {
     try {
-      setLoading(true); // Show loading state
-      const data = await getAllEvents(); // API call to Go gateway
-      setEvents(data); // Update state with fresh data
-    } catch (error) {
-      console.error("Failed to fetch events", error);
-      // In production, you'd show a toast notification here
+      setLoading(true);
+      const data = await getAllEvents();
+      setEvents(data);
+    } catch {
+      // error is surfaced via empty state UI
     } finally {
       setLoading(false); // Hide loading state (runs whether success or error)
     }

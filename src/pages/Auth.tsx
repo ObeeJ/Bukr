@@ -247,8 +247,8 @@ const Auth = () => {
       setFeedback({ type: "error", msg: "We need your name." });
       return;
     }
-    if (form.password.length < 6) {
-      setFeedback({ type: "error", msg: "Password needs at least 6 characters." });
+    if (form.password.length < 8 || getPasswordStrength(form.password) < 2) {
+      setFeedback({ type: "error", msg: "Password must be 8+ characters with uppercase letters and numbers." });
       return;
     }
     setIsLoading(true);
@@ -327,7 +327,7 @@ const Auth = () => {
           <div className="auth-stats">
             {[
               { value: "< 3s", label: "Avg. Booking Time" },
-              { value: "0%", label: "Hidden Fees" },
+              { value: "2%", label: "That's All We Take" },
               { value: "24/7", label: "Support" },
             ].map(({ value, label }) => (
               <div key={label} className="auth-stat">

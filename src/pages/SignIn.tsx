@@ -74,10 +74,6 @@ const SignIn = () => {
       });
       // Note: Navigation happens automatically in AuthContext after successful login
     } catch (err: any) {
-      console.error('Sign in error:', err);
-
-      // ERROR HANDLING - Translate technical errors to human language
-      // This is UX gold: users don't care about HTTP status codes
       const msg = err.message?.toLowerCase() || "";
       if (msg.includes("invalid login credentials") || msg.includes("invalid credentials")) {
         toast.error("Wrong email or password", {

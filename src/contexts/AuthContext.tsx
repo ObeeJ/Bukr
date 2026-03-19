@@ -73,8 +73,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const profile = await getProfile();
       setUser(profile);
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
+    } catch {
       setUser(null);
     } finally {
       setIsLoading(false);
@@ -157,7 +156,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       // If session is null, email confirmation is required — AuthCallback handles the rest.
     } catch (error) {
-      console.error('SignUp error:', error);
       throw error;
     } finally {
       setIsLoading(false);
@@ -189,7 +187,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       navigate("/app"); 
       
     } catch (error) {
-      console.error('SignIn error:', error);
       throw error;
     } finally {
       setIsLoading(false);
@@ -203,12 +200,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setIsLoading(true);
     try {
       await supabase.auth.signOut();
-      setUser(null);
-      navigate("/");
-    } catch (error) {
-      console.error('SignOut error:', error);
+    } catch {
+      // signOut failure is non-critical — clear local state regardless
     } finally {
+      setUser(null);
       setIsLoading(false);
+      navigate("/");
     }
   };
 

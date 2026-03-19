@@ -1,15 +1,64 @@
 import React, { useState } from 'react';
 import { useEvent } from '@/contexts/EventContext';
-import { useTicket } from '@/contexts/TicketContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { v4 as uuid } from 'uuid';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Star, Download, Share2, Check, Loader2, Tag, Bitcoin } from "lucide-react";
-import QRCode from 'react-qr-code';
+import { Star, Loader2, Tag, Check, ChevronDown, ChevronUp, ShieldCheck } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
+import { purchaseTicket } from "@/api/tickets";
+import { useNavigate } from "react-router-dom";
+
+// ── Fee engine (mirrors Rust fees.rs exactly) ─────────────────────────────────
+const PAYSTACK_RATE = 0.015;
+const PLATFORM_RATE = 0.02;
+const DIVISOR = 1 - PAYSTACK_RATE - PLATFORM_RATE; // 0.965
+
+function ceilTo(value: number, nearest: number): number {
+  return Math.ceil(value / nearest) * nearest;
+}
+
+interface FeeBreakdown {
+  buyerPricePerTicket: number;
+  buyerTotal: number;
+  serviceFee: number;        // platform_fee + bukrshield — shown as one line
+  organizerPayout: number;
+  feeMode: 'pass_to_buyer' | 'absorb';
+}
+
+// Compute buyer-facing fee breakdown.
+// feeMode: 'pass_to_buyer' = organizer set desired payout, we gross up
+//          'absorb'        = organizer set ticket price, fees come from their payout
+function computeFees(
+  desiredPayoutPerTicket: number,
+  quantity: number,
+  feeMode: 'pass_to_buyer' | 'absorb' = 'pass_to_buyer'
+): FeeBreakdown {
+  if (desiredPayoutPerTicket === 0) {
+    return { buyerPricePerTicket: 0, buyerTotal: 0, serviceFee: 0, organizerPayout: 0, feeMode };
+  }
+
+  const shield = desiredPayoutPerTicket < 1000 ? 75 : 100;
+  const roundTo = desiredPayoutPerTicket >= 10_000 ? 100 : 50;
+
+  const buyerPricePerTicket = feeMode === 'pass_to_buyer'
+    ? ceilTo((desiredPayoutPerTicket + shield) / DIVISOR, roundTo)
+    : desiredPayoutPerTicket;
+
+  const buyerTotal     = buyerPricePerTicket * quantity;
+  const platformFee    = buyerTotal * PLATFORM_RATE;
+  const bukrshieldFee  = shield * quantity;
+  const paystackFee    = buyerTotal * PAYSTACK_RATE;
+  const organizerPayout = buyerTotal - paystackFee - platformFee - bukrshieldFee;
+  const serviceFee     = buyerTotal - (feeMode === 'pass_to_buyer' ? desiredPayoutPerTicket * quantity : organizerPayout);
+
+  return { buyerPricePerTicket, buyerTotal, serviceFee: Math.max(0, serviceFee), organizerPayout, feeMode };
+}
+
+function fmt(n: number): string {
+  return '₦' + Math.round(n).toLocaleString('en-NG');
+}
 
 interface BookingFlowProps {
   isOpen: boolean;
@@ -27,21 +76,18 @@ interface BookingFlowProps {
 
 const BookingFlow = ({ isOpen, onClose, event }: BookingFlowProps) => {
   const { toast } = useToast();
-  const [step, setStep] = useState<'rating' | 'quantity' | 'payment' | 'success'>('rating');
+  const navigate = useNavigate();
+  const [step, setStep] = useState<'rating' | 'quantity' | 'processing'>('rating');
   const [rating, setRating] = useState<number>(0);
   const [quantity, setQuantity] = useState<number>(1);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [ticketId, setTicketId] = useState<string>("");
   const [promoCode, setPromoCode] = useState<string>("");
   const [promoApplied, setPromoApplied] = useState(false);
   const [discount, setDiscount] = useState(0);
 
-  const handleRatingSubmit = () => {
-    setStep('quantity');
-  };
+  const handleRatingSubmit = () => setStep('quantity');
 
   const { validatePromo } = useEvent();
-  const { saveTicket } = useTicket();
   const { user } = useAuth();
   
   const applyPromoCode = async () => {
@@ -60,35 +106,33 @@ const BookingFlow = ({ isOpen, onClose, event }: BookingFlowProps) => {
     }
   };
 
-  const handleQuantitySubmit = () => {
+  // Initiate real payment via backend — redirects to Paystack checkout
+  const handleQuantitySubmit = async () => {
+    if (!event.id) {
+      toast({ title: "Error", description: "Invalid event.", variant: "destructive" });
+      return;
+    }
     setIsProcessing(true);
-    
-    // Simulate payment processing with Paystack
-    setTimeout(() => {
-      setIsProcessing(false);
-      
-      // Generate ticket ID and save ticket
-      const generatedTicketId = `BUKR-${Math.floor(Math.random() * 10000)}-${event.id}`;
-      setTicketId(generatedTicketId);
-      
-      // Save ticket to context
-      if (user) {
-        saveTicket({
-          ticketId: generatedTicketId,
-          eventId: event.id,
-          eventKey: event.key || uuid(),
-          userEmail: user.email || 'user@example.com',
-          userName: user.name || 'User',
-          ticketType: 'General Admission',
-          quantity: quantity,
-          price: `$${totalPrice.toFixed(2)}`,
-          status: 'valid',
-          purchaseDate: new Date().toISOString(),
-        });
+    try {
+      const response = await purchaseTicket({
+        eventId: event.id,
+        quantity,
+        promoCode: promoApplied ? promoCode : undefined,
+        provider: 'paystack',
+        callbackUrl: `${window.location.origin}/#/payment/verify`,
+      } as any);
+      // Backend returns a Paystack authorization URL — redirect the user there
+      const authUrl = (response as any).authorizationUrl || (response as any).authorization_url;
+      if (authUrl) {
+        window.location.href = authUrl;
+      } else {
+        toast({ title: "Payment error", description: "Could not initiate payment.", variant: "destructive" });
       }
-      
-      setStep('success');
-    }, 2000);
+    } catch (err: any) {
+      toast({ title: "Payment failed", description: err.message || "Please try again.", variant: "destructive" });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleShare = () => {
@@ -98,14 +142,7 @@ const BookingFlow = ({ isOpen, onClose, event }: BookingFlowProps) => {
         text: `Check out my ticket for ${event.title} on ${event.date}!`,
         url: globalThis.location.href,
       });
-    } else {
-      alert(`Sharing ticket for ${event.title}`);
     }
-  };
-
-  const handleDownload = () => {
-    // In a real app, this would generate and download a PDF ticket
-    alert(`Downloading ticket for ${event.title}`);
   };
 
   const renderStars = () => {
@@ -133,11 +170,12 @@ const BookingFlow = ({ isOpen, onClose, event }: BookingFlowProps) => {
   const ratingLabels = ['Tap a star to rate', 'Not very excited', 'Somewhat excited', 'Excited', 'Very excited', 'Extremely excited!'];
   const ratingLabel = ratingLabels[rating];
 
-  // Calculate price with discount
-  const basePrice = Number.parseFloat(event.price?.replace('$', '') ?? '0');
-  const discountAmount = basePrice * (discount / 100);
-  const finalPrice = basePrice - discountAmount;
-  const totalPrice = finalPrice * quantity;
+  const rawPrice = Number.parseFloat(event.price?.replace(/[^0-9.]/g, '') ?? '0');
+  const discountedPayout = rawPrice * (1 - discount / 100);
+  // feeMode comes from event — default pass_to_buyer
+  const feeMode = (event as any).feeMode ?? 'pass_to_buyer';
+  const fees = computeFees(discountedPayout, quantity, feeMode);
+  const [showBreakdown, setShowBreakdown] = useState(false);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -184,13 +222,7 @@ const BookingFlow = ({ isOpen, onClose, event }: BookingFlowProps) => {
               <div className="mb-6">
                 <Label htmlFor="quantity">Number of Tickets</Label>
                 <div className="flex items-center gap-4 mt-2">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  >
-                    -
-                  </Button>
+                  <Button variant="outline" size="icon" onClick={() => setQuantity(Math.max(1, quantity - 1))}>-</Button>
                   <Input
                     id="quantity"
                     type="number"
@@ -200,17 +232,10 @@ const BookingFlow = ({ isOpen, onClose, event }: BookingFlowProps) => {
                     onChange={(e) => setQuantity(Number.parseInt(e.target.value) || 1)}
                     className="text-center"
                   />
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setQuantity(Math.min(10, quantity + 1))}
-                  >
-                    +
-                  </Button>
+                  <Button variant="outline" size="icon" onClick={() => setQuantity(Math.min(10, quantity + 1))}>+</Button>
                 </div>
               </div>
-              
-              {/* Promo Code */}
+
               <div className="mb-6">
                 <Label htmlFor="promoCode">Promo Code (Optional)</Label>
                 <div className="flex gap-2 mt-2">
@@ -227,133 +252,98 @@ const BookingFlow = ({ isOpen, onClose, event }: BookingFlowProps) => {
                     onClick={applyPromoCode}
                     disabled={isProcessing || !promoCode || promoApplied}
                   >
-                    {isProcessing ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : promoApplied ? (
-                      <Check className="h-4 w-4" />
-                    ) : (
-                      <Tag className="h-4 w-4" />
-                    )}
+                    {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : promoApplied ? <Check className="h-4 w-4" /> : <Tag className="h-4 w-4" />}
                   </Button>
                 </div>
-                {promoApplied && (
-                  <p className="text-xs text-primary mt-1">
-                    {discount}% discount applied!
-                  </p>
-                )}
+                {promoApplied && <p className="text-xs text-primary mt-1">{discount}% discount applied!</p>}
               </div>
-              
-              <div className="space-y-2 mb-6 p-4 bg-primary/10 rounded-lg">
-                <div className="flex justify-between">
-                  <span>Price per ticket:</span>
-                  <span>${basePrice.toFixed(2)}</span>
-                </div>
-                {discount > 0 && (
-                  <div className="flex justify-between text-primary">
-                    <span>Discount ({discount}%):</span>
-                    <span>-${discountAmount.toFixed(2)}</span>
+
+              {/* Price summary — hybrid UI: clean total + expandable breakdown */}
+              <div className="mb-6 rounded-xl border border-border/40 overflow-hidden">
+                {/* Default view: single clean price */}
+                <div className="p-4 bg-primary/5">
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-sm text-muted-foreground">Total</span>
+                    <span className="text-2xl font-bold tracking-tight">
+                      {fees.buyerTotal === 0 ? 'Free' : fmt(fees.buyerTotal)}
+                    </span>
                   </div>
-                )}
-                <div className="flex justify-between">
-                  <span>Final price per ticket:</span>
-                  <span>${finalPrice.toFixed(2)}</span>
+                  {discount > 0 && (
+                    <p className="text-xs text-primary mt-0.5">{discount}% promo discount applied</p>
+                  )}
+                  {fees.buyerTotal > 0 && (
+                    <p className="text-xs text-muted-foreground mt-0.5">All fees included · No hidden charges</p>
+                  )}
                 </div>
-                <div className="flex justify-between font-bold pt-2 border-t border-border/30">
-                  <span>Total:</span>
-                  <span>${totalPrice.toFixed(2)}</span>
-                </div>
-              </div>
-            </div>
-            <div className="flex flex-col gap-2">
-              <Button
-                variant="glow"
-                className="logo font-medium w-full"
-                onClick={handleQuantitySubmit}
-              >
-                {isProcessing ? (
+
+                {/* Expandable breakdown — only shown when buyer taps */}
+                {fees.buyerTotal > 0 && (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Processing...
+                    <button
+                      type="button"
+                      onClick={() => setShowBreakdown(v => !v)}
+                      className="w-full flex items-center justify-between px-4 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors border-t border-border/30"
+                    >
+                      <span>View price details</span>
+                      {showBreakdown
+                        ? <ChevronUp className="h-3.5 w-3.5" />
+                        : <ChevronDown className="h-3.5 w-3.5" />}
+                    </button>
+
+                    {showBreakdown && (
+                      <div className="px-4 pb-4 pt-1 space-y-1.5 border-t border-border/20 bg-background/50">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Ticket{quantity > 1 ? ` × ${quantity}` : ''}</span>
+                          <span>{fmt(rawPrice * quantity)}</span>
+                        </div>
+                        {fees.serviceFee > 0 && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Service &amp; protection</span>
+                            <span>{fmt(fees.serviceFee)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between text-sm font-semibold pt-1.5 border-t border-border/30">
+                          <span>Total</span>
+                          <span>{fmt(fees.buyerTotal)}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground pt-1">
+                          Includes platform service, secure payment processing, and ticket protection.
+                        </p>
+                      </div>
+                    )}
                   </>
-                ) : (
-                  "Pay with Paystack"
                 )}
-              </Button>
-              <Button
-                variant="outline"
-                className="logo font-medium w-full opacity-50 cursor-not-allowed"
-                disabled
-                title="Coming soon"
-              >
-                <Bitcoin className="mr-2 h-4 w-4" />
-                Pay with Crypto
-                <span className="ml-2 text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">Soon</span>
-              </Button>
+              </div>
+
+              {/* BukrShield trust badge — always visible on paid tickets */}
+              {fees.buyerTotal > 0 && (
+                <div className="mb-4 flex items-start gap-2.5 p-3 rounded-lg bg-primary/5 border border-primary/20">
+                  <ShieldCheck className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                  <p className="text-xs text-muted-foreground">
+                    <span className="font-medium text-foreground">BukrShield protected</span>
+                    {' '}— Instant QR delivery, fraud protection &amp; transfer support included.
+                  </p>
+                </div>
+              )}
             </div>
+            <Button
+              variant="glow"
+              className="logo font-medium w-full"
+              onClick={handleQuantitySubmit}
+              disabled={isProcessing}
+            >
+              {isProcessing
+                ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Redirecting to payment...</>
+                : fees.buyerTotal === 0 ? 'Claim Free Ticket' : `Pay ${fmt(fees.buyerTotal)}`}
+            </Button>
           </>
         )}
 
-        {step === 'success' && (
-          <>
-            <DialogHeader>
-              <div className="flex justify-center mb-2">
-                <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
-                  <Check className="h-6 w-6 text-green-600" />
-                </div>
-              </div>
-              <DialogTitle className="text-center">Booking Successful!</DialogTitle>
-              <DialogDescription className="text-center">
-                Your tickets for {event.title} have been confirmed.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="py-6">
-              <div className="bg-white p-4 rounded-xl mb-4">
-                <div className="flex justify-center mb-4">
-                  <QRCode value={ticketId || ''} size={192} />
-                </div>
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground">Ticket ID</p>
-                  <p className="font-mono font-medium">{ticketId}</p>
-                </div>
-              </div>
-              <div className="space-y-2 mb-6">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Event:</span>
-                  <span>{event.title}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Date:</span>
-                  <span>{event.date} • {event.time}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Tickets:</span>
-                  <span>{quantity}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Total Paid:</span>
-                  <span>${totalPrice.toFixed(2)}</span>
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-between">
-              <Button
-                variant="outline"
-                className="logo font-medium"
-                onClick={handleShare}
-              >
-                <Share2 className="mr-2 h-4 w-4" />
-                Share
-              </Button>
-              <Button
-                variant="glow"
-                className="logo font-medium"
-                onClick={handleDownload}
-              >
-                <Download className="mr-2 h-4 w-4" />
-                Download
-              </Button>
-            </div>
-          </>
+        {step === 'processing' && (
+          <div className="py-12 flex flex-col items-center gap-4">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            <p className="text-muted-foreground">Redirecting to payment...</p>
+          </div>
         )}
       </DialogContent>
     </Dialog>

@@ -54,12 +54,9 @@ const PublicEventView = ({ event }: PublicEventViewProps) => {
                     text: `Check out ${event.title} on Bukr!`,
                     url: window.location.href,
                 });
-            } catch (err) {
-                console.error('Error sharing:', err);
+            } catch {
+                // user cancelled share — not an error
             }
-        } else {
-            // Fallback logic could go here
-            alert("Link copied to clipboard!");
         }
     };
 

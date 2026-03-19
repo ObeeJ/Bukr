@@ -36,6 +36,34 @@ import ScannerManagement from "@/pages/ScannerManagement";
 import ResetPassword from "@/pages/ResetPassword";
 import Auth from "@/pages/Auth";
 import AuthCallback from "@/pages/AuthCallback";
+import { lazy, Suspense } from "react";
+
+// Vendor pages (lazy-loaded — not in the critical bundle)
+const VendorMarketplace = lazy(() => import("@/pages/vendors/VendorMarketplace"));
+const VendorProfile = lazy(() => import("@/pages/vendors/VendorProfile"));
+const VendorRegister = lazy(() => import("@/pages/vendors/VendorRegister"));
+const VendorDashboard = lazy(() => import("@/pages/vendors/VendorDashboard"));
+const EventVendors = lazy(() => import("@/pages/vendors/EventVendors"));
+
+// Influencer portal (lazy-loaded)
+const InfluencerDashboard = lazy(() => import("@/pages/influencer/InfluencerDashboard"));
+const InfluencerPayouts = lazy(() => import("@/pages/influencer/InfluencerPayouts"));
+const InfluencerClaim = lazy(() => import("@/pages/influencer/InfluencerClaim"));
+
+// Organizer credits (lazy-loaded)
+const CreditsPage = lazy(() => import("@/pages/organizer/CreditsPage"));
+
+// Admin dashboard (lazy-loaded — large chunk, admin-only)
+const AdminLayout = lazy(() => import("@/pages/admin/AdminLayout"));
+const AdminOverview = lazy(() => import("@/pages/admin/sections/AdminOverview"));
+const AdminUsers = lazy(() => import("@/pages/admin/sections/AdminUsers"));
+const AdminEvents = lazy(() => import("@/pages/admin/sections/AdminEvents"));
+const AdminTickets = lazy(() => import("@/pages/admin/sections/AdminTickets"));
+const AdminFinance = lazy(() => import("@/pages/admin/sections/AdminFinance"));
+const AdminOrganizers = lazy(() => import("@/pages/admin/sections/AdminOrganizers"));
+const AdminVendors = lazy(() => import("@/pages/admin/sections/AdminVendors"));
+const AdminInfluencers = lazy(() => import("@/pages/admin/sections/AdminInfluencers"));
+const AdminSystem = lazy(() => import("@/pages/admin/sections/AdminSystem"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -48,7 +76,7 @@ const queryClient = new QueryClient({
 
 interface ProtectedRouteProps {
   children: JSX.Element;
-  requiredUserType?: "user" | "organizer";
+  requiredUserType?: "user" | "organizer" | "vendor" | "influencer" | "admin";
 }
 
 const ProtectedRoute = ({ children, requiredUserType }: ProtectedRouteProps) => {
@@ -251,7 +279,11 @@ const AppRoutes = () => {
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
       <Route
         path="/payment/verify/:reference"
-        element={<PaymentVerify />}
+        element={
+          <ProtectedRoute>
+            <PaymentVerify />
+          </ProtectedRoute>
+        }
       />
       <Route
         path="/purchase/:eventKey"
@@ -263,6 +295,51 @@ const AppRoutes = () => {
       />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
+
+      {/* ── Vendor marketplace ── */}
+      <Route path="/vendors" element={<Suspense fallback={null}><VendorMarketplace /></Suspense>} />
+      <Route path="/vendors/:id" element={<Suspense fallback={null}><VendorProfile /></Suspense>} />
+      <Route path="/vendor/register" element={
+        <ProtectedRoute><Suspense fallback={null}><VendorRegister /></Suspense></ProtectedRoute>
+      } />
+      <Route path="/vendor-dashboard" element={
+        <ProtectedRoute requiredUserType="vendor"><Suspense fallback={null}><VendorDashboard /></Suspense></ProtectedRoute>
+      } />
+      <Route path="/events/:eventId/vendors" element={
+        <ProtectedRoute requiredUserType="organizer"><Suspense fallback={null}><EventVendors /></Suspense></ProtectedRoute>
+      } />
+
+      {/* ── Influencer portal ── */}
+      <Route path="/influencer" element={
+        <ProtectedRoute requiredUserType="influencer"><Suspense fallback={null}><InfluencerDashboard /></Suspense></ProtectedRoute>
+      } />
+      <Route path="/influencer/payouts" element={
+        <ProtectedRoute requiredUserType="influencer"><Suspense fallback={null}><InfluencerPayouts /></Suspense></ProtectedRoute>
+      } />
+      <Route path="/influencer/claim/:token" element={<Suspense fallback={null}><InfluencerClaim /></Suspense>} />
+
+      {/* ── Organizer credits ── */}
+      <Route path="/credits" element={
+        <ProtectedRoute requiredUserType="organizer"><Suspense fallback={null}><CreditsPage /></Suspense></ProtectedRoute>
+      } />
+
+      {/* ── Admin dashboard ── */}
+      <Route path="/admin" element={
+        <ProtectedRoute requiredUserType="admin">
+          <Suspense fallback={null}><AdminLayout /></Suspense>
+        </ProtectedRoute>
+      }>
+        <Route index element={<Suspense fallback={null}><AdminOverview /></Suspense>} />
+        <Route path="users" element={<Suspense fallback={null}><AdminUsers /></Suspense>} />
+        <Route path="events" element={<Suspense fallback={null}><AdminEvents /></Suspense>} />
+        <Route path="tickets" element={<Suspense fallback={null}><AdminTickets /></Suspense>} />
+        <Route path="finance" element={<Suspense fallback={null}><AdminFinance /></Suspense>} />
+        <Route path="organizers" element={<Suspense fallback={null}><AdminOrganizers /></Suspense>} />
+        <Route path="vendors" element={<Suspense fallback={null}><AdminVendors /></Suspense>} />
+        <Route path="influencers" element={<Suspense fallback={null}><AdminInfluencers /></Suspense>} />
+        <Route path="system" element={<Suspense fallback={null}><AdminSystem /></Suspense>} />
+      </Route>
+
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

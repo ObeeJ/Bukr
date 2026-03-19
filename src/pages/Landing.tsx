@@ -303,7 +303,7 @@ const Landing = () => {
           <div className="landing-stats animate-fade-in" style={{ animationDelay: "0.7s" }}>
             {[
               { value: "< 3s", label: "Avg. Booking Time" },
-              { value: "0%", label: "Hidden Fees" },
+              { value: "2%", label: "That's All We Take" },
               { value: "24/7", label: "Support" },
             ].map(({ value, label }, i) => (
               <FloatingCard key={label} delay={i * 0.15}>

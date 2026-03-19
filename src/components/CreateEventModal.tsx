@@ -36,8 +36,8 @@ const CreateEventModal = ({ trigger }: CreateEventModalProps) => {
       try {
         const weather = await getWeatherPrediction(updatedFormData.date, updatedFormData.location);
         setWeatherPrediction(weather);
-      } catch (error) {
-        console.error("Failed to fetch weather:", error);
+      } catch {
+        // weather fetch failure is non-critical — event creation continues
       } finally {
         setLoadingWeather(false);
       }
@@ -60,8 +60,7 @@ const CreateEventModal = ({ trigger }: CreateEventModalProps) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Creating event:", { ...formData, eventType, weatherPrediction });
-    // In real app, this would make an API call
+    // TODO: wire up to createEvent API
   };
 
   return (

@@ -23,13 +23,73 @@ const api = axios.create({
   },
 });
 
-// Attach Supabase JWT to every outgoing request.
+// In-memory token cache — avoids hitting Supabase on every request.
+interface TokenCache {
+  token: string;
+  expiresAt: number; // Unix seconds
+}
+let _tokenCache: TokenCache | null = null;
+
+// _refreshPromise is the thundering-herd guard.
+// Problem: if 5 requests fire simultaneously and all find the cache empty,
+// all 5 would call getSession() concurrently — 5 redundant async operations.
+// Solution: the first caller creates a promise and stores it here.
+// Every subsequent caller awaits the SAME promise instead of making their own call.
+// When the promise resolves, all 5 callers get the token from one fetch.
+let _refreshPromise: Promise<string | null> | null = null;
+
+// Keep cache in sync with auth state changes (login, logout, token refresh).
+// This is the single source of truth invalidation — no polling needed.
+supabase.auth.onAuthStateChange((_event, session) => {
+  if (session?.access_token && session.expires_at) {
+    _tokenCache = { token: session.access_token, expiresAt: session.expires_at };
+  } else {
+    _tokenCache = null;
+  }
+  // A new session means any in-flight refresh is now stale — clear it.
+  _refreshPromise = null;
+});
+
+// Returns a valid token. Cache hierarchy:
+// 1. In-memory cache hit (synchronous, ~0ms)
+// 2. Coalesced refresh — all concurrent misses share one getSession() call
+// The 30-second buffer ensures we never send a token that expires mid-flight.
+async function getToken(): Promise<string | null> {
+  const nowSecs = Math.floor(Date.now() / 1000);
+
+  // Fast path: valid cached token
+  if (_tokenCache && _tokenCache.expiresAt - nowSecs > 30) {
+    return _tokenCache.token;
+  }
+
+  // Slow path: cache miss or near-expiry.
+  // If a refresh is already in flight, join it instead of starting a new one.
+  if (_refreshPromise) return _refreshPromise;
+
+  // We are the first caller to miss — own the refresh.
+  _refreshPromise = supabase.auth.getSession().then(({ data: { session } }) => {
+    _refreshPromise = null; // release so future misses can refresh again
+    if (session?.access_token && session.expires_at) {
+      _tokenCache = { token: session.access_token, expiresAt: session.expires_at };
+      return session.access_token;
+    }
+    _tokenCache = null;
+    return null;
+  }).catch(() => {
+    _refreshPromise = null;
+    return null;
+  });
+
+  return _refreshPromise;
+}
+
+// Attach JWT to every outgoing request using the cache.
 // Without this, every protected endpoint returns 401.
 api.interceptors.request.use(
   async (config) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.access_token) {
-      config.headers.Authorization = `Bearer ${session.access_token}`;
+    const token = await getToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
@@ -59,7 +119,7 @@ api.interceptors.response.use(
       error.message = body.error.message;
     }
     if (error.response?.status === 401) {
-      console.error('Unauthorized access - session may have expired');
+      // Session expired — let the caller handle it, don't log to console
     }
     return Promise.reject(error);
   }

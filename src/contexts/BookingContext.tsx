@@ -28,7 +28,6 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
    * Adds event to bookings and shows success toast
    */
   const bookNow = (event: any) => {
-    console.log('Booking event:', event);
     setBookings(prev => [...prev, { ...event, bookedAt: new Date() }]);
     toast.success(`Successfully booked: ${event.title || 'Event'}`);
   };

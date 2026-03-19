@@ -75,9 +75,9 @@ export default function SignUp() {
     }
 
     // Validation 2: Password length (security requirement)
-    if (formData.password.length < 6) {
+    if (formData.password.length < 8) {
       toast.error("Password too short 🔑", {
-        description: "Password must be at least 6 characters long."
+        description: "Password must be at least 8 characters long."
       });
       return;
     }
@@ -101,9 +101,6 @@ export default function SignUp() {
       });
       // Note: User needs to verify email before they can sign in
     } catch (error: any) {
-      console.error('Sign up error:', error);
-
-      // ERROR HANDLING - User-friendly messages
       const msg = error.message?.toLowerCase() || "";
       if (msg.includes("already registered") || msg.includes("already exists")) {
         toast.error("Email already taken", {
