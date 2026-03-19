@@ -33,91 +33,58 @@ use sqlx::{PgPool, Row};
 use uuid::Uuid;
 
 use crate::error::{AppError, Result};
+use crate::fees::{compute_fees, FeeMode};
 
-/**
- * DOMAIN LAYER - Payment DTOs
- * 
- * Data structures for payment operations
- */
-
-// Request to start payment process
 #[derive(Debug, Deserialize)]
 pub struct InitializePaymentRequest {
-    pub ticket_id: Uuid,           // Which ticket to pay for
-    pub provider: String,          // "paystack" | "stripe"
-    pub callback_url: String,      // Where to redirect after payment
+    pub ticket_id: Uuid,
+    pub provider: String,
+    pub callback_url: String,
 }
 
-// Response with payment gateway URL
 #[derive(Debug, Serialize)]
 pub struct PaymentInitResponse {
-    pub provider: String,                  // Which gateway was used
-    pub authorization_url: Option<String>, // Paystack URL
-    pub checkout_url: Option<String>,      // Stripe URL
-    pub reference: String,                 // Unique payment reference
+    pub provider: String,
+    pub authorization_url: Option<String>,
+    pub reference: String,
 }
 
-// Paystack webhook callback structure
 #[derive(Debug, Deserialize)]
 pub struct PaystackWebhookPayload {
-    pub event: String,                 // Event type (charge.success, etc)
-    pub data: PaystackWebhookData,     // Payment details
+    pub event: String,
+    pub data: PaystackWebhookData,
 }
 
-// Payment transaction data from Paystack
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PaystackWebhookData {
-    pub reference: String,    // Payment reference
-    pub status: String,       // Payment status
-    pub amount: i64,          // Amount in kobo (NGN) or cents
-    pub currency: String,     // Currency code (NGN, USD, etc)
+    pub reference: String,
+    pub status: String,
+    pub amount: i64,
+    pub currency: String,
 }
 
-/**
- * PaymentService: The money handler
- * 
- * Manages payment lifecycle:
- * - Initialize payment with provider
- * - Verify webhook signatures (security)
- * - Process payment confirmations
- * - Update ticket status
- * 
- * Security Features:
- * - HMAC-SHA512 signature verification
- * - Webhook secret validation
- * - Reference-based idempotency
- */
 pub struct PaymentService {
-    pool: PgPool,                       // Database connection
-    paystack_secret: String,            // Paystack API key
-    stripe_secret: String,              // Stripe API key
-    paystack_webhook_secret: String,    // Paystack webhook secret
-    stripe_webhook_secret: String,      // Stripe webhook secret
+    pool: PgPool,
+    paystack_secret: String,
+    paystack_webhook_secret: String,
+    // Shared client — connection pool reused across all Paystack calls.
+    http: reqwest::Client,
 }
 
 impl PaymentService {
-    /**
-     * Constructor: Initialize payment service with secrets
-     * 
-     * @param pool - Database connection pool
-     * @param paystack_secret - Paystack API key
-     * @param stripe_secret - Stripe API key
-     * @param paystack_webhook_secret - Paystack webhook verification secret
-     * @param stripe_webhook_secret - Stripe webhook verification secret
-     */
     pub fn new(
         pool: PgPool,
         paystack_secret: String,
-        stripe_secret: String,
         paystack_webhook_secret: String,
-        stripe_webhook_secret: String,
     ) -> Self {
         Self {
             pool,
             paystack_secret,
-            stripe_secret,
             paystack_webhook_secret,
-            stripe_webhook_secret,
+            http: reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(10))
+                .build()
+                .expect("reqwest client build failed"),
         }
     }
 
@@ -136,9 +103,10 @@ impl PaymentService {
      * @returns Payment URL and reference
      */
     pub async fn initialize(&self, user_id: Uuid, req: InitializePaymentRequest) -> Result<PaymentInitResponse> {
-        // Fetch ticket with user email (needed for payment gateway)
+        // Fetch ticket with user email (needed for payment gateway).
+        // Also fetch unit_price + quantity so we can compute the Bukr fee breakdown.
         let ticket = sqlx::query(
-            r#"SELECT t.id, t.total_price, t.currency, t.payment_ref, u.email
+            r#"SELECT t.id, t.total_price, t.unit_price, t.quantity, t.currency, t.payment_ref, u.email
             FROM tickets t
             JOIN users u ON t.user_id = u.id
             WHERE t.id = $1 AND t.user_id = $2"#,
@@ -151,9 +119,11 @@ impl PaymentService {
         .ok_or_else(|| AppError::NotFound("Ticket not found".into()))?;
 
         // Extract ticket data
-        let total_price: Decimal = ticket.get("total_price");
-        let currency: String = ticket.get("currency");
-        let email: String = ticket.get("email");
+        let total_price: Decimal  = ticket.get("total_price");
+        let unit_price: Decimal   = ticket.get("unit_price");
+        let quantity: i32         = ticket.get("quantity");
+        let currency: String      = ticket.get("currency");
+        let email: String         = ticket.get("email");
         let payment_ref: Option<String> = ticket.get("payment_ref");
 
         // Generate unique payment reference if not exists
@@ -162,20 +132,24 @@ impl PaymentService {
             format!("BUKR-PAY-{}-{:06x}", chrono::Utc::now().timestamp(), rand::random::<u32>())
         });
 
-        // Route to appropriate payment provider
+        // ─── FEE COMPUTATION (delegates to unified fees engine) ───────────
+        let fee_mode = FeeMode::default(); // reads event.fee_mode in future
+        let fees = compute_fees(unit_price, quantity, &fee_mode);
+        let platform_fee   = fees.platform_fee;
+        let bukrshield_fee = fees.bukrshield_fee;
+        let organizer_payout = fees.organizer_payout;
+        // ─────────────────────────────────────────────────────────────────
+
         match req.provider.as_str() {
             "paystack" => {
-                // Convert price to kobo (Paystack uses smallest currency unit)
-                // NGN 100.00 -> 10000 kobo
                 let amount_kobo = (total_price * Decimal::from(100)).to_string().parse::<i64>().unwrap_or(0);
-
-                // Call Paystack API to get authorization URL
                 let init_resp = self.init_paystack(&email, amount_kobo, &currency, &reference, &req.callback_url).await?;
 
-                // Record transaction in database (idempotent via ON CONFLICT)
                 let _ = sqlx::query(
-                    r#"INSERT INTO payment_transactions (ticket_id, user_id, provider, provider_ref, amount, currency, status)
-                    VALUES ($1, $2, 'paystack', $3, $4, $5, 'pending')
+                    r#"INSERT INTO payment_transactions
+                       (ticket_id, user_id, provider, provider_ref, amount, currency, status,
+                        platform_fee, bukrshield_fee, organizer_payout)
+                    VALUES ($1, $2, 'paystack', $3, $4, $5, 'pending', $6, $7, $8)
                     ON CONFLICT (provider_ref) DO NOTHING"#,
                 )
                 .bind(req.ticket_id)
@@ -183,121 +157,28 @@ impl PaymentService {
                 .bind(&reference)
                 .bind(total_price)
                 .bind(&currency)
+                .bind(platform_fee)
+                .bind(bukrshield_fee)
+                .bind(organizer_payout)
                 .execute(&self.pool)
                 .await;
 
                 Ok(PaymentInitResponse {
                     provider: "paystack".to_string(),
                     authorization_url: Some(init_resp),
-                    checkout_url: None,
                     reference,
                 })
             }
-            "stripe" => {
-                // Convert price to cents (Stripe uses smallest currency unit)
-                let amount_cents = (total_price * Decimal::from(100)).to_string().parse::<i64>().unwrap_or(0);
-
-                // Call Stripe API to create Checkout Session
-                let checkout_url = self.init_stripe(&email, amount_cents, &currency, &reference, &req.callback_url).await?;
-
-                // Record transaction in database
-                let _ = sqlx::query(
-                    r#"INSERT INTO payment_transactions (ticket_id, user_id, provider, provider_ref, amount, currency, status)
-                    VALUES ($1, $2, 'stripe', $3, $4, $5, 'pending')
-                    ON CONFLICT (provider_ref) DO NOTHING"#,
-                )
-                .bind(req.ticket_id)
-                .bind(user_id)
-                .bind(&reference)
-                .bind(total_price)
-                .bind(&currency)
-                .execute(&self.pool)
-                .await;
-
-                Ok(PaymentInitResponse {
-                    provider: "stripe".to_string(),
-                    authorization_url: None,
-                    checkout_url: Some(checkout_url),
-                    reference,
-                })
-            }
-            _ => Err(AppError::Validation("Invalid payment provider. Use 'paystack' or 'stripe'".into())),
+            _ => Err(AppError::Validation("Only 'paystack' is supported".into())),
         }
     }
 
-    /**
-     * Initialize Stripe Checkout Session
-     * 
-     * Calls Stripe API to create payment session
-     * 
-     * @param email - User email
-     * @param amount_cents - Amount in cents (smallest unit)
-     * @param currency - Currency code (USD, EUR, etc)
-     * @param reference - Unique payment reference
-     * @param callback_url - Redirect URL after payment
-     * @returns Checkout URL for user to complete payment
-     */
-    async fn init_stripe(&self, email: &str, amount_cents: i64, currency: &str, reference: &str, callback_url: &str) -> Result<String> {
-        // Development mode: skip API call
-        if self.stripe_secret.is_empty() || self.stripe_secret.starts_with("sk_test_your") {
-            return Ok(format!("https://checkout.stripe.com/mock/{}", reference));
-        }
-
-        // Call Stripe API to create Checkout Session
-        let client = reqwest::Client::new();
-        let resp = client
-            .post("https://api.stripe.com/v1/checkout/sessions")
-            .header("Authorization", format!("Bearer {}", self.stripe_secret))
-            .form(&[
-                ("customer_email", email),
-                ("payment_method_types[]", "card"),
-                ("line_items[0][price_data][currency]", currency),
-                ("line_items[0][price_data][unit_amount]", &amount_cents.to_string()),
-                ("line_items[0][price_data][product_data][name]", "Event Ticket"),
-                ("line_items[0][quantity]", "1"),
-                ("mode", "payment"),
-                ("success_url", callback_url),
-                ("cancel_url", callback_url),
-                ("client_reference_id", reference),
-            ])
-            .send()
-            .await
-            .map_err(|e| AppError::PaymentFailed(format!("Stripe request failed: {}", e)))?;
-
-        // Parse response and extract checkout URL
-        let body: serde_json::Value = resp
-            .json()
-            .await
-            .map_err(|e| AppError::PaymentFailed(format!("Stripe response parse failed: {}", e)))?;
-
-        // Extract url from response
-        body["url"]
-            .as_str()
-            .map(|s| s.to_string())
-            .ok_or_else(|| AppError::PaymentFailed("Stripe did not return checkout URL".into()))
-    }
-
-    /**
-     * Initialize Paystack Transaction
-     * 
-     * Calls Paystack API to create payment session
-     * 
-     * @param email - User email
-     * @param amount_kobo - Amount in kobo (smallest unit)
-     * @param currency - Currency code (NGN, USD, etc)
-     * @param reference - Unique payment reference
-     * @param callback_url - Redirect URL after payment
-     * @returns Authorization URL for user to complete payment
-     */
     async fn init_paystack(&self, email: &str, amount_kobo: i64, currency: &str, reference: &str, callback_url: &str) -> Result<String> {
-        // Development mode: skip API call
         if self.paystack_secret.is_empty() {
             return Ok(format!("https://checkout.paystack.com/mock/{}", reference));
         }
 
-        // Call Paystack API
-        let client = reqwest::Client::new();
-        let resp = client
+        let resp = self.http
             .post("https://api.paystack.co/transaction/initialize")
             .header("Authorization", format!("Bearer {}", self.paystack_secret))
             .json(&serde_json::json!({
@@ -311,78 +192,25 @@ impl PaymentService {
             .await
             .map_err(|e| AppError::PaymentFailed(format!("Paystack request failed: {}", e)))?;
 
-        // Parse response and extract authorization URL
         let body: serde_json::Value = resp
             .json()
             .await
             .map_err(|e| AppError::PaymentFailed(format!("Paystack response parse failed: {}", e)))?;
 
-        // Extract authorization_url from response
         body["data"]["authorization_url"]
             .as_str()
             .map(|s| s.to_string())
             .ok_or_else(|| AppError::PaymentFailed("Paystack did not return authorization_url".into()))
     }
 
-    /**
-     * Verify Paystack Webhook Signature
-     * 
-     * Security: Ensures webhook actually came from Paystack
-     * Uses HMAC-SHA512 to verify request authenticity
-     * 
-     * @param body - Raw webhook request body
-     * @param signature - x-paystack-signature header value
-     * @returns true if signature is valid
-     */
-    /// Verify Stripe webhook signature using HMAC-SHA256 + timestamp tolerance.
-    /// Stripe signs with `t=timestamp,v1=signature` format in the header.
-    pub fn verify_stripe_signature(&self, body: &[u8], signature_header: &str) -> bool {
-        // Development mode: skip verification
-        if self.stripe_webhook_secret.is_empty() {
-            return true;
-        }
-        if signature_header.is_empty() {
-            return false;
-        }
-
-        // Parse t= and v1= from header
-        let mut timestamp = "";
-        let mut v1_sig = "";
-        for part in signature_header.split(',') {
-            if let Some(t) = part.strip_prefix("t=") { timestamp = t; }
-            if let Some(v) = part.strip_prefix("v1=") { v1_sig = v; }
-        }
-        if timestamp.is_empty() || v1_sig.is_empty() {
-            return false;
-        }
-
-        // Signed payload = timestamp + "." + body
-        let signed_payload = format!("{}.{}", timestamp, String::from_utf8_lossy(body));
-
-        use hmac::{Hmac, Mac};
-        use sha2::Sha256;
-        let mut mac = Hmac::<Sha256>::new_from_slice(self.stripe_webhook_secret.as_bytes())
-            .expect("HMAC accepts any key size");
-        mac.update(signed_payload.as_bytes());
-        let expected = hex::encode(mac.finalize().into_bytes());
-
-        // Constant-time comparison
-        expected == v1_sig
-    }
-
     pub fn verify_paystack_signature(&self, body: &[u8], signature: &str) -> bool {
-        // Development mode: skip verification
         if self.paystack_webhook_secret.is_empty() {
             return true;
         }
-
-        // Compute HMAC-SHA512 of request body
         let mut mac = Hmac::<Sha512>::new_from_slice(self.paystack_webhook_secret.as_bytes())
             .expect("HMAC can take key of any size");
         mac.update(body);
         let expected = hex::encode(mac.finalize().into_bytes());
-        
-        // Constant-time comparison
         expected == signature
     }
 
@@ -431,51 +259,6 @@ impl PaymentService {
         Ok(())
     }
 
-    /**
-     * Handle Stripe Webhook
-     * 
-     * Called when Stripe sends payment confirmation
-     * 
-     * @param event_type - Stripe event type
-     * @param reference - Payment reference from client_reference_id
-     */
-    pub async fn handle_stripe_webhook(&self, event_type: &str, reference: &str) -> Result<()> {
-        // Only process successful checkout sessions
-        if event_type != "checkout.session.completed" {
-            return Ok(());
-        }
-
-        // Update payment transaction to success
-        sqlx::query(
-            r#"UPDATE payment_transactions SET status = 'success'
-            WHERE provider_ref = $1"#,
-        )
-        .bind(reference)
-        .execute(&self.pool)
-        .await
-        .map_err(AppError::Database)?;
-
-        // Activate ticket
-        sqlx::query(
-            r#"UPDATE tickets SET status = 'valid' WHERE payment_ref = $1 AND status != 'used'"#,
-        )
-        .bind(reference)
-        .execute(&self.pool)
-        .await
-        .map_err(AppError::Database)?;
-
-        tracing::info!("Stripe webhook processed: {} -> success", reference);
-        Ok(())
-    }
-
-    /**
-     * Verify Payment Status
-     * 
-     * Check payment transaction status by reference
-     * 
-     * @param reference - Payment reference
-     * @returns Payment details (provider, amount, status)
-     */
     pub async fn verify_payment(&self, reference: &str) -> Result<serde_json::Value> {
         // Fetch payment transaction
         let txn = sqlx::query(

@@ -17,6 +17,7 @@ use sqlx::Row;
 use uuid::Uuid;
 
 use crate::error::{AppError, Result};
+use crate::fees::{compute_fees, validate_min_price, FeeMode};
 use crate::promos::repository::PromoRepository;
 use super::dto::{PurchaseTicketRequest, TicketResponse, PaymentInitResponse, PurchaseResponse};
 use super::repository::TicketRepository;
@@ -72,30 +73,42 @@ impl TicketService {
         user_id: Uuid,
         req: PurchaseTicketRequest,
     ) -> Result<PurchaseResponse> {
-        // RULE 1: Quantity validation - because buying 0 or 100 tickets is sus
+        // Input validation — cheap, no DB needed
         if req.quantity < 1 || req.quantity > 10 {
             return Err(AppError::Validation("Quantity must be between 1 and 10".into()));
         }
-
-        // RULE 2: Excitement rating validation (if provided)
         if let Some(rating) = req.excitement_rating {
             if rating < 1 || rating > 10 {
                 return Err(AppError::Validation("Excitement rating must be between 1 and 10".into()));
             }
         }
-
-        // RULE 3: Payment provider validation
-        if req.payment_provider != "paystack" && req.payment_provider != "stripe" {
-            return Err(AppError::Validation("Payment provider must be 'paystack' or 'stripe'".into()));
+        if req.payment_provider != "paystack" {
+            return Err(AppError::Validation("Only 'paystack' is supported".into()));
         }
 
-        // START TRANSACTION - Critical section for race condition prevention
+        // ── STEP 1: Validate promo code BEFORE acquiring the row lock ────────────────────
+        // Promo validation is a read-only query with no side effects.
+        // Doing it outside the transaction means the row lock on `events` is held
+        // for the minimum possible time — critical during high-concurrency sales.
+        let (promo_code_id, discount) = if let Some(ref code) = req.promo_code {
+            let promo = self.promo_repo.validate(req.event_id, code).await
+                .map_err(AppError::Database)?;
+            match promo {
+                Some(p) => (Some(p.id), p.discount_percentage),
+                None => return Err(AppError::PromoInvalid("Invalid or expired promo code".into())),
+            }
+        } else {
+            (None, Decimal::ZERO)
+        };
+
+        // ── STEP 2: Open transaction and acquire row lock ─────────────────────────────
+        // The lock is now held only for: availability check + ticket insert + commit.
+        // Everything else (promo, fee calc, ID generation) is already done.
         let mut tx = self.repo.pool().begin().await.map_err(AppError::Database)?;
 
-        // STEP 1: Fetch event details WITH ROW LOCK (SELECT FOR UPDATE)
-        // This prevents concurrent purchases from seeing the same availability
         let row = sqlx::query(
-            r#"SELECT title, date::text as date, time::text as time, location, price, currency, available_tickets
+            r#"SELECT title, date::text as date, time::text as time, location, price, currency,
+                      available_tickets, organizer_id
             FROM events WHERE id = $1 AND status = 'active' FOR UPDATE"#,
         )
         .bind(req.event_id)
@@ -104,7 +117,6 @@ impl TicketService {
         .map_err(AppError::Database)?
         .ok_or_else(|| AppError::NotFound("Event not found".into()))?;
 
-        // Extract event data - destructuring would be cleaner but explicit is better
         let title: String = row.get("title");
         let date: String = row.get("date");
         let time: String = row.get("time");
@@ -112,69 +124,42 @@ impl TicketService {
         let unit_price: Decimal = row.get("price");
         let currency: String = row.get("currency");
         let available: i32 = row.get("available_tickets");
+        let organizer_id: Uuid = row.get("organizer_id");
 
-        // RULE 2: Availability check - can't sell what we don't have
         if available < req.quantity {
             return Err(AppError::TicketsExhausted);
         }
 
-        // STEP 2: Promo code validation - if they have a coupon, let's check it
-        let mut discount = Decimal::ZERO;  // Start with no discount (pessimistic approach)
-
-        let promo_code_id = if let Some(ref code) = req.promo_code {
-            // They provided a promo code - time to validate
-            // Note: Promo validation uses separate connection, not transaction
-            let promo = self.promo_repo.validate(req.event_id, code).await
-                .map_err(AppError::Database)?;
-            
-            if let Some(p) = promo {
-                // Valid promo! Apply the discount
-                discount = p.discount_percentage;
-                Some(p.id)
-            } else {
-                // Invalid promo - rollback transaction and reject
-                tx.rollback().await.map_err(AppError::Database)?;
-                return Err(AppError::PromoInvalid("Invalid or expired promo code".into()));
-            }
-        } else {
-            // No promo code provided - full price it is
-            None
-        };
-
-        // STEP 3: Price calculation - the math that matters
-        let quantity_dec = Decimal::from_i32(req.quantity).unwrap_or(Decimal::ONE);
+        // ── STEP 3: Fee calculation (pure math, no I/O, lock still held) ─────────────
+        validate_min_price(unit_price).map_err(AppError::Validation)?;
         let discount_multiplier = (Decimal::from(100) - discount) / Decimal::from(100);
-        let total_price = unit_price * quantity_dec * discount_multiplier;
+        let desired_payout = unit_price * discount_multiplier;
+        let fee_mode = FeeMode::default();
+        let fees = compute_fees(desired_payout, req.quantity, &fee_mode);
+        let total_price    = fees.buyer_total;
+        let platform_fee   = fees.platform_fee;
+        let bukrshield_fee = fees.bukrshield_fee;
+        let organizer_payout = fees.organizer_payout;
 
-        // STEP 4: Generate ticket ID - unique and human-readable
-        // Format: BUKR-1234-eventid (first 8 chars)
+        // ── STEP 4: Generate IDs (no I/O) ─────────────────────────────────────────
         let short_id = rand::random::<u16>();
         let ticket_id_str = format!("BUKR-{:04}-{}", short_id, &req.event_id.to_string()[..8]);
-
-        // STEP 5: Generate QR code data - JSON payload for scanning
         let qr_data = serde_json::json!({
             "ticketId": ticket_id_str,
             "eventId": req.event_id.to_string(),
-        })
-        .to_string();
-
-        // STEP 6: Generate payment reference - unique identifier for payment tracking
-        // Format: BUKR-PAY-timestamp-random
+        }).to_string();
         let timestamp = chrono::Utc::now().timestamp();
         let pay_rand: u32 = rand::random();
         let payment_ref = format!("BUKR-PAY-{}-{:06x}", timestamp, pay_rand);
-
-        // Default ticket type if not specified - because everyone deserves admission
         let ticket_type = req.ticket_type.as_deref().unwrap_or("General Admission");
 
-        // STEP 7: Create ticket in database WITHIN TRANSACTION
+        // ── STEP 5: Insert ticket within transaction, then COMMIT ──────────────────
         let ticket = self.repo.create_with_tx(
             &mut tx,
             req.event_id, user_id, &ticket_id_str, ticket_type, req.quantity,
             unit_price, total_price, discount, promo_code_id, &currency,
             &qr_data, &payment_ref, &req.payment_provider, req.excitement_rating,
         ).await.map_err(|e| {
-            // Handle race condition - someone else might have bought the last ticket
             if e.to_string().contains("Not enough tickets") {
                 AppError::TicketsExhausted
             } else {
@@ -182,10 +167,43 @@ impl TicketService {
             }
         })?;
 
-        // COMMIT TRANSACTION - All or nothing
+        // COMMIT — row lock released here. All subsequent work is non-blocking.
         tx.commit().await.map_err(AppError::Database)?;
 
-        // STEP 8: Build response DTOs - separate concerns, clean interfaces
+        // ── STEP 6: Revenue ledger — fire-and-forget after lock release ───────────
+        let pool = self.repo.pool();
+        let ticket_db_id = ticket.id;
+
+        if platform_fee > Decimal::ZERO {
+            let _ = sqlx::query(
+                r#"INSERT INTO platform_revenue
+                   (source, reference_id, organizer_id, amount, currency, meta)
+                   VALUES ('ticket_fee', $1, $2, $3, $4, $5)"#,
+            )
+            .bind(ticket_db_id)
+            .bind(organizer_id)
+            .bind(platform_fee)
+            .bind(&currency)
+            .bind(serde_json::json!({ "quantity": req.quantity, "unit_price": unit_price }))
+            .execute(pool)
+            .await;
+        }
+
+        if bukrshield_fee > Decimal::ZERO {
+            let _ = sqlx::query(
+                r#"INSERT INTO platform_revenue
+                   (source, reference_id, organizer_id, amount, currency, meta)
+                   VALUES ('bukrshield_fee', $1, $2, $3, $4, $5)"#,
+            )
+            .bind(ticket_db_id)
+            .bind(organizer_id)
+            .bind(bukrshield_fee)
+            .bind(&currency)
+            .bind(serde_json::json!({ "quantity": req.quantity }))
+            .execute(pool)
+            .await;
+        }
+
         let ticket_resp = TicketResponse {
             id: ticket.id, ticket_id: ticket.ticket_id, event_id: ticket.event_id,
             event_title: title, event_date: date, event_time: time, event_location: location,
@@ -196,8 +214,6 @@ impl TicketService {
             purchase_date: ticket.purchase_date,
         };
 
-        // STEP 9: Build payment initialization response
-        // Note: This is a mock URL - real implementation would call Paystack API
         let payment_resp = PaymentInitResponse {
             provider: req.payment_provider.clone(),
             authorization_url: Some(format!("https://checkout.paystack.com/{}", payment_ref)),
@@ -205,9 +221,11 @@ impl TicketService {
             reference: payment_ref,
             amount: total_price,
             currency: ticket.currency,
+            platform_fee,
+            bukrshield_fee,
+            organizer_payout,
         };
 
-        // Success! Return both ticket and payment info
         Ok(PurchaseResponse { ticket: ticket_resp, payment: payment_resp })
     }
 

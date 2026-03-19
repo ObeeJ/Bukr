@@ -18,50 +18,30 @@
 
 use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
+use std::time::Duration;
 
-/**
- * Create a PostgreSQL connection pool
- * 
- * Configuration:
- * - max_connections: 20 (how many concurrent connections allowed)
- * - min_connections: 5 (keep this many warm and ready)
- * 
- * Why these numbers?
- * - 20 max: Enough for moderate load, not too many to overwhelm DB
- * - 5 min: Always have connections ready, avoid cold start delays
- * 
- * Pool behavior:
- * - Request comes in -> grab connection from pool
- * - Do database work -> return connection to pool
- * - If pool empty -> wait for available connection
- * - If all connections busy -> queue the request
- * 
- * @param database_url - PostgreSQL connection string (postgres://user:pass@host/db)
- * @returns Connection pool ready for use
- */
 pub async fn create_pool(database_url: &str) -> PgPool {
-    // Check if database URL is provided
     if database_url.is_empty() {
-        // No database URL - log warning and create dummy pool
-        // This allows app to start in dev mode without database
         tracing::warn!("DATABASE_URL not set, database features unavailable");
-        
-        // Create a pool that will fail on use
-        // Better to fail explicitly than silently
         PgPoolOptions::new()
             .max_connections(1)
             .connect("postgres://localhost/nonexistent")
             .await
             .expect("This should not be called without a DATABASE_URL")
     } else {
-        // Database URL provided - create proper connection pool
         PgPoolOptions::new()
-            .max_connections(20)     // Maximum 20 concurrent connections
-            .min_connections(5)      // Keep 5 connections warm
-            .connect(database_url)   // Connect to PostgreSQL
+            // 50 connections: handles concurrent ticket purchase bursts.
+            // Rust handles the hot path (tickets, payments, scanner) so it
+            // needs more headroom than the Go gateway.
+            .max_connections(50)
+            .min_connections(10)
+            // Fail fast under extreme load — better a 503 than a 30s hang.
+            .acquire_timeout(Duration::from_secs(3))
+            // Recycle connections to prevent stale TCP state.
+            .max_lifetime(Duration::from_secs(1800))
+            .idle_timeout(Duration::from_secs(300))
+            .connect(database_url)
             .await
-            .expect("Failed to connect to database")  // Panic if connection fails
-            // Why panic? Because without database, app can't function
-            // Better to fail fast than run in broken state
+            .expect("Failed to connect to database")
     }
 }

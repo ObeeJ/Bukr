@@ -31,7 +31,7 @@ pub struct PurchaseTicketRequest {
     pub ticket_type: Option<String>,         // VIP? General? Standing?
     pub promo_code: Option<String>,          // Got a discount code?
     pub excitement_rating: Option<i32>,      // How hyped are you? (1-5)
-    pub payment_provider: String,            // "paystack" or "stripe"
+    pub payment_provider: String,            // "paystack"
     pub referral_code: Option<String>,       // Came from an influencer?
 }
 
@@ -114,18 +114,22 @@ pub struct PurchaseResponse {
 
 /**
  * PaymentInitResponse: Payment gateway initialization data
- * 
+ *
  * Contains the URL to redirect user to Paystack/Stripe
- * Different providers have different field names - we normalize them
+ * Different providers have different field names - we normalize them.
+ * Also carries fee breakdown so payment service can persist them to payment_transactions.
  */
 #[derive(Debug, Serialize)]
 pub struct PaymentInitResponse {
-    pub provider: String,                    // "paystack" or "stripe"
+    pub provider: String,                    // "paystack"
     pub authorization_url: Option<String>,   // Paystack uses this
     pub checkout_url: Option<String>,        // Stripe uses this
     pub reference: String,                   // Unique payment reference
-    pub amount: Decimal,                     // How much to pay
+    pub amount: Decimal,                     // Attendee pays this (full ticket price)
     pub currency: String,                    // In what currency
+    pub platform_fee: Decimal,               // Bukr's 2% cut (deducted from organizer)
+    pub bukrshield_fee: Decimal,             // ₦100/ticket fraud protection (deducted from organizer)
+    pub organizer_payout: Decimal,           // What organizer actually receives
 }
 
 // INTERNAL MODEL - What lives in the database

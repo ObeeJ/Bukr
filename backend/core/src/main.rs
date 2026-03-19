@@ -35,11 +35,13 @@
 mod config;
 mod db;
 mod error;
+mod fees;
 mod tickets;
 mod promos;
 mod scanner;
 mod payments;
 mod analytics;
+mod vendors;
 
 use std::sync::Arc;
 use axum::{
@@ -125,9 +127,7 @@ async fn build_router(pool: sqlx::PgPool, cfg: config::Config) -> Router {
     let payment_service = Arc::new(payments::service::PaymentService::new(
         pool.clone(),
         cfg.paystack_secret_key,
-        cfg.stripe_secret_key,
         cfg.paystack_webhook_secret,
-        cfg.stripe_webhook_secret,
     ));
 
     // CONTROLLER LAYER: Build route groups
@@ -166,15 +166,32 @@ async fn build_router(pool: sqlx::PgPool, cfg: config::Config) -> Router {
     let payment_routes = Router::new()
         .route("/initialize", post(payments::handler::initialize_payment))
         .route("/webhook/paystack", post(payments::handler::paystack_webhook))
-        .route("/webhook/stripe", post(payments::handler::stripe_webhook))
         .route("/{reference}/verify", get(payments::handler::verify_payment))
         .with_state(payment_service);
 
     // Analytics routes: Reporting and metrics
     let analytics_routes = Router::new()
         .route("/events/{event_id}", get(analytics::handler::get_event_analytics))
-        .route("/dashboard", get(analytics::handler::get_dashboard_summary))
-        .with_state(pool);
+        .route("/dashboard", get(analytics::handler::get_platform_metrics))
+        .with_state(pool.clone());
+
+    // Vendor marketplace routes
+    let vendor_service = Arc::new(vendors::service::VendorService::new(
+        vendors::repository::VendorRepository::new(pool.clone()),
+    ));
+    let vendor_routes = Router::new()
+        .route("/vendors", get(vendors::handler::search_vendors).post(vendors::handler::register_vendor))
+        .route("/vendors/match", get(vendors::handler::match_vendors))
+        .route("/vendors/{id}", get(vendors::handler::get_vendor))
+        .route("/vendors/availability", post(vendors::handler::set_availability))
+        .route("/vendor-hires", post(vendors::handler::request_hire))
+        .route("/vendor-hires/{id}/respond", post(vendors::handler::respond_hire))
+        .route("/vendor-hires/{id}/complete", post(vendors::handler::complete_hire))
+        .route("/vendor-reviews", post(vendors::handler::submit_review))
+        .route("/vendor-invitations", post(vendors::handler::send_invitation))
+        .route("/vendor-invitations/claim/{token}", get(vendors::handler::claim_invitation))
+        .route("/vendor/me/hires", get(vendors::handler::get_my_hires))
+        .with_state(vendor_service);
 
     // MIDDLEWARE LAYER: Configure CORS — restrict to known origins in production
     let allowed_origin = std::env::var("ALLOWED_ORIGINS")
@@ -188,7 +205,11 @@ async fn build_router(pool: sqlx::PgPool, cfg: config::Config) -> Router {
                 .collect::<Vec<_>>(),
         )
         .allow_methods([axum::http::Method::GET, axum::http::Method::POST, axum::http::Method::PUT, axum::http::Method::PATCH, axum::http::Method::DELETE])
-        .allow_headers([axum::http::header::AUTHORIZATION, axum::http::header::CONTENT_TYPE, "x-user-id".parse().unwrap()]);
+        .allow_headers([axum::http::header::AUTHORIZATION, axum::http::header::CONTENT_TYPE, "x-user-id".parse().unwrap()])
+        // Browsers cache the preflight response for 1 hour.
+        // Without this, every POST/PATCH/DELETE to Rust triggers an OPTIONS
+        // preflight before the real request — doubling request count.
+        .max_age(std::time::Duration::from_secs(3600));
 
     // Compose all routes into main router
     Router::new()
@@ -199,6 +220,7 @@ async fn build_router(pool: sqlx::PgPool, cfg: config::Config) -> Router {
         .nest("/api/v1/scanner", scanner_routes)
         .nest("/api/v1/payments", payment_routes)
         .nest("/api/v1/analytics", analytics_routes)
+        .nest("/api/v1", vendor_routes)
         .layer(cors)
         .layer(TraceLayer::new_for_http())
 }

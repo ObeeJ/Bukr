@@ -25,6 +25,7 @@ use axum::{
     extract::{Path, State},
     Json,
 };
+use chrono;
 use serde_json::{json, Value};
 use sqlx::{PgPool, Row};
 use uuid::Uuid;
@@ -110,48 +111,131 @@ pub async fn get_event_analytics(
 }
 
 /**
- * Get Dashboard Summary
- * 
- * Platform-wide analytics for admin dashboard
- * 
- * Metrics:
- * - Total events created
- * - Total revenue across all events
- * - Total tickets sold
- * 
- * Use Case: Platform administrators monitor overall health
- * 
- * @param pool - Database connection pool
- * @returns Platform summary statistics
+ * Get Platform Metrics
+ *
+ * Time-series and funnel metrics for operational observability.
+ *
+ * Metrics returned:
+ * - tickets_sold_per_day: last 30 days, daily granularity
+ * - conversion_rate: (tickets with status != 'pending') / total tickets created
+ * - payment_success_rate: successful payments / total payment attempts
+ * - failed_payments_last_24h: count of failed transactions in last 24 hours
+ * - top_events_by_revenue: top 5 events by total ticket revenue
+ *
+ * Use case: ops dashboard, alerting, capacity planning.
  */
-pub async fn get_dashboard_summary(
+pub async fn get_platform_metrics(
     State(pool): State<PgPool>,
 ) -> Result<Json<Value>> {
-    // Aggregate platform-wide statistics
-    let stats = sqlx::query(
+    // Tickets sold per day — last 30 days
+    let daily_rows = sqlx::query(
         r#"SELECT
-            COUNT(DISTINCT e.id) as event_count,
-            COALESCE(SUM(t.total_price), 0) as total_revenue,
-            COUNT(t.id) as total_tickets_sold
-        FROM events e
-        LEFT JOIN tickets t ON e.id = t.event_id"#,
+               DATE(purchase_date) AS day,
+               COUNT(*)            AS tickets_sold,
+               COALESCE(SUM(total_price), 0) AS revenue
+           FROM tickets
+           WHERE purchase_date >= NOW() - INTERVAL '30 days'
+           GROUP BY DATE(purchase_date)
+           ORDER BY day ASC"#,
+    )
+    .fetch_all(&pool)
+    .await
+    .map_err(AppError::Database)?;
+
+    let tickets_per_day: Vec<serde_json::Value> = daily_rows.iter().map(|r| {
+        json!({
+            "day":          r.get::<chrono::NaiveDate, _>("day").to_string(),
+            "tickets_sold": r.get::<i64, _>("tickets_sold"),
+            "revenue":      r.get::<rust_decimal::Decimal, _>("revenue"),
+        })
+    }).collect();
+
+    // Conversion rate: tickets that moved past 'pending' / all tickets created
+    let conv_row = sqlx::query(
+        r#"SELECT
+               COUNT(*) FILTER (WHERE status != 'pending') AS converted,
+               COUNT(*)                                    AS total
+           FROM tickets
+           WHERE purchase_date >= NOW() - INTERVAL '30 days'"#,
     )
     .fetch_one(&pool)
     .await
     .map_err(AppError::Database)?;
 
-    // Extract statistics
-    let event_count: i64 = stats.get("event_count");
-    let total_revenue: rust_decimal::Decimal = stats.get("total_revenue");
-    let total_tickets_sold: i64 = stats.get("total_tickets_sold");
+    let converted: i64 = conv_row.get("converted");
+    let total_created: i64 = conv_row.get("total");
+    let conversion_rate = if total_created > 0 {
+        (converted as f64 / total_created as f64 * 100.0 * 100.0).round() / 100.0
+    } else {
+        0.0
+    };
 
-    // Return dashboard summary
+    // Payment success rate — last 30 days
+    let pay_row = sqlx::query(
+        r#"SELECT
+               COUNT(*) FILTER (WHERE status = 'success') AS successful,
+               COUNT(*)                                   AS total
+           FROM payment_transactions
+           WHERE created_at >= NOW() - INTERVAL '30 days'"#,
+    )
+    .fetch_one(&pool)
+    .await
+    .map_err(AppError::Database)?;
+
+    let pay_successful: i64 = pay_row.get("successful");
+    let pay_total: i64 = pay_row.get("total");
+    let payment_success_rate = if pay_total > 0 {
+        (pay_successful as f64 / pay_total as f64 * 100.0 * 100.0).round() / 100.0
+    } else {
+        0.0
+    };
+
+    // Failed payments in last 24 hours — operational alert signal
+    let failed_24h: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM payment_transactions WHERE status = 'failed' AND created_at >= NOW() - INTERVAL '24 hours'"
+    )
+    .fetch_one(&pool)
+    .await
+    .map_err(AppError::Database)?;
+
+    // Top 5 events by revenue — last 30 days
+    let top_rows = sqlx::query(
+        r#"SELECT
+               e.id::text,
+               e.title,
+               COUNT(t.id)              AS tickets_sold,
+               COALESCE(SUM(t.total_price), 0) AS revenue,
+               t.currency
+           FROM events e
+           JOIN tickets t ON t.event_id = e.id
+           WHERE t.purchase_date >= NOW() - INTERVAL '30 days'
+           GROUP BY e.id, e.title, t.currency
+           ORDER BY revenue DESC
+           LIMIT 5"#,
+    )
+    .fetch_all(&pool)
+    .await
+    .map_err(AppError::Database)?;
+
+    let top_events: Vec<serde_json::Value> = top_rows.iter().map(|r| {
+        json!({
+            "event_id":     r.get::<String, _>("id"),
+            "title":        r.get::<String, _>("title"),
+            "tickets_sold": r.get::<i64, _>("tickets_sold"),
+            "revenue":      r.get::<rust_decimal::Decimal, _>("revenue"),
+            "currency":     r.get::<String, _>("currency"),
+        })
+    }).collect();
+
     Ok(Json(json!({
         "status": "success",
         "data": {
-            "total_events": event_count,
-            "total_revenue": total_revenue,
-            "total_tickets_sold": total_tickets_sold,
+            "period_days": 30,
+            "tickets_sold_per_day":   tickets_per_day,
+            "conversion_rate_pct":    conversion_rate,
+            "payment_success_rate_pct": payment_success_rate,
+            "failed_payments_last_24h": failed_24h,
+            "top_events_by_revenue":  top_events,
         }
     })))
 }
