@@ -8,7 +8,7 @@ ALTER TABLE users ADD CONSTRAINT users_user_type_check
   CHECK (user_type IN ('user', 'organizer', 'admin', 'vendor'));
 
 -- 2. Vendor profiles
-CREATE TABLE vendors (
+CREATE TABLE IF NOT EXISTS vendors (
   id                      UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id                 UUID         NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
   business_name           VARCHAR(255) NOT NULL,
@@ -47,29 +47,29 @@ CREATE TABLE vendors (
   updated_at              TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_vendors_city        ON vendors(city);
-CREATE INDEX idx_vendors_category    ON vendors(category);
-CREATE INDEX idx_vendors_tier        ON vendors(tier);
-CREATE INDEX idx_vendors_bay_rating  ON vendors(bayesian_rating DESC);
-CREATE INDEX idx_vendors_verified    ON vendors(is_verified);
-CREATE INDEX idx_vendors_available   ON vendors(is_available);
-CREATE INDEX idx_vendors_nationwide  ON vendors(serves_nationwide) WHERE serves_nationwide = TRUE;
+CREATE INDEX IF NOT EXISTS idx_vendors_city        ON vendors(city);
+CREATE INDEX IF NOT EXISTS idx_vendors_category    ON vendors(category);
+CREATE INDEX IF NOT EXISTS idx_vendors_tier        ON vendors(tier);
+CREATE INDEX IF NOT EXISTS idx_vendors_bay_rating  ON vendors(bayesian_rating DESC);
+CREATE INDEX IF NOT EXISTS idx_vendors_verified    ON vendors(is_verified);
+CREATE INDEX IF NOT EXISTS idx_vendors_available   ON vendors(is_available);
+CREATE INDEX IF NOT EXISTS idx_vendors_nationwide  ON vendors(serves_nationwide) WHERE serves_nationwide = TRUE;
 -- Composite for marketplace search: category + city + availability + score
-CREATE INDEX idx_vendors_search ON vendors(category, city, is_available, bayesian_rating DESC);
+CREATE INDEX IF NOT EXISTS idx_vendors_search ON vendors(category, city, is_available, bayesian_rating DESC);
 
 -- 3. Vendor availability calendar
-CREATE TABLE vendor_availability (
+CREATE TABLE IF NOT EXISTS vendor_availability (
   id        UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
   vendor_id UUID    NOT NULL REFERENCES vendors(id) ON DELETE CASCADE,
   date      DATE    NOT NULL,
   is_booked BOOLEAN NOT NULL DEFAULT FALSE,
   UNIQUE(vendor_id, date)
 );
-CREATE INDEX idx_vendor_avail ON vendor_availability(vendor_id, date);
-CREATE INDEX idx_vendor_avail_date ON vendor_availability(date, is_booked);
+CREATE INDEX IF NOT EXISTS idx_vendor_avail ON vendor_availability(vendor_id, date);
+CREATE INDEX IF NOT EXISTS idx_vendor_avail_date ON vendor_availability(date, is_booked);
 
 -- 4. Vendor hire requests
-CREATE TABLE vendor_hires (
+CREATE TABLE IF NOT EXISTS vendor_hires (
   id              UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
   event_id        UUID         NOT NULL REFERENCES events(id) ON DELETE CASCADE,
   vendor_id       UUID         NOT NULL REFERENCES vendors(id),
@@ -95,13 +95,13 @@ CREATE TABLE vendor_hires (
   updated_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_hires_event     ON vendor_hires(event_id);
-CREATE INDEX idx_hires_vendor    ON vendor_hires(vendor_id);
-CREATE INDEX idx_hires_organizer ON vendor_hires(organizer_id);
-CREATE INDEX idx_hires_status    ON vendor_hires(status);
+CREATE INDEX IF NOT EXISTS idx_hires_event     ON vendor_hires(event_id);
+CREATE INDEX IF NOT EXISTS idx_hires_vendor    ON vendor_hires(vendor_id);
+CREATE INDEX IF NOT EXISTS idx_hires_organizer ON vendor_hires(organizer_id);
+CREATE INDEX IF NOT EXISTS idx_hires_status    ON vendor_hires(status);
 
 -- 5. Vendor reviews (one per hire)
-CREATE TABLE vendor_reviews (
+CREATE TABLE IF NOT EXISTS vendor_reviews (
   id          UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
   vendor_id   UUID    NOT NULL REFERENCES vendors(id) ON DELETE CASCADE,
   reviewer_id UUID    NOT NULL REFERENCES users(id),
@@ -112,10 +112,10 @@ CREATE TABLE vendor_reviews (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE(vendor_id, hire_id)
 );
-CREATE INDEX idx_reviews_vendor ON vendor_reviews(vendor_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_vendor ON vendor_reviews(vendor_id);
 
 -- 6. Vendor invitations (organizer invites external vendor not yet on platform)
-CREATE TABLE vendor_invitations (
+CREATE TABLE IF NOT EXISTS vendor_invitations (
   id           UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
   organizer_id UUID         NOT NULL REFERENCES users(id),
   event_id     UUID         REFERENCES events(id),
@@ -127,17 +127,17 @@ CREATE TABLE vendor_invitations (
   expires_at   TIMESTAMPTZ  NOT NULL DEFAULT (NOW() + INTERVAL '7 days'),
   UNIQUE(organizer_id, email, event_id)
 );
-CREATE INDEX idx_invitations_token ON vendor_invitations(token);
-CREATE INDEX idx_invitations_email ON vendor_invitations(email);
+CREATE INDEX IF NOT EXISTS idx_invitations_token ON vendor_invitations(token);
+CREATE INDEX IF NOT EXISTS idx_invitations_email ON vendor_invitations(email);
 
 -- 7. Triggers
 
 -- Auto-update updated_at for vendors and vendor_hires
-CREATE TRIGGER trg_vendors_updated_at
+CREATE OR REPLACE TRIGGER trg_vendors_updated_at
   BEFORE UPDATE ON vendors
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
-CREATE TRIGGER trg_hires_updated_at
+CREATE OR REPLACE TRIGGER trg_hires_updated_at
   BEFORE UPDATE ON vendor_hires
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
@@ -175,7 +175,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_vendor_rating
+CREATE OR REPLACE TRIGGER trg_vendor_rating
   AFTER INSERT ON vendor_reviews
   FOR EACH ROW EXECUTE FUNCTION recompute_vendor_rating();
 
@@ -207,7 +207,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_vendor_hire_stats
+CREATE OR REPLACE TRIGGER trg_vendor_hire_stats
   AFTER UPDATE OF status ON vendor_hires
   FOR EACH ROW
   WHEN (OLD.status IS DISTINCT FROM NEW.status)

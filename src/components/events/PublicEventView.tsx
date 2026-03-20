@@ -66,25 +66,18 @@ const PublicEventView = ({ event }: PublicEventViewProps) => {
 
         // Validation for seated tickets
         if (ticketType.hasSeating && selectedSeats.length !== quantity) {
-            alert(`Please select exactly ${quantity} seat(s). You have selected ${selectedSeats.length}.`);
+            toast.error(`Please select exactly ${quantity} seat(s). You have selected ${selectedSeats.length}.`);
             return;
         }
 
-        // Validate Guest Names (optional but good UI)
+        // Validate Guest Names
         if (quantity > 1 && guestNames.filter(n => n.trim() !== '').length < quantity - 1) {
             const proceed = window.confirm("Some guest names are missing. Proceed anyway?");
             if (!proceed) return;
         }
 
-        // Mock Booking Logic
-        // In a real app, this would make an API call to create multiple tickets
-        alert(`Booking Confirmed! \n\nEvent: ${event.title}\nTicket: ${ticketType.name} x${quantity}\nTotal: ₦${(ticketType.price * quantity).toLocaleString()}\nSeats: ${selectedSeats.join(', ') || 'N/A'}\nGuests: ${guestNames.join(', ') || 'None'}`);
-
-        // Reset or Navigate
-        setSelectedSeats([]);
-        setQuantity(1);
-        setGuestNames([]);
-        // navigate('/tickets'); // Uncomment to redirect
+        // Navigate to purchase page with ticket details
+        navigate(`/purchase/${event.eventKey || event.id}`);
     };
 
     return (

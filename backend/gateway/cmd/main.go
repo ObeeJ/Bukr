@@ -66,6 +66,7 @@ func main() {
 	app.Use(recover.New())
 	app.Use(middleware.RequestLogger())
 	app.Use(middleware.SetupCORS(cfg.AllowedOrigins))
+	app.Use(middleware.SecurityHeaders())
 
 	// Rate limiter backed by Redis so the limit is shared across all gateway
 	// instances. Without Redis, each instance would have its own counter and

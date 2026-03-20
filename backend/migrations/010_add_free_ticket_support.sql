@@ -3,13 +3,13 @@
 
 -- Add requires_payment flag to events
 -- When FALSE, tickets can be claimed without payment
-ALTER TABLE events 
-ADD COLUMN requires_payment BOOLEAN DEFAULT TRUE;
+ALTER TABLE events
+ADD COLUMN IF NOT EXISTS requires_payment BOOLEAN DEFAULT TRUE;
 
 -- Add is_free flag to tickets
 -- Distinguishes free tickets from paid tickets for analytics
-ALTER TABLE tickets 
-ADD COLUMN is_free BOOLEAN DEFAULT FALSE;
+ALTER TABLE tickets
+ADD COLUMN IF NOT EXISTS is_free BOOLEAN DEFAULT FALSE;
 
 -- Add scanner_assignments table for explicit scanner delegation
 -- Organizers can assign specific users as scanners for their events

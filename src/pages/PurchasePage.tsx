@@ -13,13 +13,57 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Star, Download, Share2, Check, Loader2, Tag, ArrowLeft, Bitcoin } from "lucide-react";
+import { Star, Download, Share2, Check, Loader2, Tag, ArrowLeft, Bitcoin, ChevronDown, ChevronUp, ShieldCheck } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import AnimatedLogo from "@/components/AnimatedLogo";
 import { Event } from "@/types";
 import QRCode from "react-qr-code";
+
+// ── Fee engine (mirrors Rust fees.rs exactly) ─────────────────────────────────
+const PAYSTACK_RATE = 0.015;
+const PLATFORM_RATE = 0.02;
+const DIVISOR = 1 - PAYSTACK_RATE - PLATFORM_RATE; // 0.965
+
+function ceilTo(value: number, nearest: number): number {
+  return Math.ceil(value / nearest) * nearest;
+}
+
+interface FeeBreakdown {
+  buyerPricePerTicket: number;
+  buyerTotal: number;
+  serviceFee: number;
+  organizerPayout: number;
+  feeMode: 'pass_to_buyer' | 'absorb';
+}
+
+function computeFees(
+  desiredPayoutPerTicket: number,
+  quantity: number,
+  feeMode: 'pass_to_buyer' | 'absorb' = 'pass_to_buyer'
+): FeeBreakdown {
+  if (desiredPayoutPerTicket === 0) {
+    return { buyerPricePerTicket: 0, buyerTotal: 0, serviceFee: 0, organizerPayout: 0, feeMode };
+  }
+  const shield = desiredPayoutPerTicket < 1000 ? 75 : 100;
+  const roundTo = desiredPayoutPerTicket >= 10_000 ? 100 : 50;
+  const buyerPricePerTicket = feeMode === 'pass_to_buyer'
+    ? ceilTo((desiredPayoutPerTicket + shield) / DIVISOR, roundTo)
+    : desiredPayoutPerTicket;
+  const buyerTotal = buyerPricePerTicket * quantity;
+  const platformFee = buyerTotal * PLATFORM_RATE;
+  const bukrshieldFee = shield * quantity;
+  const paystackFee = buyerTotal * PAYSTACK_RATE;
+  const organizerPayout = buyerTotal - paystackFee - platformFee - bukrshieldFee;
+  const serviceFee = buyerTotal - (feeMode === 'pass_to_buyer' ? desiredPayoutPerTicket * quantity : organizerPayout);
+  return { buyerPricePerTicket, buyerTotal, serviceFee: Math.max(0, serviceFee), organizerPayout, feeMode };
+}
+
+function fmtPrice(n: number, symbol: string): string {
+  return symbol + Math.round(n).toLocaleString();
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 const PurchasePage = () => {
   const { eventKey } = useParams<{ eventKey: string }>();
@@ -43,6 +87,7 @@ const PurchasePage = () => {
   const [event, setEvent] = useState<Event | null>(null);
   const [loadingEvent, setLoadingEvent] = useState(true);
   const [paymentUrl, setPaymentUrl] = useState<string>("");
+  const [showBreakdown, setShowBreakdown] = useState(false);
 
   useEffect(() => {
     const fetchEvent = async () => {
@@ -386,22 +431,70 @@ const PurchasePage = () => {
                     )}
                   </div>
 
-                  <div className="space-y-2 mb-6 p-4 bg-glass/20 rounded-lg">
-                    <div className="flex justify-between text-sm font-montserrat">
-                      <span className="text-muted-foreground">Price per ticket:</span>
-                      <span>{currencySymbol}{basePrice.toLocaleString()}</span>
-                    </div>
-                    {discount > 0 && (
-                      <div className="flex justify-between text-primary text-sm font-montserrat">
-                        <span className="text-muted-foreground">Discount ({discount}%):</span>
-                        <span>-{currencySymbol}{(discountAmount * quantity).toLocaleString()}</span>
+                  {(() => {
+                    const discountedPayout = basePrice * (1 - discount / 100);
+                    const fees = computeFees(discountedPayout, quantity, 'pass_to_buyer');
+                    return (
+                      <div className="mb-6 rounded-xl border border-border/40 overflow-hidden">
+                        <div className="p-4 bg-primary/5">
+                          <div className="flex items-baseline justify-between">
+                            <span className="text-sm text-muted-foreground font-montserrat">Total</span>
+                            <span className="text-2xl font-bold tracking-tight">
+                              {fees.buyerTotal === 0 ? 'Free' : fmtPrice(fees.buyerTotal, currencySymbol)}
+                            </span>
+                          </div>
+                          {discount > 0 && (
+                            <p className="text-xs text-primary mt-0.5 font-montserrat">{discount}% promo discount applied</p>
+                          )}
+                          {fees.buyerTotal > 0 && (
+                            <p className="text-xs text-muted-foreground mt-0.5 font-montserrat">All fees included · No hidden charges</p>
+                          )}
+                        </div>
+                        {fees.buyerTotal > 0 && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setShowBreakdown(v => !v)}
+                              className="w-full flex items-center justify-between px-4 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors border-t border-border/30"
+                            >
+                              <span>View price details</span>
+                              {showBreakdown ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                            </button>
+                            {showBreakdown && (
+                              <div className="px-4 pb-4 pt-1 space-y-1.5 border-t border-border/20 bg-background/50">
+                                <div className="flex justify-between text-sm font-montserrat">
+                                  <span className="text-muted-foreground">Ticket{quantity > 1 ? ` × ${quantity}` : ''}</span>
+                                  <span>{fmtPrice(basePrice * (1 - discount / 100) * quantity, currencySymbol)}</span>
+                                </div>
+                                {fees.serviceFee > 0 && (
+                                  <div className="flex justify-between text-sm font-montserrat">
+                                    <span className="text-muted-foreground">Service &amp; protection</span>
+                                    <span>{fmtPrice(fees.serviceFee, currencySymbol)}</span>
+                                  </div>
+                                )}
+                                <div className="flex justify-between text-sm font-semibold pt-1.5 border-t border-border/30 font-montserrat">
+                                  <span>Total</span>
+                                  <span>{fmtPrice(fees.buyerTotal, currencySymbol)}</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground pt-1 font-montserrat">
+                                  Includes platform service, secure payment processing, and ticket protection.
+                                </p>
+                              </div>
+                            )}
+                          </>
+                        )}
+                        {fees.buyerTotal > 0 && (
+                          <div className="mx-4 mb-4 flex items-start gap-2.5 p-3 rounded-lg bg-primary/5 border border-primary/20">
+                            <ShieldCheck className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                            <p className="text-xs text-muted-foreground font-montserrat">
+                              <span className="font-medium text-foreground">BukrShield protected</span>
+                              {' '}— Instant QR delivery, fraud protection &amp; transfer support included.
+                            </p>
+                          </div>
+                        )}
                       </div>
-                    )}
-                    <div className="flex justify-between font-bold pt-2 border-t border-border/30 font-montserrat">
-                      <span>Total:</span>
-                      <span>{currencySymbol}{totalPrice.toLocaleString()}</span>
-                    </div>
-                  </div>
+                    );
+                  })()}
                 </div>
                 <div className="flex flex-col gap-2">
                   <Button

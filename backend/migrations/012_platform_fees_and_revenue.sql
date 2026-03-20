@@ -12,13 +12,13 @@ ALTER TABLE users ADD CONSTRAINT users_user_type_check
 --    bukrshield_fee  = ₦100 per ticket (all paid events, deducted from organizer payout)
 --    organizer_payout = total_price - platform_fee - bukrshield_fee
 ALTER TABLE payment_transactions
-  ADD COLUMN platform_fee      DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-  ADD COLUMN bukrshield_fee    DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-  ADD COLUMN organizer_payout  DECIMAL(12,2) NOT NULL DEFAULT 0.00;
+  ADD COLUMN IF NOT EXISTS platform_fee      DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  ADD COLUMN IF NOT EXISTS bukrshield_fee    DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  ADD COLUMN IF NOT EXISTS organizer_payout  DECIMAL(12,2) NOT NULL DEFAULT 0.00;
 
 -- 3. Platform revenue ledger: every naira Bukr earns, in one place
 --    This powers admin financial analytics and prevents flying blind on revenue.
-CREATE TABLE platform_revenue (
+CREATE TABLE IF NOT EXISTS platform_revenue (
   id           UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
   source       VARCHAR(40)  NOT NULL CHECK (source IN (
                  'ticket_fee',           -- 2% platform fee on ticket sale
@@ -42,9 +42,9 @@ CREATE TABLE platform_revenue (
   created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_revenue_source    ON platform_revenue(source);
-CREATE INDEX idx_revenue_organizer ON platform_revenue(organizer_id);
-CREATE INDEX idx_revenue_vendor    ON platform_revenue(vendor_id) WHERE vendor_id IS NOT NULL;
-CREATE INDEX idx_revenue_created   ON platform_revenue(created_at);
+CREATE INDEX IF NOT EXISTS idx_revenue_source    ON platform_revenue(source);
+CREATE INDEX IF NOT EXISTS idx_revenue_organizer ON platform_revenue(organizer_id);
+CREATE INDEX IF NOT EXISTS idx_revenue_vendor    ON platform_revenue(vendor_id) WHERE vendor_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_revenue_created   ON platform_revenue(created_at);
 -- Composite for admin finance dashboard queries (date range + source)
-CREATE INDEX idx_revenue_created_source ON platform_revenue(created_at DESC, source);
+CREATE INDEX IF NOT EXISTS idx_revenue_created_source ON platform_revenue(created_at DESC, source);

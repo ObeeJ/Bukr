@@ -12,21 +12,21 @@ ALTER TABLE users ADD CONSTRAINT users_user_type_check
 --    user_id is nullable: organizer-created influencers may not have Bukr accounts yet.
 --    When an influencer claims their account via invite_token, user_id gets set.
 ALTER TABLE influencers
-  ADD COLUMN user_id           UUID         REFERENCES users(id) ON DELETE SET NULL,
-  ADD COLUMN payout_account    JSONB,
+  ADD COLUMN IF NOT EXISTS user_id           UUID         REFERENCES users(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS payout_account    JSONB,
   -- payout_account shape: { bank_code, account_number, account_name, bank_name }
-  ADD COLUMN pending_earnings  DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-  ADD COLUMN total_withdrawn   DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  ADD COLUMN IF NOT EXISTS pending_earnings  DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  ADD COLUMN IF NOT EXISTS total_withdrawn   DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   -- invite_token: sent to influencer's email so they can claim their portal account
-  ADD COLUMN invite_token      VARCHAR(64)   UNIQUE DEFAULT encode(gen_random_bytes(32), 'hex'),
-  ADD COLUMN claimed_at        TIMESTAMPTZ;
+  ADD COLUMN IF NOT EXISTS invite_token      VARCHAR(64)   UNIQUE DEFAULT encode(gen_random_bytes(32), 'hex'),
+  ADD COLUMN IF NOT EXISTS claimed_at        TIMESTAMPTZ;
 
-CREATE INDEX idx_influencers_user  ON influencers(user_id) WHERE user_id IS NOT NULL;
-CREATE INDEX idx_influencers_token ON influencers(invite_token) WHERE invite_token IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_influencers_user  ON influencers(user_id) WHERE user_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_influencers_token ON influencers(invite_token) WHERE invite_token IS NOT NULL;
 
 -- 3. Influencer payout requests
 --    Minimum payout: ₦5,000. Admin approves/rejects manually for now.
-CREATE TABLE influencer_payouts (
+CREATE TABLE IF NOT EXISTS influencer_payouts (
   id            UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
   influencer_id UUID         NOT NULL REFERENCES influencers(id) ON DELETE CASCADE,
   amount        DECIMAL(12,2) NOT NULL CHECK (amount >= 5000),
@@ -44,6 +44,6 @@ CREATE TABLE influencer_payouts (
   paid_at       TIMESTAMPTZ
 );
 
-CREATE INDEX idx_payouts_influencer ON influencer_payouts(influencer_id);
-CREATE INDEX idx_payouts_status     ON influencer_payouts(status);
-CREATE INDEX idx_payouts_requested  ON influencer_payouts(requested_at DESC);
+CREATE INDEX IF NOT EXISTS idx_payouts_influencer ON influencer_payouts(influencer_id);
+CREATE INDEX IF NOT EXISTS idx_payouts_status     ON influencer_payouts(status);
+CREATE INDEX IF NOT EXISTS idx_payouts_requested  ON influencer_payouts(requested_at DESC);

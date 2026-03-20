@@ -93,6 +93,10 @@ func (w *Worker) Start(ctx context.Context) {
 		log.Println("notifications: Redis unavailable — reminder worker disabled")
 		return
 	}
+	if w.db == nil {
+		log.Println("notifications: DB unavailable — reminder worker disabled")
+		return
+	}
 
 	log.Println("notifications: worker started")
 

@@ -88,6 +88,9 @@ func LoadConfig() *Config {
 		if cfg.DatabaseURL == "" {
 			log.Fatal("FATAL: DATABASE_URL is required in production")
 		}
+		if cfg.PaystackSecret == "" {
+			log.Fatal("FATAL: PAYSTACK_SECRET_KEY is required in production")
+		}
 	}
 
 	return cfg
