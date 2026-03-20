@@ -1,18 +1,12 @@
-/**
- * USE CASE LAYER - Scanner Business Logic
- *
- * Scanner Service: The bouncer — decides who gets in, prevents every known fraud vector.
- *
- * Security model (layered defense):
- * 1. Access code verification — only authorized scanners can scan
- * 2. HMAC-signed QR nonce — screenshots are invalid after first scan
- * 3. Redis atomic lock — prevents simultaneous double-scan race condition
- * 4. DB atomic UPDATE WHERE status='valid' — final safety net
- * 5. Audit log — every scan attempt recorded, valid or not
- *
- * event_key resolution: Frontend sends event_key (slug), we resolve to UUID here.
- * This fixes the API contract mismatch without touching the frontend.
- */
+// Scanner Service — the bouncer that decides who gets in.
+//
+// Security layers (in order):
+// 1. Access code verification — only authorised scanners can scan
+// 2. HMAC-signed QR nonce — screenshots invalid after first scan
+// 3. Redis atomic lock — prevents simultaneous double-scan race
+// 4. UsageEngine — handles all ticket models (single/multi/consumable/time_bound/renewable)
+// 5. DB atomic UPDATE WHERE status='valid' — final safety net
+// 6. Audit log — every attempt recorded
 
 use chrono::{DateTime, Utc};
 use hmac::{Hmac, Mac};
@@ -23,22 +17,21 @@ use sqlx::{PgPool, Row};
 use uuid::Uuid;
 
 use crate::error::{AppError, Result};
+use super::usage_engine::{UsageDecision, UsageEngine};
 
-// ─── Request DTOs ────────────────────────────────────────────────────────────
+// ─── Request DTOs ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Deserialize)]
 pub struct VerifyAccessRequest {
     pub event_id: Option<Uuid>,
-    pub event_key: Option<String>, // Accept either — resolve to UUID internally
+    pub event_key: Option<String>,
     pub access_code: String,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct ValidateTicketRequest {
-    // Frontend sends ticket_id + event_key (slug). We resolve event_key → UUID.
     pub ticket_id: String,
     pub event_key: String,
-    // Optional: raw QR JSON for nonce-based validation
     pub qr_data: Option<String>,
 }
 
@@ -49,14 +42,21 @@ pub struct ManualValidateRequest {
     pub event_key: Option<String>,
 }
 
-// ─── Response DTOs ───────────────────────────────────────────────────────────
+#[derive(Debug, Deserialize)]
+pub struct RenewTicketRequest {
+    pub ticket_id: String, // human-readable BUKR-XXXX
+    pub user_id: Uuid,
+}
+
+// ─── Response DTOs ────────────────────────────────────────────────────────────
 
 #[derive(Debug, Serialize)]
 pub struct ScanResult {
-    pub result: String,                 // "valid" | "already_used" | "invalid"
+    pub result: String,              // "valid" | "already_used" | "invalid" | "expired" | "depleted_renewable"
     pub ticket: Option<ScanTicketInfo>,
     pub message: Option<String>,
-    pub new_qr_data: Option<String>,    // Rotated QR payload — scanner app must display this
+    pub new_qr_data: Option<String>,
+    pub usage_left: Option<i32>,     // nil for single-use; present for multi-use
 }
 
 #[derive(Debug, Serialize)]
@@ -66,6 +66,8 @@ pub struct ScanTicketInfo {
     pub ticket_type: String,
     pub quantity: i32,
     pub scanned_at: Option<String>,
+    pub usage_left: Option<i32>,
+    pub usage_total: Option<i32>,
 }
 
 #[derive(Debug, Serialize)]
@@ -90,45 +92,31 @@ pub struct ScanStats {
     pub scan_rate: f64,
 }
 
-// ─── Service ─────────────────────────────────────────────────────────────────
+#[derive(Debug, Serialize)]
+pub struct RenewResult {
+    pub renewed: bool,
+    pub message: String,
+    pub usage_left: Option<i32>,
+    pub requires_payment: bool,
+    pub payment_amount: Option<f64>,
+    pub payment_currency: Option<String>,
+}
+
+// ─── Service ──────────────────────────────────────────────────────────────────
 
 pub struct ScannerService {
     pool: PgPool,
     redis: Option<redis::aio::ConnectionManager>,
-    // HMAC secret for signing QR nonces — loaded from env
     qr_secret: String,
 }
 
 impl ScannerService {
     pub fn new(pool: PgPool) -> Self {
-        // Load Redis connection manager (optional — degrades gracefully)
-        let redis = {
-            let url = std::env::var("REDIS_URL").unwrap_or_default();
-            if url.is_empty() {
-                tracing::warn!("REDIS_URL not set — scan lock disabled, double-scan possible");
-                None
-            } else {
-                match redis::Client::open(url.as_str()) {
-                    Ok(_client) => {
-                        // Lazy init — async manager created in new_with_redis
-                        tracing::info!("Redis configured for scan locking");
-                        None
-                    }
-                    Err(e) => {
-                        tracing::warn!("Redis connection failed: {} — scan lock disabled", e);
-                        None
-                    }
-                }
-            }
-        };
-
         let qr_secret = std::env::var("QR_HMAC_SECRET")
             .unwrap_or_else(|_| "bukr-qr-secret-change-in-production".to_string());
-
-        Self { pool, redis, qr_secret }
+        Self { pool, redis: None, qr_secret }
     }
 
-    /// Build with Redis connection manager (called from main.rs after async runtime starts)
     pub async fn new_with_redis(pool: PgPool) -> Self {
         let redis_url = std::env::var("REDIS_URL").unwrap_or_default();
         let qr_secret = std::env::var("QR_HMAC_SECRET")
@@ -159,10 +147,8 @@ impl ScannerService {
         Self { pool, redis, qr_secret }
     }
 
-    // ─── event_key → event_id resolution ─────────────────────────────────────
+    // ─── event_key → UUID resolution ─────────────────────────────────────────
 
-    /// Resolve event_key (URL slug) to UUID.
-    /// This is the fix for the API contract mismatch — frontend sends slugs, DB needs UUIDs.
     async fn resolve_event_id(&self, event_key: &str) -> Result<Uuid> {
         let row = sqlx::query("SELECT id FROM events WHERE event_key = $1 AND status = 'active'")
             .bind(event_key)
@@ -174,12 +160,8 @@ impl ScannerService {
             .ok_or_else(|| AppError::NotFound(format!("Event '{}' not found", event_key)))
     }
 
-    // ─── HMAC QR nonce ────────────────────────────────────────────────────────
+    // ─── HMAC QR signing ─────────────────────────────────────────────────────
 
-    /// Sign a QR payload: HMAC-SHA256(secret, ticket_id + ":" + nonce)
-    /// The QR code encodes: { ticketId, eventKey, nonce, sig }
-    /// On scan: verify sig, then rotate nonce atomically.
-    /// Any screenshot taken before the scan is now invalid.
     fn sign_qr(&self, ticket_id: &str, nonce: &str) -> String {
         let mut mac = Hmac::<Sha256>::new_from_slice(self.qr_secret.as_bytes())
             .expect("HMAC accepts any key size");
@@ -187,7 +169,6 @@ impl ScannerService {
         hex::encode(mac.finalize().into_bytes())
     }
 
-    /// Build the QR JSON payload that gets encoded into the QR code image
     pub fn build_qr_payload(&self, ticket_id: &str, event_key: &str, nonce: &str) -> String {
         let sig = self.sign_qr(ticket_id, nonce);
         serde_json::json!({
@@ -199,10 +180,8 @@ impl ScannerService {
         .to_string()
     }
 
-    /// Verify QR signature. Returns true if valid.
     fn verify_qr_sig(&self, ticket_id: &str, nonce: &str, sig: &str) -> bool {
         let expected = self.sign_qr(ticket_id, nonce);
-        // Constant-time comparison prevents timing attacks
         expected.len() == sig.len()
             && expected
                 .bytes()
@@ -211,38 +190,74 @@ impl ScannerService {
                 == 0
     }
 
-    // ─── Redis atomic scan lock ───────────────────────────────────────────────
+    // ─── Redis scan lock ──────────────────────────────────────────────────────
 
-    /// Acquire a distributed lock on ticket_id for 10 seconds.
-    /// Returns true if lock acquired (safe to proceed), false if already locked (double-scan).
-    /// Uses SET NX EX — atomic in Redis, no race condition possible.
     async fn acquire_scan_lock(&self, ticket_id: &str) -> bool {
         let Some(ref mut redis) = self.redis.clone() else {
-            // No Redis — allow scan (degraded mode, DB atomic update is still the safety net)
-            return true;
+            return true; // degraded mode — DB atomic update is still the safety net
         };
-
         let key = format!("scan:lock:{}", ticket_id);
         let result: redis::RedisResult<Option<String>> = redis
             .set_options(
                 &key,
                 "1",
                 redis::SetOptions::default()
-                    .conditional_set(redis::ExistenceCheck::NX) // Only set if NOT exists
+                    .conditional_set(redis::ExistenceCheck::NX)
                     .get(false)
-                    .with_expiration(redis::SetExpiry::EX(10)), // Auto-expire in 10s
+                    .with_expiration(redis::SetExpiry::EX(10)),
             )
             .await;
-
         matches!(result, Ok(Some(_)) | Ok(None))
+    }
+
+    // ─── Redis usage cache ────────────────────────────────────────────────────
+
+    // Cache usage state for 60s to avoid a DB read on every scan of multi-use tickets.
+    async fn get_cached_usage(&self, ticket_id: &str) -> Option<(i32, i32, String)> {
+        let Some(ref mut redis) = self.redis.clone() else { return None; };
+        let key = format!("ticket:usage:{}", ticket_id);
+        let val: redis::RedisResult<String> = redis.get(&key).await;
+        val.ok().and_then(|s| {
+            let v: serde_json::Value = serde_json::from_str(&s).ok()?;
+            Some((
+                v["left"].as_i64()? as i32,
+                v["total"].as_i64()? as i32,
+                v["model"].as_str()?.to_string(),
+            ))
+        })
+    }
+
+    async fn set_cached_usage(&self, ticket_id: &str, left: i32, total: i32, model: &str) {
+        let Some(ref mut redis) = self.redis.clone() else { return; };
+        let key = format!("ticket:usage:{}", ticket_id);
+        let val = serde_json::json!({ "left": left, "total": total, "model": model }).to_string();
+        let _: redis::RedisResult<()> = redis.set_ex(&key, val, 60).await;
+    }
+
+    async fn invalidate_usage_cache(&self, ticket_id: &str) {
+        let Some(ref mut redis) = self.redis.clone() else { return; };
+        let key = format!("ticket:usage:{}", ticket_id);
+        let _: redis::RedisResult<()> = redis.del(&key).await;
+    }
+
+    // ─── Fraud signal writer ──────────────────────────────────────────────────
+
+    async fn record_fraud_signal(&self, ticket_id: &str, event_id: Uuid, signal_type: &str, meta: serde_json::Value) {
+        let _ = sqlx::query(
+            "INSERT INTO fraud_signals (ticket_id, event_id, signal_type, meta)
+             SELECT t.id, $2, $3, $4 FROM tickets t WHERE t.ticket_id = $1",
+        )
+        .bind(ticket_id)
+        .bind(event_id)
+        .bind(signal_type)
+        .bind(meta)
+        .execute(&self.pool)
+        .await;
     }
 
     // ─── Public API ───────────────────────────────────────────────────────────
 
-    /// Verify scanner access code before allowing any scanning.
-    /// Accepts event_id (UUID) or event_key (slug) — resolves internally.
     pub async fn verify_access(&self, req: VerifyAccessRequest) -> Result<AccessVerifyResponse> {
-        // Resolve event_id from either field
         let event_id = match req.event_id {
             Some(id) => id,
             None => match &req.event_key {
@@ -252,11 +267,11 @@ impl ScannerService {
         };
 
         let row = sqlx::query(
-            r#"SELECT sac.label, e.id as event_id, e.title, e.date::text as date
-            FROM scanner_access_codes sac
-            JOIN events e ON sac.event_id = e.id
-            WHERE sac.code = $1 AND sac.event_id = $2 AND sac.is_active = true
-              AND (sac.expires_at IS NULL OR sac.expires_at > NOW())"#,
+            "SELECT sac.label, e.id as event_id, e.title, e.date::text as date
+             FROM scanner_access_codes sac
+             JOIN events e ON sac.event_id = e.id
+             WHERE sac.code = $1 AND sac.event_id = $2 AND sac.is_active = true
+               AND (sac.expires_at IS NULL OR sac.expires_at > NOW())",
         )
         .bind(&req.access_code)
         .bind(event_id)
@@ -274,39 +289,33 @@ impl ScannerService {
                 }),
                 gate_label: r.get("label"),
             }),
-            None => Ok(AccessVerifyResponse {
-                verified: false,
-                event: None,
-                gate_label: None,
-            }),
+            None => Ok(AccessVerifyResponse { verified: false, event: None, gate_label: None }),
         }
     }
 
-    /// Validate ticket via QR scan.
-    /// Accepts event_key (slug) — resolves to UUID internally.
-    /// Verifies HMAC signature if qr_data provided.
-    /// Acquires Redis lock before DB update.
     pub async fn validate_ticket(&self, req: ValidateTicketRequest) -> Result<ScanResult> {
-        // Resolve event_key → event_id
         let event_id = self.resolve_event_id(&req.event_key).await?;
 
-        // If full QR JSON provided, verify HMAC signature
+        // HMAC verification if full QR JSON provided
         if let Some(ref qr_json) = req.qr_data {
             if let Ok(qr) = serde_json::from_str::<serde_json::Value>(qr_json) {
                 let nonce = qr["nonce"].as_str().unwrap_or("");
                 let sig = qr["sig"].as_str().unwrap_or("");
                 if !nonce.is_empty() && !sig.is_empty() {
                     if !self.verify_qr_sig(&req.ticket_id, nonce, sig) {
-                        // Log the fraud attempt
-                        tracing::warn!(
-                            "QR signature mismatch for ticket {} — possible screenshot fraud",
-                            req.ticket_id
-                        );
+                        tracing::warn!("QR signature mismatch for ticket {} — possible screenshot fraud", req.ticket_id);
+                        self.record_fraud_signal(
+                            &req.ticket_id,
+                            event_id,
+                            "hmac_mismatch",
+                            serde_json::json!({ "ticket_id": req.ticket_id }),
+                        ).await;
                         return Ok(ScanResult {
-                            result: "invalid".to_string(),
+                            result: "invalid".into(),
                             ticket: None,
-                            message: Some("QR code is invalid or has already been used".to_string()),
+                            message: Some("QR code is invalid or has already been used".into()),
                             new_qr_data: None,
+                            usage_left: None,
                         });
                     }
                 }
@@ -316,7 +325,6 @@ impl ScannerService {
         self.validate_and_mark(&req.ticket_id, event_id, None).await
     }
 
-    /// Manual ticket validation (fallback for damaged QR codes).
     pub async fn manual_validate(&self, req: ManualValidateRequest) -> Result<ScanResult> {
         let event_id = match req.event_id {
             Some(id) => id,
@@ -328,39 +336,41 @@ impl ScannerService {
         self.validate_and_mark(&req.ticket_id, event_id, None).await
     }
 
-    /// Core validation + atomic mark-used logic.
+    /// Core validation + usage engine dispatch.
     ///
-    /// Strategy (DSA: optimistic locking with fallback):
-    /// 1. Redis SET NX — fast distributed lock (O(1), <1ms)
-    /// 2. DB SELECT — read current state
-    /// 3. DB UPDATE WHERE status='valid' — atomic write, only succeeds once
-    /// 4. Rotate QR nonce — invalidate any screenshots taken
-    /// 5. Log to scan_log — audit trail
-    ///
-    /// If Redis is down: step 1 is skipped, step 3 is still atomic (DB constraint).
+    /// Flow:
+    /// 1. Redis SET NX lock — fast distributed lock
+    /// 2. DB SELECT — read ticket state (with Redis usage cache for multi-use)
+    /// 3. UsageEngine.evaluate() — determine what to do
+    /// 4. UsageEngine.apply() — atomic DB write
+    /// 5. Queue notification if usage depleted or low
+    /// 6. Update Redis usage cache
     async fn validate_and_mark(
         &self,
         ticket_id: &str,
         event_id: Uuid,
         scanned_by: Option<Uuid>,
     ) -> Result<ScanResult> {
-        // STEP 1: Acquire Redis lock — prevents simultaneous double-scan
+        // STEP 1: Redis lock — prevents simultaneous double-scan
         if !self.acquire_scan_lock(ticket_id).await {
+            self.record_fraud_signal(ticket_id, event_id, "rapid_rescan", serde_json::json!({})).await;
             return Ok(ScanResult {
-                result: "already_used".to_string(),
+                result: "already_used".into(),
                 ticket: None,
-                message: Some("Ticket is currently being processed".to_string()),
+                message: Some("Ticket is currently being processed".into()),
                 new_qr_data: None,
+                usage_left: None,
             });
         }
 
         // STEP 2: Fetch ticket with user details
         let row = sqlx::query(
-            r#"SELECT t.id, t.ticket_id, t.status, t.ticket_type, t.quantity,
-                      t.scanned_at, t.event_id, u.name as user_name
-            FROM tickets t
-            JOIN users u ON t.user_id = u.id
-            WHERE t.ticket_id = $1 AND t.event_id = $2"#,
+            "SELECT t.id, t.ticket_id, t.status, t.ticket_type, t.quantity,
+                    t.scanned_at, t.event_id, t.usage_model, t.usage_left, t.usage_total,
+                    t.user_id, u.name as user_name
+             FROM tickets t
+             JOIN users u ON t.user_id = u.id
+             WHERE t.ticket_id = $1 AND t.event_id = $2",
         )
         .bind(ticket_id)
         .bind(event_id)
@@ -370,105 +380,196 @@ impl ScannerService {
 
         let row = match row {
             None => {
-                self.log_scan(ticket_id, event_id, scanned_by, "invalid").await;
                 return Ok(ScanResult {
-                    result: "invalid".to_string(),
+                    result: "invalid".into(),
                     ticket: None,
-                    message: Some("Ticket not found for this event".to_string()),
+                    message: Some("Ticket not found for this event".into()),
                     new_qr_data: None,
+                    usage_left: None,
                 });
             }
             Some(r) => r,
         };
 
         let status: String = row.get("status");
-        let _db_ticket_id: Uuid = row.get("id");
+        let ticket_db_id: Uuid = row.get("id");
         let tid: String = row.get("ticket_id");
         let user_name: String = row.get("user_name");
+        let user_id: Uuid = row.get("user_id");
         let ticket_type: String = row.get("ticket_type");
         let quantity: i32 = row.get("quantity");
         let scanned_at: Option<DateTime<Utc>> = row.get("scanned_at");
+        let usage_model: String = row.get("usage_model");
+        let usage_left: Option<i32> = row.get("usage_left");
+        let usage_total: Option<i32> = row.get("usage_total");
 
         if status == "used" {
-            self.log_scan(ticket_id, event_id, scanned_by, "already_used").await;
             return Ok(ScanResult {
-                result: "already_used".to_string(),
+                result: "already_used".into(),
                 ticket: Some(ScanTicketInfo {
                     ticket_id: tid,
                     user_name,
                     ticket_type,
                     quantity,
                     scanned_at: scanned_at.map(|t| t.to_rfc3339()),
+                    usage_left: None,
+                    usage_total: None,
                 }),
                 message: None,
                 new_qr_data: None,
+                usage_left: None,
+            });
+        }
+
+        if status == "expired" {
+            return Ok(ScanResult {
+                result: "expired".into(),
+                ticket: None,
+                message: Some("Ticket has expired".into()),
+                new_qr_data: None,
+                usage_left: None,
             });
         }
 
         if status != "valid" {
-            self.log_scan(ticket_id, event_id, scanned_by, "invalid").await;
             return Ok(ScanResult {
-                result: "invalid".to_string(),
+                result: "invalid".into(),
                 ticket: None,
                 message: Some(format!("Ticket status is '{}'", status)),
                 new_qr_data: None,
+                usage_left: None,
             });
         }
 
-        // STEP 3: Atomic mark-used + nonce rotation in a single transaction
-        // The WHERE status='valid' clause is the final safety net against race conditions.
-        let new_nonce = hex::encode(rand::random::<[u8; 32]>());
-        let update_result = sqlx::query(
-            r#"UPDATE tickets
-               SET status = 'used',
-                   scanned_at = NOW(),
-                   scanned_by = $3,
-                   qr_nonce = $4
-               WHERE ticket_id = $1 AND event_id = $2 AND status = 'valid'
-               RETURNING id"#,
-        )
-        .bind(ticket_id)
-        .bind(event_id)
-        .bind(scanned_by)
-        .bind(&new_nonce)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(AppError::Database)?;
+        // STEP 3: Single-use fast path — skip engine overhead
+        if usage_model == "single" {
+            let new_nonce = hex::encode(rand::random::<[u8; 32]>());
+            let updated = sqlx::query(
+                "UPDATE tickets SET status='used', scanned_at=NOW(), scanned_by=$3, qr_nonce=$4
+                 WHERE ticket_id=$1 AND event_id=$2 AND status='valid'
+                 RETURNING id",
+            )
+            .bind(ticket_id)
+            .bind(event_id)
+            .bind(scanned_by)
+            .bind(&new_nonce)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(AppError::Database)?;
 
-        // If rows_affected = 0, another process beat us to it (race condition caught)
-        if update_result.is_none() {
-            self.log_scan(ticket_id, event_id, scanned_by, "already_used").await;
+            if updated.is_none() {
+                return Ok(ScanResult {
+                    result: "already_used".into(),
+                    ticket: None,
+                    message: Some("Ticket was just scanned by another device".into()),
+                    new_qr_data: None,
+                    usage_left: None,
+                });
+            }
+
+            self.log_scan(ticket_id, event_id, scanned_by, "valid").await;
+            tracing::info!("Ticket {} scanned (single-use)", ticket_id);
+
             return Ok(ScanResult {
-                result: "already_used".to_string(),
-                ticket: None,
-                message: Some("Ticket was just scanned by another device".to_string()),
+                result: "valid".into(),
+                ticket: Some(ScanTicketInfo {
+                    ticket_id: tid,
+                    user_name,
+                    ticket_type,
+                    quantity,
+                    scanned_at: None,
+                    usage_left: None,
+                    usage_total: None,
+                }),
+                message: None,
                 new_qr_data: None,
+                usage_left: None,
             });
         }
 
-        // STEP 4: Log successful scan
-        self.log_scan(ticket_id, event_id, scanned_by, "valid").await;
+        // STEP 4: Multi-use path — delegate to usage engine
+        let engine = UsageEngine::new(&self.pool);
+        let decision = engine.evaluate(ticket_db_id).await?;
 
-        tracing::info!("Ticket {} scanned successfully for event {}", ticket_id, event_id);
+        match &decision {
+            UsageDecision::NotYetValid => {
+                return Ok(ScanResult {
+                    result: "invalid".into(),
+                    ticket: None,
+                    message: Some("Ticket is not valid yet".into()),
+                    new_qr_data: None,
+                    usage_left: None,
+                });
+            }
+            UsageDecision::Expired => {
+                return Ok(ScanResult {
+                    result: "expired".into(),
+                    ticket: None,
+                    message: Some("Ticket has expired".into()),
+                    new_qr_data: None,
+                    usage_left: None,
+                });
+            }
+            UsageDecision::DepletedRenewable => {
+                // Queue renewal prompt notification
+                crate::notifications::queue(
+                    &self.pool,
+                    ticket_db_id,
+                    user_id,
+                    event_id,
+                    "renewal_prompt",
+                    serde_json::json!({ "ticket_id": ticket_id }),
+                ).await;
+                return Ok(ScanResult {
+                    result: "depleted_renewable".into(),
+                    ticket: None,
+                    message: Some("All uses consumed. Renew to continue.".into()),
+                    new_qr_data: None,
+                    usage_left: Some(0),
+                });
+            }
+            _ => {}
+        }
+
+        let usage_left_after = engine.apply(ticket_db_id, ticket_id, event_id, scanned_by, &decision).await?;
+
+        // STEP 5: Queue notification if usage depleted or last use
+        if usage_left_after == 0 {
+            crate::notifications::queue(
+                &self.pool,
+                ticket_db_id,
+                user_id,
+                event_id,
+                "usage_depleted",
+                serde_json::json!({ "ticket_id": ticket_id }),
+            ).await;
+        }
+
+        // STEP 6: Update Redis usage cache
+        if let Some(total) = usage_total {
+            self.set_cached_usage(ticket_id, usage_left_after, total, &usage_model).await;
+        }
+
+        tracing::info!("Ticket {} scanned ({}) — {} uses left", ticket_id, usage_model, usage_left_after);
 
         Ok(ScanResult {
-            result: "valid".to_string(),
+            result: "valid".into(),
             ticket: Some(ScanTicketInfo {
                 ticket_id: tid,
                 user_name,
                 ticket_type,
                 quantity,
                 scanned_at: None,
+                usage_left: Some(usage_left_after),
+                usage_total,
             }),
             message: None,
-            new_qr_data: None, // Nonce rotated in DB; client refreshes from /tickets/me
+            new_qr_data: None,
+            usage_left: Some(usage_left_after),
         })
     }
 
-    /// mark_used: Called by the separate PATCH endpoint (legacy support).
-    /// Delegates to validate_and_mark with event_id lookup by ticket.
     pub async fn mark_used(&self, ticket_id: &str, scanned_by: Option<Uuid>) -> Result<bool> {
-        // Look up event_id from ticket
         let row = sqlx::query("SELECT event_id FROM tickets WHERE ticket_id = $1")
             .bind(ticket_id)
             .fetch_optional(&self.pool)
@@ -481,17 +582,89 @@ impl ScannerService {
         Ok(result.result == "valid")
     }
 
-    /// Get real-time scanning statistics for an event.
+    /// Renew a ticket — reset usage_left to usage_total.
+    /// If the original ticket was paid, returns requires_payment=true with amount.
+    /// If free, renews immediately.
+    pub async fn renew_ticket(&self, req: RenewTicketRequest) -> Result<RenewResult> {
+        let row = sqlx::query(
+            "SELECT t.id, t.usage_total, t.is_renewable, t.unit_price, t.currency,
+                    t.payment_provider, t.user_id, t.event_id,
+                    COALESCE(t.unit_price, 0) as price
+             FROM tickets t
+             WHERE t.ticket_id = $1 AND t.user_id = $2",
+        )
+        .bind(&req.ticket_id)
+        .bind(req.user_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(AppError::Database)?
+        .ok_or_else(|| AppError::NotFound("Ticket not found".into()))?;
+
+        let is_renewable: bool = row.get("is_renewable");
+        if !is_renewable {
+            return Err(AppError::BadRequest("Ticket is not renewable".into()));
+        }
+
+        let ticket_db_id: Uuid = row.get("id");
+        let usage_total: Option<i32> = row.get("usage_total");
+        let unit_price: rust_decimal::Decimal = row.get("price");
+        let currency: String = row.get("currency");
+        let payment_provider: Option<String> = row.get("payment_provider");
+
+        let is_paid = unit_price > rust_decimal::Decimal::ZERO
+            && payment_provider.as_deref() != Some("free");
+
+        if is_paid {
+            // Return payment required — frontend initiates Paystack charge
+            return Ok(RenewResult {
+                renewed: false,
+                message: "Payment required to renew".into(),
+                usage_left: None,
+                requires_payment: true,
+                payment_amount: Some(unit_price.try_into().unwrap_or(0.0)),
+                payment_currency: Some(currency),
+            });
+        }
+
+        // Free ticket — renew immediately
+        let new_left = usage_total.unwrap_or(1);
+        let new_nonce = hex::encode(rand::random::<[u8; 32]>());
+
+        sqlx::query(
+            "UPDATE tickets
+             SET usage_left=$2, status='valid', renewed_at=NOW(),
+                 renewal_count = renewal_count + 1, qr_nonce=$3
+             WHERE id=$1",
+        )
+        .bind(ticket_db_id)
+        .bind(new_left)
+        .bind(&new_nonce)
+        .execute(&self.pool)
+        .await
+        .map_err(AppError::Database)?;
+
+        // Invalidate usage cache so next scan reads fresh state
+        self.invalidate_usage_cache(&req.ticket_id).await;
+
+        Ok(RenewResult {
+            renewed: true,
+            message: format!("Ticket renewed — {} uses restored", new_left),
+            usage_left: Some(new_left),
+            requires_payment: false,
+            payment_amount: None,
+            payment_currency: None,
+        })
+    }
+
     pub async fn get_stats(&self, event_id: Uuid) -> Result<ScanStats> {
         let row = sqlx::query(
-            r#"SELECT
-                e.total_tickets,
-                COUNT(CASE WHEN t.status = 'used' THEN 1 END) as scanned,
-                COUNT(CASE WHEN t.status = 'valid' THEN 1 END) as remaining
-            FROM events e
-            LEFT JOIN tickets t ON e.id = t.event_id
-            WHERE e.id = $1
-            GROUP BY e.total_tickets"#,
+            "SELECT e.total_tickets,
+                    COUNT(CASE WHEN t.status = 'used' THEN 1 END) as scanned,
+                    COUNT(CASE WHEN t.status = 'valid' THEN 1 END) as remaining
+             FROM events e
+             LEFT JOIN tickets t ON e.id = t.event_id
+             WHERE e.id = $1
+             GROUP BY e.total_tickets",
         )
         .bind(event_id)
         .fetch_optional(&self.pool)
@@ -511,17 +684,10 @@ impl ScannerService {
         Ok(ScanStats { total_tickets, scanned, remaining, scan_rate })
     }
 
-    /// Internal: write to scan_log audit table. Fire-and-forget (errors are logged, not propagated).
-    async fn log_scan(
-        &self,
-        ticket_id: &str,
-        event_id: Uuid,
-        scanned_by: Option<Uuid>,
-        result: &str,
-    ) {
+    async fn log_scan(&self, ticket_id: &str, event_id: Uuid, scanned_by: Option<Uuid>, result: &str) {
         let _ = sqlx::query(
-            r#"INSERT INTO scan_log (ticket_id, event_id, scanned_by, result)
-            SELECT t.id, $2, $3, $4 FROM tickets t WHERE t.ticket_id = $1"#,
+            "INSERT INTO scan_log (ticket_id, event_id, scanned_by, result)
+             SELECT t.id, $2, $3, $4 FROM tickets t WHERE t.ticket_id = $1",
         )
         .bind(ticket_id)
         .bind(event_id)

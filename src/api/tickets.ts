@@ -71,3 +71,25 @@ export const transferTicket = async (ticketId: string, toEmail: string): Promise
   const { data } = await api.post(`/tickets/${ticketId}/transfer`, { to_email: toEmail });
   return mapFromApi(data);
 };
+
+/**
+ * getTicketQR
+ * High-level: Fetches a fresh, 3-second rotating QR payload for a ticket.
+ * Low-level: GETs /tickets/:ticketId/qr.
+ */
+export const getTicketQR = async (ticketId: string): Promise<string> => {
+  const { data } = await api.get(`/tickets/${ticketId}/qr`);
+  return data.qrData || '';
+};
+
+export const renewTicket = async (ticketId: string): Promise<{
+  renewed: boolean;
+  message: string;
+  usageLeft?: number;
+  requiresPayment: boolean;
+  paymentAmount?: number;
+  paymentCurrency?: string;
+}> => {
+  const { data } = await api.post(`/tickets/${ticketId}/renew`);
+  return mapFromApi(data.data || data);
+};

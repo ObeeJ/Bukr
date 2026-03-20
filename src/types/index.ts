@@ -39,6 +39,12 @@ export interface Event {
   videoUrl?: string;
   flierUrl?: string;
   isFeatured?: boolean;
+  // NEW: Advanced ticketing
+  nicheType?: string;
+  isMultiUse?: boolean;
+  maxUsage?: number;
+  isTimeBound?: boolean;
+  durationMinutes?: number;
   organizer?: {
     id: string;
     name: string;
@@ -85,10 +91,19 @@ export interface Ticket {
   userName?: string;
   ticketType: string;
   quantity: number;
+  usageModel?: 'single' | 'multi' | 'consumable' | 'time_bound' | 'renewable';
+  usageTotal?: number;
+  usageLeft?: number;
+  usageLimit?: number;
+  usageCount?: number;
+  isRenewable?: boolean;
+  renewalCount?: number;
+  validFrom?: string;
+  validUntil?: string;
   unitPrice?: number;
   discountApplied?: number;
   totalPrice?: number;
-  price?: string; // Formatted price string for display
+  price?: string;
   currency?: string;
   status: 'valid' | 'used' | 'expired' | 'pending' | 'cancelled';
   qrCodeData?: string;
@@ -189,14 +204,17 @@ export interface Influencer {
 
 export interface ScanValidationResult {
   isValid: boolean;
-  status: 'valid' | 'used' | 'invalid';
+  status: 'valid' | 'used' | 'invalid' | 'expired' | 'depleted_renewable';
   message: string;
+  usageLeft?: number;
   ticket?: {
     ticketId: string;
     userName: string;
     ticketType: string;
     quantity: number;
     scannedAt?: string;
+    usageLeft?: number;
+    usageTotal?: number;
   };
 }
 
@@ -242,6 +260,35 @@ export interface SeatingConfig {
   cols?: number;
   tableCount?: number;
   seatsPerTable?: number;
+}
+
+// =====================
+// Notification Types
+// =====================
+
+export type NotificationType =
+  | 'scan_confirmed'
+  | 'usage_depleted'
+  | 'expiry_warning'
+  | 'expired'
+  | 'renewal_prompt';
+
+export interface AppNotification {
+  id: string;
+  ticketId: string;
+  notificationType: NotificationType;
+  message: string;
+  isRead: boolean;
+  sentAt: string | null;
+  createdAt: string;
+}
+
+export interface NotificationPreferences {
+  scanConfirmed: boolean;
+  usageDepleted: boolean;
+  expiryWarning: boolean;
+  expired: boolean;
+  renewalPrompt: boolean;
 }
 
 // =====================

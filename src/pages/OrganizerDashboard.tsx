@@ -6,10 +6,11 @@ import { useEvent } from "@/contexts/EventContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, BarChart, Settings, Plus, Users, Edit, TrendingUp, Ticket, DollarSign } from "lucide-react";
+import { Calendar, BarChart, Settings, Plus, Users, Edit, TrendingUp, Ticket, DollarSign, QrCode } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AnimatedLogo from "@/components/AnimatedLogo";
 import EmptyState from "@/components/EmptyState";
+import TicketScanner from "@/components/TicketScanner";
 import { Event } from "@/types";
 import { getEventAnalytics } from "@/api/analytics";
 import { useToast } from "@/components/ui/use-toast";
@@ -180,6 +181,7 @@ const OrganizerDashboard = () => {
   const { events, fetchMyEvents, loading, error } = useEvent();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("events");
+  const [selectedScanEvent, setSelectedScanEvent] = useState('');
 
   useEffect(() => {
     if (user?.userType === "organizer") {
@@ -292,7 +294,7 @@ const OrganizerDashboard = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-8 bg-glass/20 rounded-[var(--radius)]">
+        <TabsList className="grid w-full grid-cols-4 mb-8 bg-glass/20 rounded-[var(--radius)]">
           <TabsTrigger
             value="events"
             className="flex items-center gap-2 logo font-medium data-[state=active]:bg-primary/20"
@@ -306,6 +308,13 @@ const OrganizerDashboard = () => {
           >
             <BarChart className="w-4 h-4" />
             Analytics
+          </TabsTrigger>
+          <TabsTrigger
+            value="scanner"
+            className="flex items-center gap-2 logo font-medium data-[state=active]:bg-primary/20"
+          >
+            <QrCode className="w-4 h-4" />
+            Scanner
           </TabsTrigger>
           <TabsTrigger
             value="settings"
@@ -388,6 +397,32 @@ const OrganizerDashboard = () => {
 
         <TabsContent value="analytics" className="space-y-4">
           <AnalyticsTab events={events} />
+        </TabsContent>
+
+        <TabsContent value="scanner" className="space-y-4">
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle className="font-medium">Scan Tickets</CardTitle>
+              <CardDescription className="font-montserrat">
+                Select an event to start scanning as organizer. No access code needed.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <select
+                value={selectedScanEvent}
+                onChange={e => setSelectedScanEvent(e.target.value)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm mb-6"
+              >
+                <option value="">Select an event to scan...</option>
+                {events.map(e => (
+                  <option key={e.id} value={e.eventKey || e.id}>{e.title}</option>
+                ))}
+              </select>
+              {selectedScanEvent && (
+                <TicketScanner eventKey={selectedScanEvent} />
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-4">

@@ -12,7 +12,6 @@
  */
 
 use rust_decimal::Decimal;
-use rust_decimal::prelude::FromPrimitive;
 use sqlx::Row;
 use uuid::Uuid;
 
@@ -108,7 +107,8 @@ impl TicketService {
 
         let row = sqlx::query(
             r#"SELECT title, date::text as date, time::text as time, location, price, currency,
-                      available_tickets, organizer_id
+                      available_tickets, organizer_id, is_multi_use, max_usage,
+                      is_time_bound, duration_minutes
             FROM events WHERE id = $1 AND status = 'active' FOR UPDATE"#,
         )
         .bind(req.event_id)
@@ -125,6 +125,11 @@ impl TicketService {
         let currency: String = row.get("currency");
         let available: i32 = row.get("available_tickets");
         let organizer_id: Uuid = row.get("organizer_id");
+
+        let is_multi_use: bool = row.get("is_multi_use");
+        let max_usage: i32 = row.get("max_usage");
+        let is_time_bound: bool = row.get("is_time_bound");
+        let duration_minutes: Option<i32> = row.get("duration_minutes");
 
         if available < req.quantity {
             return Err(AppError::TicketsExhausted);
@@ -144,6 +149,38 @@ impl TicketService {
         // ── STEP 4: Generate IDs (no I/O) ─────────────────────────────────────────
         let short_id = rand::random::<u16>();
         let ticket_id_str = format!("BUKR-{:04}-{}", short_id, &req.event_id.to_string()[..8]);
+
+        // Resolve usage_model: request overrides event defaults
+        let usage_model = req.usage_model.as_deref().unwrap_or_else(|| {
+            if is_multi_use { "multi" } else { "single" }
+        }).to_string();
+
+        // usage_limit: request value > event max_usage > 1
+        let usage_limit = req.usage_total
+            .unwrap_or_else(|| if is_multi_use { max_usage * req.quantity } else { req.quantity });
+
+        let is_renewable = req.is_renewable.unwrap_or(false);
+
+        // Time-bound: request window overrides event duration
+        let now = chrono::Utc::now();
+        let valid_from = req.valid_from
+            .as_deref()
+            .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
+            .map(|dt| dt.with_timezone(&chrono::Utc))
+            .or(Some(now));
+
+        let valid_until = req.valid_until
+            .as_deref()
+            .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
+            .map(|dt| dt.with_timezone(&chrono::Utc))
+            .or_else(|| {
+                if is_time_bound {
+                    duration_minutes.map(|m| now + chrono::Duration::minutes(m as i64))
+                } else {
+                    None
+                }
+            });
+
         let qr_data = serde_json::json!({
             "ticketId": ticket_id_str,
             "eventId": req.event_id.to_string(),
@@ -157,8 +194,10 @@ impl TicketService {
         let ticket = self.repo.create_with_tx(
             &mut tx,
             req.event_id, user_id, &ticket_id_str, ticket_type, req.quantity,
-            unit_price, total_price, discount, promo_code_id, &currency,
+            usage_limit, &usage_model, is_renewable, unit_price, total_price,
+            discount, promo_code_id, &currency,
             &qr_data, &payment_ref, &req.payment_provider, req.excitement_rating,
+            valid_from, valid_until
         ).await.map_err(|e| {
             if e.to_string().contains("Not enough tickets") {
                 AppError::TicketsExhausted
@@ -208,9 +247,11 @@ impl TicketService {
             id: ticket.id, ticket_id: ticket.ticket_id, event_id: ticket.event_id,
             event_title: title, event_date: date, event_time: time, event_location: location,
             ticket_type: ticket.ticket_type, quantity: ticket.quantity,
+            usage_limit: ticket.usage_limit, usage_count: ticket.usage_count,
             unit_price: ticket.unit_price, discount_applied: ticket.discount_applied,
             total_price: ticket.total_price, currency: ticket.currency.clone(),
             status: ticket.status, qr_code_data: ticket.qr_code_data,
+            valid_from: ticket.valid_from, valid_until: ticket.valid_until,
             purchase_date: ticket.purchase_date,
         };
 
@@ -301,5 +342,60 @@ impl TicketService {
         // Create free ticket
         self.repo.create_ticket(user_id, event_id, Decimal::ZERO, None).await
             .map_err(AppError::Database)
+    }
+
+    /**
+     * Get dynamic QR payload for a ticket
+     * 
+     * Generates a 3-second rotating TOTP-style QR payload
+     * Used by the frontend to refresh the QR code every 3s
+     * 
+     * @param ticket_id - Human-readable ticket ID
+     * @returns Signed QR JSON payload
+     */
+    pub async fn get_dynamic_qr(&self, ticket_id: &str) -> Result<String> {
+        // Resolve event_key and ticket info
+        let row = sqlx::query(
+            r#"SELECT e.event_key 
+               FROM tickets t 
+               JOIN events e ON t.event_id = e.id 
+               WHERE t.ticket_id = $1"#
+        )
+        .bind(ticket_id)
+        .fetch_optional(self.repo.pool())
+        .await
+        .map_err(AppError::Database)?
+        .ok_or_else(|| AppError::NotFound("Ticket not found".into()))?;
+
+        let event_key: String = row.get("event_key");
+
+        // Use the same HMAC logic as ScannerService
+        let qr_secret = std::env::var("QR_HMAC_SECRET")
+            .unwrap_or_else(|_| "bukr-qr-secret-change-in-production".to_string());
+
+        let now = chrono::Utc::now().timestamp();
+        let window = now / 3;
+
+        // Calculate time-based nonce (TOTP style)
+        use hmac::{Hmac, Mac};
+        use sha2::Sha256;
+        let mut mac = Hmac::<Sha256>::new_from_slice(qr_secret.as_bytes())
+            .expect("HMAC accepts any key size");
+        mac.update(format!("{}:{}", ticket_id, window).as_bytes());
+        let nonce = hex::encode(mac.finalize().into_bytes());
+
+        // Sign the nonce
+        let mut mac_sig = Hmac::<Sha256>::new_from_slice(qr_secret.as_bytes())
+            .expect("HMAC accepts any key size");
+        mac_sig.update(format!("{}:{}", ticket_id, nonce).as_bytes());
+        let sig = hex::encode(mac_sig.finalize().into_bytes());
+
+        Ok(serde_json::json!({
+            "ticketId": ticket_id,
+            "eventKey": event_key,
+            "nonce": nonce,
+            "sig": sig,
+            "ts": now
+        }).to_string())
     }
 }

@@ -36,6 +36,8 @@ import ScannerManagement from "@/pages/ScannerManagement";
 import ResetPassword from "@/pages/ResetPassword";
 import Auth from "@/pages/Auth";
 import AuthCallback from "@/pages/AuthCallback";
+import NotificationPreferences from "@/pages/NotificationPreferences";
+import { NotificationProvider } from "@/contexts/NotificationContext";
 import { lazy, Suspense } from "react";
 
 // Vendor pages (lazy-loaded — not in the critical bundle)
@@ -295,6 +297,14 @@ const AppRoutes = () => {
       />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
+      <Route
+        path="/notification-preferences"
+        element={
+          <ProtectedRoute>
+            <NotificationPreferences />
+          </ProtectedRoute>
+        }
+      />
 
       {/* ── Vendor marketplace ── */}
       <Route path="/vendors" element={<Suspense fallback={null}><VendorMarketplace /></Suspense>} />
@@ -356,10 +366,12 @@ const App = () => (
             <EventProvider>
               <TicketProvider>
                 <BookingProvider>
-                  <div className="relative">
-                    <AppRoutes />
-                    <BottomNavigation />
-                  </div>
+                  <NotificationProvider>
+                    <div className="relative">
+                      <AppRoutes />
+                      <BottomNavigation />
+                    </div>
+                  </NotificationProvider>
                 </BookingProvider>
               </TicketProvider>
             </EventProvider>

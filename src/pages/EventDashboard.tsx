@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar, Users, DollarSign, Plus, Settings } from 'lucide-react';
+import { Calendar, Users, DollarSign, Plus, Settings, Camera, QrCode } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const EventDashboard = () => {
@@ -12,17 +12,27 @@ const EventDashboard = () => {
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold mb-2">Organizer Dashboard</h1>
-            <p className="text-muted-foreground">Manage your events and track performance</p>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-2 watermark">Organizer Dashboard</h1>
+            <p className="text-muted-foreground font-montserrat">Manage your events and track performance</p>
           </div>
-          <Button 
-            onClick={() => navigate('/create-event')} 
-            variant="glow" 
-            className="w-full sm:w-auto cta"
-          >
-            <Plus className="mr-2 h-5 w-5" />
-            Create Event
-          </Button>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button 
+              onClick={() => navigate('/scanner')} 
+              variant="outline" 
+              className="flex-1 sm:flex-none border-primary text-primary hover:bg-primary/10"
+            >
+              <Camera className="mr-2 h-5 w-5" />
+              Scanner Mode
+            </Button>
+            <Button 
+              onClick={() => navigate('/create-event')} 
+              variant="glow" 
+              className="flex-1 sm:flex-none logo font-medium"
+            >
+              <Plus className="mr-2 h-5 w-5" />
+              Create Event
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

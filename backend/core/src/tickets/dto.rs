@@ -26,13 +26,19 @@ use uuid::Uuid;
  */
 #[derive(Debug, Deserialize)]
 pub struct PurchaseTicketRequest {
-    pub event_id: Uuid,                      // Which event are we buying for?
-    pub quantity: i32,                       // How many tickets? (1-10)
-    pub ticket_type: Option<String>,         // VIP? General? Standing?
-    pub promo_code: Option<String>,          // Got a discount code?
-    pub excitement_rating: Option<i32>,      // How hyped are you? (1-5)
-    pub payment_provider: String,            // "paystack"
-    pub referral_code: Option<String>,       // Came from an influencer?
+    pub event_id: Uuid,
+    pub quantity: i32,
+    pub ticket_type: Option<String>,
+    pub promo_code: Option<String>,
+    pub excitement_rating: Option<i32>,
+    pub payment_provider: String,
+    pub referral_code: Option<String>,
+    // Advanced ticket model fields — all optional, default to single-use
+    pub usage_model: Option<String>,   // "single"|"multi"|"consumable"|"time_bound"|"renewable"
+    pub usage_total: Option<i32>,      // e.g. 4 for "4 PS5 sessions"
+    pub valid_from: Option<String>,    // ISO8601 datetime string
+    pub valid_until: Option<String>,   // ISO8601 datetime string
+    pub is_renewable: Option<bool>,
 }
 
 // RESPONSE DTOs - What goes OUT to the client
@@ -54,12 +60,16 @@ pub struct TicketResponse {
     pub event_location: String,              // Where's the party?
     pub ticket_type: String,                 // What kind of ticket?
     pub quantity: i32,                       // How many tickets?
+    pub usage_limit: i32,                    // NEW: Max number of uses (e.g. 4 for PS5)
+    pub usage_count: i32,                    // NEW: Current number of uses
     pub unit_price: Decimal,                 // Price per ticket
     pub discount_applied: Decimal,           // Discount percentage (0-100)
     pub total_price: Decimal,                // Final price after discount
     pub currency: String,                    // NGN, USD, etc
     pub status: String,                      // valid, used, expired, cancelled
     pub qr_code_data: String,                // JSON payload for QR code
+    pub valid_from: Option<DateTime<Utc>>,   // NEW: When the ticket starts being valid
+    pub valid_until: Option<DateTime<Utc>>,  // NEW: When the ticket expires
     pub purchase_date: DateTime<Utc>,        // When did you buy this?
 }
 
@@ -76,10 +86,14 @@ pub struct TicketWithEventResponse {
     pub event: TicketEventInfo,              // Nested event details
     pub ticket_type: String,
     pub quantity: i32,
+    pub usage_limit: i32,
+    pub usage_count: i32,
     pub total_price: Decimal,
     pub currency: String,
     pub status: String,
     pub qr_code_data: String,
+    pub valid_from: Option<DateTime<Utc>>,
+    pub valid_until: Option<DateTime<Utc>>,
     pub purchase_date: DateTime<Utc>,
 }
 
@@ -150,6 +164,8 @@ pub struct Ticket {
     pub user_id: Uuid,                       // Foreign key to users
     pub ticket_type: String,                 // Type of ticket
     pub quantity: i32,                       // Number of tickets
+    pub usage_limit: i32,                    // NEW
+    pub usage_count: i32,                    // NEW
     pub unit_price: Decimal,                 // Price per ticket
     pub total_price: Decimal,                // Total paid
     pub discount_applied: Decimal,           // Discount percentage
@@ -157,6 +173,8 @@ pub struct Ticket {
     pub currency: String,                    // Currency code
     pub status: String,                      // Ticket status
     pub qr_code_data: String,                // QR code payload
+    pub valid_from: Option<DateTime<Utc>>,   // NEW
+    pub valid_until: Option<DateTime<Utc>>,  // NEW
     pub payment_ref: Option<String>,         // Payment reference
     pub payment_provider: Option<String>,    // Which provider
     pub excitement_rating: Option<i32>,      // User's hype level

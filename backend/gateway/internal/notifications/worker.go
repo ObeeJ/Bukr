@@ -102,6 +102,8 @@ func (w *Worker) Start(ctx context.Context) {
 
 	go w.runScheduler(ctx)
 	go w.runWorker(ctx)
+	go w.runTicketNotifications(ctx)
+	go w.runExpiryJob(ctx)
 }
 
 // ── Scheduler ─────────────────────────────────────────────────────────────────
@@ -262,28 +264,82 @@ func (w *Worker) drain(ctx context.Context) {
 
 // ── Dispatcher ────────────────────────────────────────────────────────────────
 
-// dispatch sends the actual notification.
-// Currently logs to stdout — swap in Resend / SendGrid / FCM here.
-// The interface is intentionally minimal: one job in, error out.
+// dispatch sends event reminder notifications via SMTP.
 func dispatch(ctx context.Context, job ReminderJob) error {
-	timeUntil := time.Until(job.EventStartsAt).Round(time.Minute)
+	log.Printf("notifications: [%s reminder] user=%s email=%s event=%q",
+		job.ReminderType, job.UserID, job.UserEmail, job.EventTitle)
+	return dispatchTicketNotification(job.ReminderType, job.UserEmail, "", job.EventTitle)
+}
 
-	log.Printf(
-		"notifications: [%s reminder] user=%s email=%s event=%q starts_in=%s",
-		job.ReminderType, job.UserID, job.UserEmail, job.EventTitle, timeUntil,
-	)
+// runTicketNotifications drains ticket_notifications written by Rust core every 10s.
+func (w *Worker) runTicketNotifications(ctx context.Context) {
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			w.drainTicketNotifications(ctx)
+		}
+	}
+}
 
-	// ── Swap this block for a real email/push provider ────────────────────
-	// Example with Resend:
-	//
-	// _, err := resendClient.Emails.Send(&resend.SendEmailRequest{
-	//     From:    "Bukr <reminders@bukr.app>",
-	//     To:      []string{job.UserEmail},
-	//     Subject: fmt.Sprintf("Your event starts in %s: %s", job.ReminderType, job.EventTitle),
-	//     Html:    buildReminderHTML(job),
-	// })
-	// return err
-	// ─────────────────────────────────────────────────────────────────────
+func (w *Worker) drainTicketNotifications(ctx context.Context) {
+	rows, err := w.db.Query(ctx, `
+		SELECT tn.id, tn.type, u.email, u.name, e.title
+		FROM ticket_notifications tn
+		JOIN users u ON u.id = tn.user_id
+		JOIN events e ON e.id = tn.event_id
+		WHERE tn.sent_at IS NULL
+		LIMIT 50
+	`)
+	if err != nil {
+		log.Printf("ticket_notifications: query failed: %v", err)
+		return
+	}
+	defer rows.Close()
 
-	return nil
+	for rows.Next() {
+		var id, notifType, email, name, eventTitle string
+		if err := rows.Scan(&id, &notifType, &email, &name, &eventTitle); err != nil {
+			continue
+		}
+		if err := dispatchTicketNotification(notifType, email, name, eventTitle); err != nil {
+			log.Printf("ticket_notifications: dispatch failed id=%s: %v", id, err)
+			continue
+		}
+		w.db.Exec(ctx, "UPDATE ticket_notifications SET sent_at=NOW() WHERE id=$1", id)
+	}
+}
+
+// runExpiryJob marks time-bound tickets expired every 5 minutes and queues notifications.
+func (w *Worker) runExpiryJob(ctx context.Context) {
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			w.expireTickets(ctx)
+		}
+	}
+}
+
+func (w *Worker) expireTickets(ctx context.Context) {
+	_, err := w.db.Exec(ctx, `
+		WITH expired AS (
+			UPDATE tickets SET status='expired'
+			WHERE status='valid' AND valid_until < NOW()
+			RETURNING id, user_id, event_id
+		)
+		INSERT INTO ticket_notifications (ticket_id, user_id, event_id, type, payload)
+		SELECT id, user_id, event_id, 'expired', '{}'
+		FROM expired
+		ON CONFLICT DO NOTHING
+	`)
+	if err != nil {
+		log.Printf("expiry_job: failed: %v", err)
+	}
 }

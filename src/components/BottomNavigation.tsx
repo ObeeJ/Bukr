@@ -2,6 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { Search, Heart, User, LayoutDashboard, Ticket, PlusCircle, QrCode, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import NotificationBell from "@/components/NotificationBell";
 
 const BottomNavigation = () => {
   const location = useLocation();
@@ -38,7 +39,7 @@ const BottomNavigation = () => {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-lg border-t border-border/30 safe-area-pb">
-      <div className="flex items-center justify-around py-2 sm:py-3 px-2 max-w-md mx-auto">
+      <div className="flex items-center justify-around py-2 sm:py-3 px-2 max-w-md mx-auto relative">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = location.pathname === item.path;
@@ -59,6 +60,11 @@ const BottomNavigation = () => {
             </Link>
           );
         })}
+        {/* Bell floats at the right edge — panel opens upward */}
+        <div className="flex flex-col items-center gap-1 p-2 sm:p-3 min-h-[48px] min-w-[48px]">
+          <NotificationBell userEmail={user?.email ?? ''} />
+          <span className="text-xs sm:text-sm font-medium logo leading-tight text-muted-foreground">Alerts</span>
+        </div>
       </div>
     </nav>
   );

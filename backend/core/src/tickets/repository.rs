@@ -65,6 +65,7 @@ impl TicketRepository {
         ticket_id: &str,
         ticket_type: &str,
         quantity: i32,
+        usage_limit: i32,
         unit_price: Decimal,
         total_price: Decimal,
         discount_applied: Decimal,
@@ -74,24 +75,28 @@ impl TicketRepository {
         payment_ref: &str,
         payment_provider: &str,
         excitement_rating: Option<i32>,
+        valid_from: Option<chrono::DateTime<chrono::Utc>>,
+        valid_until: Option<chrono::DateTime<chrono::Utc>>,
     ) -> Result<Ticket, sqlx::Error> {
-        // INSERT and RETURNING in one query - PostgreSQL magic
         let row = sqlx::query(
             r#"INSERT INTO tickets
-                (event_id, user_id, ticket_id, ticket_type, quantity, unit_price, total_price,
-                 discount_applied, promo_code_id, currency, qr_code_data, payment_ref,
-                 payment_provider, excitement_rating, status)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'valid')
-            RETURNING id, ticket_id, event_id, user_id, ticket_type, quantity,
+                (event_id, user_id, ticket_id, ticket_type, quantity, usage_limit, usage_count,
+                 unit_price, total_price, discount_applied, promo_code_id, currency,
+                 qr_code_data, payment_ref, payment_provider, excitement_rating, status,
+                 valid_from, valid_until)
+            VALUES ($1, $2, $3, $4, $5, $6, 0, $7, $8, $9, $10, $11, $12, $13, $14, $15, 'valid', $16, $17)
+            RETURNING id, ticket_id, event_id, user_id, ticket_type, quantity, usage_limit, usage_count,
                       unit_price, total_price, discount_applied, promo_code_id,
-                      currency, status, qr_code_data, payment_ref, payment_provider,
-                      excitement_rating, scanned_at, purchase_date, created_at"#,
+                      currency, status, qr_code_data, valid_from, valid_until,
+                      payment_ref, payment_provider, excitement_rating, scanned_at,
+                      purchase_date, created_at"#,
         )
         .bind(event_id)
         .bind(user_id)
         .bind(ticket_id)
         .bind(ticket_type)
         .bind(quantity)
+        .bind(usage_limit)
         .bind(unit_price)
         .bind(total_price)
         .bind(discount_applied)
@@ -101,22 +106,14 @@ impl TicketRepository {
         .bind(payment_ref)
         .bind(payment_provider)
         .bind(excitement_rating)
+        .bind(valid_from)
+        .bind(valid_until)
         .fetch_one(&self.pool)
         .await?;
 
-        // Convert database row to domain model
         Ok(row_to_ticket(&row))
     }
 
-    /**
-     * Create ticket within an existing transaction
-     * 
-     * Used for atomic operations with row locking
-     * Prevents race conditions in ticket purchase
-     * 
-     * @param tx - Mutable reference to active transaction
-     * @returns Created ticket
-     */
     pub async fn create_with_tx(
         &self,
         tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
@@ -125,6 +122,9 @@ impl TicketRepository {
         ticket_id: &str,
         ticket_type: &str,
         quantity: i32,
+        usage_limit: i32,
+        usage_model: &str,
+        is_renewable: bool,
         unit_price: Decimal,
         total_price: Decimal,
         discount_applied: Decimal,
@@ -134,23 +134,33 @@ impl TicketRepository {
         payment_ref: &str,
         payment_provider: &str,
         excitement_rating: Option<i32>,
+        valid_from: Option<chrono::DateTime<chrono::Utc>>,
+        valid_until: Option<chrono::DateTime<chrono::Utc>>,
     ) -> Result<Ticket, sqlx::Error> {
         let row = sqlx::query(
             r#"INSERT INTO tickets
-                (event_id, user_id, ticket_id, ticket_type, quantity, unit_price, total_price,
-                 discount_applied, promo_code_id, currency, qr_code_data, payment_ref,
-                 payment_provider, excitement_rating, status)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'valid')
+                (event_id, user_id, ticket_id, ticket_type, quantity,
+                 usage_limit, usage_count, usage_model, usage_total, usage_left, is_renewable,
+                 unit_price, total_price, discount_applied, promo_code_id, currency,
+                 qr_code_data, payment_ref, payment_provider, excitement_rating, status,
+                 valid_from, valid_until)
+            VALUES ($1, $2, $3, $4, $5, $6, 0, $7, $6, $6, $8,
+                    $9, $10, $11, $12, $13, $14, $15, $16, $17, 'valid', $18, $19)
             RETURNING id, ticket_id, event_id, user_id, ticket_type, quantity,
-                      unit_price, total_price, discount_applied, promo_code_id,
-                      currency, status, qr_code_data, payment_ref, payment_provider,
-                      excitement_rating, scanned_at, purchase_date, created_at"#,
+                      usage_limit, usage_count, unit_price, total_price,
+                      discount_applied, promo_code_id, currency, status,
+                      qr_code_data, valid_from, valid_until, payment_ref,
+                      payment_provider, excitement_rating, scanned_at,
+                      purchase_date, created_at"#,
         )
         .bind(event_id)
         .bind(user_id)
         .bind(ticket_id)
         .bind(ticket_type)
         .bind(quantity)
+        .bind(usage_limit)
+        .bind(usage_model)
+        .bind(is_renewable)
         .bind(unit_price)
         .bind(total_price)
         .bind(discount_applied)
@@ -160,76 +170,53 @@ impl TicketRepository {
         .bind(payment_ref)
         .bind(payment_provider)
         .bind(excitement_rating)
+        .bind(valid_from)
+        .bind(valid_until)
         .fetch_one(&mut **tx)
         .await?;
 
         Ok(row_to_ticket(&row))
     }
 
-    /**
-     * Find a ticket by its human-readable ID
-     * 
-     * Used for scanning - scanner reads QR code, we look up the ticket
-     * 
-     * @param ticket_id - The BUKR-XXXX-XXXX identifier
-     * @returns Some(Ticket) if found, None if not found
-     */
     pub async fn get_by_ticket_id(&self, ticket_id: &str) -> Result<Option<Ticket>, sqlx::Error> {
         let row = sqlx::query(
-            r#"SELECT id, ticket_id, event_id, user_id, ticket_type, quantity,
+            r#"SELECT id, ticket_id, event_id, user_id, ticket_type, quantity, usage_limit, usage_count,
                       unit_price, total_price, discount_applied, promo_code_id,
-                      currency, status, qr_code_data, payment_ref, payment_provider,
-                      excitement_rating, scanned_at, purchase_date, created_at
+                      currency, status, qr_code_data, valid_from, valid_until,
+                      payment_ref, payment_provider, excitement_rating, scanned_at,
+                      purchase_date, created_at
             FROM tickets WHERE ticket_id = $1"#,
         )
         .bind(ticket_id)
         .fetch_optional(&self.pool)
         .await?;
 
-        // Convert Option<Row> to Option<Ticket>
         Ok(row.as_ref().map(row_to_ticket))
     }
 
-    /**
-     * Get all tickets for a specific user
-     * 
-     * Used for "My Tickets" page - show me what I bought
-     * Ordered by purchase date DESC - newest first
-     * 
-     * @param user_id - User's UUID
-     * @returns Vector of tickets (empty if user has no tickets)
-     */
     pub async fn get_user_tickets(&self, user_id: Uuid) -> Result<Vec<Ticket>, sqlx::Error> {
         let rows = sqlx::query(
-            r#"SELECT id, ticket_id, event_id, user_id, ticket_type, quantity,
+            r#"SELECT id, ticket_id, event_id, user_id, ticket_type, quantity, usage_limit, usage_count,
                       unit_price, total_price, discount_applied, promo_code_id,
-                      currency, status, qr_code_data, payment_ref, payment_provider,
-                      excitement_rating, scanned_at, purchase_date, created_at
+                      currency, status, qr_code_data, valid_from, valid_until,
+                      payment_ref, payment_provider, excitement_rating, scanned_at,
+                      purchase_date, created_at
             FROM tickets WHERE user_id = $1 ORDER BY purchase_date DESC"#,
         )
         .bind(user_id)
         .fetch_all(&self.pool)
         .await?;
 
-        // Map each row to a Ticket - functional programming FTW
         Ok(rows.iter().map(row_to_ticket).collect())
     }
 
-    /**
-     * Get all tickets for a specific event
-     * 
-     * Organizer view - see who bought tickets to my event
-     * Ordered by purchase date DESC - newest first
-     * 
-     * @param event_id - Event's UUID
-     * @returns Vector of tickets (empty if no tickets sold)
-     */
     pub async fn get_event_tickets(&self, event_id: Uuid) -> Result<Vec<Ticket>, sqlx::Error> {
         let rows = sqlx::query(
-            r#"SELECT id, ticket_id, event_id, user_id, ticket_type, quantity,
+            r#"SELECT id, ticket_id, event_id, user_id, ticket_type, quantity, usage_limit, usage_count,
                       unit_price, total_price, discount_applied, promo_code_id,
-                      currency, status, qr_code_data, payment_ref, payment_provider,
-                      excitement_rating, scanned_at, purchase_date, created_at
+                      currency, status, qr_code_data, valid_from, valid_until,
+                      payment_ref, payment_provider, excitement_rating, scanned_at,
+                      purchase_date, created_at
             FROM tickets WHERE event_id = $1 ORDER BY purchase_date DESC"#,
         )
         .bind(event_id)
@@ -303,6 +290,8 @@ fn row_to_ticket(row: &sqlx::postgres::PgRow) -> Ticket {
         user_id: row.get("user_id"),
         ticket_type: row.get("ticket_type"),
         quantity: row.get("quantity"),
+        usage_limit: row.get("usage_limit"),
+        usage_count: row.get("usage_count"),
         unit_price: row.get("unit_price"),
         total_price: row.get("total_price"),
         discount_applied: row.get("discount_applied"),
@@ -310,6 +299,8 @@ fn row_to_ticket(row: &sqlx::postgres::PgRow) -> Ticket {
         currency: row.get("currency"),
         status: row.get("status"),
         qr_code_data: row.get("qr_code_data"),
+        valid_from: row.get("valid_from"),
+        valid_until: row.get("valid_until"),
         payment_ref: row.get("payment_ref"),
         payment_provider: row.get("payment_provider"),
         excitement_rating: row.get("excitement_rating"),
@@ -347,7 +338,11 @@ impl TicketRepository {
     pub async fn create_ticket(&self, user_id: Uuid, event_id: Uuid, price: Decimal, promo_code_id: Option<Uuid>) -> Result<Ticket, sqlx::Error> {
         let ticket_id = format!("BUKR-{}", Uuid::new_v4().to_string().split('-').next().unwrap().to_uppercase());
         let qr_data = format!("{{\"ticket_id\":\"{}\",\"event_id\":\"{}\"}}", ticket_id, event_id);
-        self.create(event_id, user_id, &ticket_id, "general", 1, price, price, Decimal::ZERO, promo_code_id, "NGN", &qr_data, &format!("FREE-{}", Uuid::new_v4()), "free", None).await
+        self.create(
+            event_id, user_id, &ticket_id, "general", 1, 1, price, price,
+            Decimal::ZERO, promo_code_id, "NGN", &qr_data,
+            &format!("FREE-{}", Uuid::new_v4()), "free", None, None, None
+        ).await
     }
 }
 

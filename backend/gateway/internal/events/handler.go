@@ -30,6 +30,8 @@ package events
 
 import (
 	"errors"
+	"fmt"
+	"math/rand"
 	"strconv"
 
 	"github.com/bukr/gateway/internal/middleware"
@@ -75,6 +77,8 @@ func (h *Handler) RegisterProtectedRoutes(router fiber.Router) {
 	router.Post("/:id/scanners", h.AssignScanner)
 	router.Get("/:id/scanners", h.ListScanners)
 	router.Delete("/:id/scanners/:scanner_id", h.RemoveScanner)
+	// Organizer scanner mode — generates a personal access code
+	router.Post("/:id/scanner-mode", h.EnableScannerMode)
 }
 
 /**
@@ -273,6 +277,34 @@ func (h *Handler) DeleteEvent(c *fiber.Ctx) error {
 	}
 
 	return shared.Success(c, fiber.StatusOK, fiber.Map{"message": "Event deleted"})
+}
+
+// EnableScannerMode generates a scanner access code for the organizer.
+// Organizer can then use the TicketScanner UI without a separate scanner account.
+// POST /api/v1/events/:id/scanner-mode
+func (h *Handler) EnableScannerMode(c *fiber.Ctx) error {
+	claims := middleware.GetUserClaims(c)
+	if claims == nil {
+		return shared.Error(c, fiber.StatusUnauthorized, shared.CodeUnauthorized, "Authentication required")
+	}
+	if claims.UserType != "organizer" {
+		return shared.Error(c, fiber.StatusForbidden, shared.CodeForbidden, "Organizer access required")
+	}
+
+	eventID := c.Params("id")
+	code := fmt.Sprintf("ORG-%06X", rand.Intn(0xFFFFFF))
+
+	_, err := h.service.repo.db.Exec(c.Context(),
+		`INSERT INTO scanner_access_codes (event_id, code, label, is_active)
+		 VALUES ($1::uuid, $2, 'Organizer', true)
+		 ON CONFLICT (code) DO UPDATE SET is_active = true`,
+		eventID, code,
+	)
+	if err != nil {
+		return shared.Error(c, fiber.StatusInternalServerError, shared.CodeInternalError, "Failed to create scanner code")
+	}
+
+	return shared.Success(c, fiber.StatusOK, fiber.Map{"code": code, "event_id": eventID})
 }
 
 /**

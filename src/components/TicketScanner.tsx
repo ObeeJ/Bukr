@@ -98,7 +98,9 @@ interface ScanRecord {
   userName: string;
   ticketType: string;
   timestamp: string;
-  status: 'valid' | 'invalid' | 'used';
+  status: 'valid' | 'invalid' | 'used' | 'expired' | 'depleted_renewable';
+  usageLeft?: number;
+  usageTotal?: number;
   offline?: boolean;
 }
 
@@ -302,11 +304,14 @@ const TicketScanner: React.FC<TicketScannerProps> = ({ onScan, eventKey: propEve
     }
 
     try {
-      // Call real API — POST /scanner/validate
       const result = await validateTicket(ticketId, resolvedEventKey);
 
-      const status: 'valid' | 'invalid' | 'used' =
-        result.isValid ? 'valid' : result.status === 'used' ? 'used' : 'invalid';
+      const status: ScanRecord['status'] =
+        result.isValid ? 'valid'
+        : result.status === 'used' ? 'used'
+        : result.status === 'expired' ? 'expired'
+        : result.status === 'depleted_renewable' ? 'depleted_renewable'
+        : 'invalid';
 
       const record: ScanRecord = {
         id: `${ticketId}-${Date.now()}`,
@@ -315,6 +320,8 @@ const TicketScanner: React.FC<TicketScannerProps> = ({ onScan, eventKey: propEve
         ticketType: result.ticket?.ticketType || 'General Admission',
         timestamp: new Date().toISOString(),
         status,
+        usageLeft: result.ticket?.usageLeft ?? result.usageLeft,
+        usageTotal: result.ticket?.usageTotal,
       };
 
       setScanResult(record);
@@ -322,9 +329,14 @@ const TicketScanner: React.FC<TicketScannerProps> = ({ onScan, eventKey: propEve
 
       if (status === 'valid') {
         setRecentScans(prev => [record, ...prev].slice(0, 20));
-        toast({ title: '✓ Valid ticket', description: `${record.userName} — ${record.ticketType}` });
+        const usageMsg = record.usageLeft !== undefined ? ` — ${record.usageLeft} uses left` : '';
+        toast({ title: '✓ Valid ticket', description: `${record.userName} — ${record.ticketType}${usageMsg}` });
       } else if (status === 'used') {
         toast({ title: 'Already scanned', description: 'This ticket was already used.', variant: 'destructive' });
+      } else if (status === 'expired') {
+        toast({ title: 'Ticket expired', description: 'This ticket has expired.', variant: 'destructive' });
+      } else if (status === 'depleted_renewable') {
+        toast({ title: 'Uses depleted', description: 'All uses consumed. User must renew.', variant: 'destructive' });
       } else {
         toast({ title: 'Invalid ticket', description: result.message || 'Not valid for this event.', variant: 'destructive' });
       }
@@ -341,8 +353,12 @@ const TicketScanner: React.FC<TicketScannerProps> = ({ onScan, eventKey: propEve
     setIsProcessing(true);
     try {
       const result = await manualValidateTicket(manualTicketId.trim(), resolvedEventKey);
-      const status: 'valid' | 'invalid' | 'used' =
-        result.isValid ? 'valid' : result.status === 'used' ? 'used' : 'invalid';
+      const status: ScanRecord['status'] =
+        result.isValid ? 'valid'
+        : result.status === 'used' ? 'used'
+        : result.status === 'expired' ? 'expired'
+        : result.status === 'depleted_renewable' ? 'depleted_renewable'
+        : 'invalid';
 
       const record: ScanRecord = {
         id: `${manualTicketId}-${Date.now()}`,
@@ -351,6 +367,8 @@ const TicketScanner: React.FC<TicketScannerProps> = ({ onScan, eventKey: propEve
         ticketType: result.ticket?.ticketType || 'General Admission',
         timestamp: new Date().toISOString(),
         status,
+        usageLeft: result.ticket?.usageLeft ?? result.usageLeft,
+        usageTotal: result.ticket?.usageTotal,
       };
       setScanResult(record);
       setResultDialogOpen(true);
@@ -616,13 +634,16 @@ const TicketScanner: React.FC<TicketScannerProps> = ({ onScan, eventKey: propEve
                 }`}>
                   {scanResult.status === 'valid' && <Check className="w-8 h-8 text-green-600" />}
                   {scanResult.status === 'used' && <AlertCircle className="w-8 h-8 text-amber-600" />}
-                  {scanResult.status === 'invalid' && <X className="w-8 h-8 text-red-600" />}
+                  {(scanResult.status === 'invalid' || scanResult.status === 'expired' || scanResult.status === 'depleted_renewable') && <X className="w-8 h-8 text-red-600" />}
                 </div>
               </div>
               <div className="text-center">
                 <h3 className="text-xl font-bold">
-                  {scanResult.status === 'valid' ? '✓ Valid Ticket' :
-                   scanResult.status === 'used' ? 'Already Scanned' : '✗ Invalid Ticket'}
+                  {scanResult.status === 'valid' ? '\u2713 Valid Ticket' :
+                   scanResult.status === 'used' ? 'Already Scanned' :
+                   scanResult.status === 'expired' ? 'Ticket Expired' :
+                   scanResult.status === 'depleted_renewable' ? 'Uses Depleted' :
+                   '\u2717 Invalid Ticket'}
                 </h3>
                 {scanResult.offline && (
                   <p className="text-xs text-amber-500 mt-1">Saved offline — will sync when connected</p>
@@ -637,6 +658,22 @@ const TicketScanner: React.FC<TicketScannerProps> = ({ onScan, eventKey: propEve
                   <span className="text-muted-foreground">Type:</span>
                   <span className="font-medium">{scanResult.ticketType}</span>
                 </div>
+                {scanResult.usageLeft !== undefined && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Uses left:</span>
+                    <span className={`font-bold ${
+                      scanResult.usageLeft === 0 ? 'text-red-500' : 'text-green-500'
+                    }`}>
+                      {scanResult.usageLeft}{scanResult.usageTotal ? ` / ${scanResult.usageTotal}` : ''}
+                    </span>
+                  </div>
+                )}
+                {scanResult.status === 'depleted_renewable' && (
+                  <p className="text-xs text-amber-600 text-center pt-1">User must renew in the Bukr app</p>
+                )}
+                {scanResult.status === 'expired' && (
+                  <p className="text-xs text-red-600 text-center pt-1">Ticket validity window has closed</p>
+                )}
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">ID:</span>
                   <span className="font-mono text-xs">{scanResult.ticketId}</span>

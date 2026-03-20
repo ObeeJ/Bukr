@@ -1,22 +1,26 @@
-/**
- * CONTROLLER LAYER - Scanner HTTP Handlers
- *
- * Thin layer — parse request, call service, return response.
- * All business logic lives in ScannerService.
- */
+// Scanner HTTP handlers — thin layer, all logic in ScannerService.
 
 use axum::{
     extract::{Path, State},
+    http::HeaderMap,
     Json,
 };
 use serde_json::{json, Value};
 use uuid::Uuid;
 
-use crate::error::Result;
+use crate::error::{AppError, Result};
 use super::service::{
-    ScannerService, VerifyAccessRequest, ValidateTicketRequest, ManualValidateRequest,
+    ScannerService, VerifyAccessRequest, ValidateTicketRequest,
+    ManualValidateRequest, RenewTicketRequest,
 };
 use std::sync::Arc;
+
+fn extract_user_id(headers: &HeaderMap) -> Option<Uuid> {
+    headers
+        .get("x-user-id")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| Uuid::parse_str(s).ok())
+}
 
 pub async fn verify_access(
     State(service): State<Arc<ScannerService>>,
@@ -56,4 +60,16 @@ pub async fn get_stats(
 ) -> Result<Json<Value>> {
     let stats = service.get_stats(event_id).await?;
     Ok(Json(json!({ "status": "success", "data": stats })))
+}
+
+pub async fn renew_ticket(
+    State(service): State<Arc<ScannerService>>,
+    headers: HeaderMap,
+    Path(ticket_id): Path<String>,
+) -> Result<Json<Value>> {
+    let user_id = extract_user_id(&headers)
+        .ok_or(AppError::Unauthorized)?;
+
+    let result = service.renew_ticket(RenewTicketRequest { ticket_id, user_id }).await?;
+    Ok(Json(json!({ "status": "success", "data": result })))
 }

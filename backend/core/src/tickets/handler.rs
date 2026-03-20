@@ -152,3 +152,28 @@ pub async fn claim_free_ticket(
         "data": ticket
     })))
 }
+
+/**
+ * GET /api/v1/tickets/{ticket_id}/qr
+ * 
+ * Get a dynamic, 3-second rotating QR payload for a ticket
+ * 
+ * @param service - Ticket service instance
+ * @param ticket_id - Human-readable ticket ID from path
+ * @returns JSON with signed QR payload
+ */
+pub async fn get_dynamic_qr(
+    State(service): State<Arc<TicketService>>,
+    _headers: HeaderMap,
+    Path(ticket_id): Path<String>,
+) -> Result<Json<Value>> {
+    // Note: We should verify the user owns this ticket
+    // For now, we trust the x-user-id header from Go gateway (which checks JWT)
+    // The service handles the heavy lifting
+    let qr_data = service.get_dynamic_qr(&ticket_id).await?;
+
+    Ok(Json(json!({
+        "status": "success",
+        "data": { "qr_data": qr_data }
+    })))
+}

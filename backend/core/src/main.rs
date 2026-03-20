@@ -36,6 +36,7 @@ mod config;
 mod db;
 mod error;
 mod fees;
+mod notifications;
 mod tickets;
 mod promos;
 mod scanner;
@@ -138,6 +139,7 @@ async fn build_router(pool: sqlx::PgPool, cfg: config::Config) -> Router {
         .route("/me", get(tickets::handler::get_my_tickets))
         .route("/event/{event_id}", get(tickets::handler::get_event_tickets))
         .route("/claim-free", post(tickets::handler::claim_free_ticket))
+        .route("/{ticket_id}/qr", get(tickets::handler::get_dynamic_qr))
         .with_state(ticket_service);
 
     // Transfer route uses pool directly (different state type)
@@ -160,6 +162,11 @@ async fn build_router(pool: sqlx::PgPool, cfg: config::Config) -> Router {
         .route("/manual-validate", post(scanner::handler::manual_validate))
         .route("/mark-used/{ticket_id}", patch(scanner::handler::mark_used))
         .route("/{event_id}/stats", get(scanner::handler::get_stats))
+        .with_state(scanner_service.clone());
+
+    // Renewal route — separate state clone
+    let renewal_routes = Router::new()
+        .route("/tickets/{ticket_id}/renew", post(scanner::handler::renew_ticket))
         .with_state(scanner_service);
 
     // Payment routes: Payment processing and webhooks
@@ -218,6 +225,7 @@ async fn build_router(pool: sqlx::PgPool, cfg: config::Config) -> Router {
         .nest("/api/v1/tickets", transfer_routes)
         .nest("/api/v1", promo_routes)
         .nest("/api/v1/scanner", scanner_routes)
+        .nest("/api/v1", renewal_routes)
         .nest("/api/v1/payments", payment_routes)
         .nest("/api/v1/analytics", analytics_routes)
         .nest("/api/v1", vendor_routes)
