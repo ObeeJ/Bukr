@@ -30,14 +30,10 @@ pub async fn create_pool(database_url: &str) -> PgPool {
             .expect("This should not be called without a DATABASE_URL")
     } else {
         PgPoolOptions::new()
-            // 50 connections: handles concurrent ticket purchase bursts.
-            // Rust handles the hot path (tickets, payments, scanner) so it
-            // needs more headroom than the Go gateway.
-            .max_connections(50)
-            .min_connections(10)
-            // Fail fast under extreme load — better a 503 than a 30s hang.
-            .acquire_timeout(Duration::from_secs(3))
-            // Recycle connections to prevent stale TCP state.
+            .max_connections(10)
+            .min_connections(1)
+            // Give more headroom on cold starts (Render DB may need to wake up).
+            .acquire_timeout(Duration::from_secs(10))
             .max_lifetime(Duration::from_secs(1800))
             .idle_timeout(Duration::from_secs(300))
             .connect(database_url)
