@@ -32,7 +32,7 @@ impl Config {
             redis_url: std::env::var("REDIS_URL").unwrap_or_default(),
             paystack_secret_key: std::env::var("PAYSTACK_SECRET_KEY").unwrap_or_default(),
             paystack_webhook_secret: std::env::var("PAYSTACK_WEBHOOK_SECRET").unwrap_or_default(),
-            jwt_secret: std::env::var("SUPABASE_JWT_SECRET").unwrap_or_default(),
+            jwt_secret: std::env::var("APP_JWT_SECRET").unwrap_or_default(),
         }
     }
 }

@@ -61,7 +61,7 @@ const AnimatedLogo = ({ size = 'md', className = '', clickable = false }: Animat
   if (clickable) {
     // Smart navigation: Authenticated users go to app, guests go to signin
     // It's like a bouncer who knows where everyone should go
-    const targetPath = isAuthenticated ? "/app" : "/signin";
+    const targetPath = isAuthenticated ? "/app" : "/auth";
 
     return (
       <Link 

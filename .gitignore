@@ -66,3 +66,4 @@ backend/gateway/main
 gateway.log
 rust-core.log
 *.test.js.snap
+backend/.env

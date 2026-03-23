@@ -7,7 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Eye, EyeOff, User, Building, AlertCircle, CheckCircle, ArrowLeft, Mail, Lock, UserCircle } from "lucide-react";
 import AnimatedLogo from "./AnimatedLogo";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/lib/supabase";
+
+const API = import.meta.env.VITE_API_URL || "http://localhost:8080/api/v1";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -204,17 +205,19 @@ const AuthModal = ({ isOpen, onClose, defaultTab = "signin" }: AuthModalProps) =
     clearFeedback();
     setIsLoading(true);
     try {
-      // Sends a magic link — user clicks it, gets redirected back with a session
-      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-        redirectTo: `${window.location.origin}/reset-password`,
+      const res = await fetch(`${API}/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: resetEmail.trim().toLowerCase() }),
       });
-      if (error) throw error;
+      const body = await res.json();
+      if (!res.ok && body?.error?.message) throw new Error(body.error.message);
       setFeedback({
         type: "success",
-        message: "Reset link sent! Check your inbox and click the link to set a new password.",
+        message: "If that email is registered, a 6-digit code is on its way. Check your inbox.",
       });
-    } catch (error) {
-      setFeedback({ type: "error", message: getErrorMessage(error, "forgot") });
+    } catch (error: any) {
+      setFeedback({ type: "error", message: error?.message || "Couldn't send the reset code. Double-check the address." });
     } finally {
       setIsLoading(false);
     }

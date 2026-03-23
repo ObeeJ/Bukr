@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"fmt"
 	"log"
 	"os"
@@ -10,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/bukr/gateway/internal/admin"
+	"github.com/bukr/gateway/internal/auth"
 	"github.com/bukr/gateway/internal/credits"
 	"github.com/bukr/gateway/internal/events"
 	"github.com/bukr/gateway/internal/favorites"
@@ -36,19 +36,6 @@ func main() {
 		defer db.Close()
 	}
 
-	var pubKey *ecdsa.PublicKey
-	if cfg.SupabaseURL != "" {
-		key, err := middleware.FetchSupabasePublicKey(cfg.SupabaseURL)
-		if err != nil {
-			log.Printf("WARNING: Failed to fetch Supabase public key: %v — auth endpoints will return 503", err)
-		} else {
-			pubKey = key
-			log.Println("Supabase EC public key loaded")
-		}
-	} else {
-		log.Println("WARNING: SUPABASE_URL not set — auth endpoints disabled")
-	}
-
 	rdb := shared.NewRedisClient(cfg.RedisURL)
 	if rdb != nil {
 		defer rdb.Close()
@@ -68,9 +55,6 @@ func main() {
 	app.Use(middleware.SetupCORS(cfg.AllowedOrigins))
 	app.Use(middleware.SecurityHeaders())
 
-	// Rate limiter backed by Redis so the limit is shared across all gateway
-	// instances. Without Redis, each instance would have its own counter and
-	// the effective limit would be N * 100 per IP under a load balancer.
 	var limiterStore fiber.Storage
 	if cfg.RedisURL != "" {
 		limiterStore = redisStorage.New(redisStorage.Config{URL: cfg.RedisURL})
@@ -78,7 +62,7 @@ func main() {
 	app.Use(limiter.New(limiter.Config{
 		Max:        100,
 		Expiration: 60,
-		Storage:    limiterStore, // nil = in-memory (fine for single-instance dev)
+		Storage:    limiterStore,
 		KeyGenerator: func(c *fiber.Ctx) string {
 			return c.IP()
 		},
@@ -86,7 +70,7 @@ func main() {
 			return c.Status(429).JSON(shared.APIResponse{
 				Status: "error",
 				Error: &shared.APIError{
-					Code:    "RATE_LIMIT_EXCEEDED",
+					Code:    shared.CodeRateLimited,
 					Message: "Too many requests. Please try again later.",
 				},
 			})
@@ -99,49 +83,58 @@ func main() {
 
 	v1 := app.Group("/api/v1")
 
-	// PUBLIC ROUTES
+	// ── Auth (public) ──────────────────────────────────────────────────────────
+	mailer := auth.NewMailer(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUser, cfg.SMTPPass, cfg.EmailFromName)
+	authRepo := auth.NewRepository(db)
+	authSvc := auth.NewService(authRepo, mailer, rdb, cfg.AppJWTSecret, cfg.AdminJWTSecret)
+	authHandler := auth.NewHandler(authSvc)
+	authHandler.RegisterRoutes(v1.Group("/auth"))
+
+	// ── Admin auth (public — no middleware, issues its own tokens) ─────────────
+	authHandler.RegisterAdminRoutes(v1.Group("/admin/auth"))
+
+	// ── Middleware factories ───────────────────────────────────────────────────
+	userAuth  := middleware.RequireAuth(cfg.AppJWTSecret, rdb)
+	adminAuth := middleware.RequireAdmin(cfg.AdminJWTSecret, rdb)
+
+	// ── Public event routes ────────────────────────────────────────────────────
 	eventsPublic := v1.Group("/events")
 	eventRepo := events.NewRepository(db)
-	// Pass rdb so the service can cache event lists and individual events.
 	eventService := events.NewService(eventRepo, rdb)
 	eventHandler := events.NewHandler(eventService)
 	eventHandler.RegisterPublicRoutes(eventsPublic)
 
-	// PROTECTED ROUTES
-	// Pass rdb to RequireAuth so user resolution uses the two-layer cache.
-	auth := middleware.RequireAuth(pubKey, db, rdb)
-
-	usersGroup := v1.Group("/users", auth)
+	// ── Protected user routes ──────────────────────────────────────────────────
+	usersGroup := v1.Group("/users", userAuth)
 	userRepo := users.NewRepository(db)
 	userService := users.NewService(userRepo)
 	userHandler := users.NewHandler(userService)
 	userHandler.RegisterRoutes(usersGroup)
 
-	eventsProtected := v1.Group("/events", auth)
+	eventsProtected := v1.Group("/events", userAuth)
 	eventHandler.RegisterProtectedRoutes(eventsProtected)
 
-	favGroup := v1.Group("/favorites", auth)
+	favGroup := v1.Group("/favorites", userAuth)
 	favRepo := favorites.NewRepository(db)
 	favService := favorites.NewService(favRepo)
 	favHandler := favorites.NewHandler(favService)
 	favHandler.RegisterRoutes(favGroup)
 
-	infGroup := v1.Group("/influencers", auth, middleware.RequireOrganizer())
+	infGroup := v1.Group("/influencers", userAuth, middleware.RequireOrganizer())
 	infRepo := influencers.NewRepository(db)
 	infService := influencers.NewService(infRepo, cfg.AllowedOrigins)
 	infHandler := influencers.NewHandler(infService)
 	infHandler.RegisterRoutes(infGroup)
 
-	// PROXY ROUTES
+	// ── Proxy routes (Rust core) ───────────────────────────────────────────────
 	rustProxy := proxy.NewRustProxy(cfg.RustServiceURL)
 	proxyHandler := proxy.NewHandler(rustProxy)
 
-	// Ticket rate limiter: per-user, Redis-backed when available.
 	var ticketLimiterStore fiber.Storage
 	if cfg.RedisURL != "" {
 		ticketLimiterStore = redisStorage.New(redisStorage.Config{URL: cfg.RedisURL})
 	}
-	ticketGroup := v1.Group("/tickets", auth, limiter.New(limiter.Config{
+	ticketGroup := v1.Group("/tickets", userAuth, limiter.New(limiter.Config{
 		Max:        10,
 		Expiration: 60,
 		Storage:    ticketLimiterStore,
@@ -151,55 +144,56 @@ func main() {
 	}))
 	proxyHandler.RegisterTicketRoutes(ticketGroup)
 
-	scannerGroup := v1.Group("/scanner", auth)
+	scannerGroup := v1.Group("/scanner", userAuth)
 	proxyHandler.RegisterScannerRoutes(scannerGroup)
 
-	paymentGroup := v1.Group("/payments", auth)
+	paymentGroup := v1.Group("/payments", userAuth)
 	proxyHandler.RegisterPaymentRoutes(paymentGroup)
 	proxyHandler.RegisterPaymentWebhooks(v1.Group("/payments"))
 
-	analyticsGroup := v1.Group("/analytics", auth, middleware.RequireOrganizer())
+	analyticsGroup := v1.Group("/analytics", userAuth, middleware.RequireOrganizer())
 	proxyHandler.RegisterAnalyticsRoutes(analyticsGroup)
 
-	promoGroup := v1.Group("/promos", auth)
+	promoGroup := v1.Group("/promos", userAuth)
 	proxyHandler.RegisterPromoRoutes(promoGroup)
 
 	vendorPublic := v1.Group("/vendors")
 	proxyHandler.RegisterVendorPublicRoutes(vendorPublic)
 
-	vendorProtected := v1.Group("/vendors", auth)
+	vendorProtected := v1.Group("/vendors", userAuth)
 	proxyHandler.RegisterVendorProtectedRoutes(vendorProtected)
 
-	hireGroup := v1.Group("/vendor-hires", auth)
+	hireGroup := v1.Group("/vendor-hires", userAuth)
 	proxyHandler.RegisterHireRoutes(hireGroup)
 
-	reviewGroup := v1.Group("/vendor-reviews", auth, middleware.RequireOrganizer())
+	reviewGroup := v1.Group("/vendor-reviews", userAuth, middleware.RequireOrganizer())
 	proxyHandler.RegisterVendorReviewRoutes(reviewGroup)
 
-	inviteGroup := v1.Group("/vendor-invitations", auth)
+	inviteGroup := v1.Group("/vendor-invitations", userAuth)
 	proxyHandler.RegisterVendorInvitationRoutes(inviteGroup)
 
-	vendorSelf := v1.Group("/vendor/me", auth)
+	vendorSelf := v1.Group("/vendor/me", userAuth)
 	proxyHandler.RegisterVendorSelfRoutes(vendorSelf)
 
 	infPortalRepo := influencer_portal.NewRepository(db, cfg.AllowedOrigins)
 	infPortalHandler := influencer_portal.NewHandler(infPortalRepo)
-	infPortalGroup := v1.Group("/influencer", auth)
+	infPortalGroup := v1.Group("/influencer", userAuth)
 	infPortalHandler.RegisterRoutes(infPortalGroup)
 	infPortalHandler.RegisterClaimRoute(infPortalGroup)
 
-	paystackSecret := cfg.PaystackSecret
 	creditsRepo := credits.NewRepository(db)
-	creditsService := credits.NewService(creditsRepo, paystackSecret, cfg.AllowedOrigins)
-	creditsHandler := credits.NewHandler(creditsService, paystackSecret)
-	creditsGroup := v1.Group("/credits", auth, middleware.RequireOrganizer())
+	creditsService := credits.NewService(creditsRepo, cfg.PaystackSecret, cfg.AllowedOrigins)
+	creditsHandler := credits.NewHandler(creditsService, cfg.PaystackSecret)
+	creditsGroup := v1.Group("/credits", userAuth, middleware.RequireOrganizer())
 	creditsHandler.RegisterRoutes(creditsGroup)
 	creditsHandler.RegisterWebhook(v1.Group("/payments"))
 
-	adminGroup := v1.Group("/admin", auth, middleware.RequireAdmin())
+	// ── Admin routes (separate secret) ────────────────────────────────────────
+	adminGroup := v1.Group("/admin", adminAuth)
 	adminHandler := admin.NewHandler(db)
 	adminHandler.RegisterRoutes(adminGroup)
 
+	// ── Graceful shutdown ──────────────────────────────────────────────────────
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	go func() {

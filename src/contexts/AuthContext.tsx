@@ -1,228 +1,222 @@
-/**
- * PRESENTATION LAYER - Authentication Context
- * 
- * AuthContext: The identity manager - handling user authentication state
- * 
- * Architecture Layer: Presentation (Layer 1)
- * Dependencies: Supabase (auth provider), API clients (user profile)
- * Responsibility: Global authentication state management
- * 
- * Features:
- * - User session management
- * - Sign up with profile completion
- * - Sign in with email/password
- * - Sign out with cleanup
- * - Auth state persistence
- * - Real-time auth state changes
- * 
- * Flow:
- * 1. Check existing session on mount
- * 2. Listen for auth state changes
- * 3. Fetch user profile after authentication
- * 4. Navigate based on user type (user vs organizer)
- * 
- * Integration:
- * - Supabase: JWT authentication
- * - Backend: Profile completion and retrieval
- * - Router: Navigation after auth events
- */
-
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { User } from "@/types";
-import { supabase } from "@/lib/supabase";
-import { getProfile, completeProfile } from "@/api/users";
+import { getProfile } from "@/api/users";
 
-// Auth context interface
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+export interface SignupData {
+  email: string;
+  password: string;
+  name: string;
+  userType: "user" | "organizer";
+  orgName?: string;
+}
+
+interface TokenStore {
+  accessToken: string;
+  expiresAt: number; // unix ms
+  userID: string;
+  userType: string;
+}
+
 interface AuthContextType {
-  user: User | null;              // Current user profile
-  isAuthenticated: boolean;       // Is user logged in?
-  isLoading: boolean;             // Loading state
+  user: User | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  accessToken: string | null;
   signUp: (data: SignupData) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
-// Signup data structure
-export interface SignupData {
-  email: string;
-  password: string;
-  name: string;
-  userType: "user" | "organizer";  // Determines permissions
-  orgName?: string;                 // Required for organizers
+// ── Token memory store ────────────────────────────────────────────────────────
+// Access token lives in memory only — never localStorage, never a cookie.
+// The refresh token is httpOnly Secure — the browser holds it, JS never sees it.
+
+let _tokenStore: TokenStore | null = null;
+let _refreshPromise: Promise<TokenStore | null> | null = null;
+
+export function getAccessToken(): string | null {
+  if (!_tokenStore) return null;
+  if (Date.now() > _tokenStore.expiresAt - 30_000) return null; // 30s buffer
+  return _tokenStore.accessToken;
 }
 
-// Create context
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// ── API base ──────────────────────────────────────────────────────────────────
 
-/**
- * AuthProvider: Global authentication state provider
- * 
- * Manages user session and profile across the app
- */
+const API = import.meta.env.VITE_API_URL || "http://localhost:8080/api/v1";
+
+async function apiFetch(path: string, init: RequestInit = {}): Promise<any> {
+  const res = await fetch(`${API}${path}`, {
+    ...init,
+    credentials: "include", // sends httpOnly refresh cookie automatically
+    headers: { "Content-Type": "application/json", ...(init.headers ?? {}) },
+  });
+  const body = await res.json();
+  if (!res.ok || body.status === "error") {
+    throw new Error(body?.error?.message || "Request failed");
+  }
+  return body.data;
+}
+
+// ── Context ───────────────────────────────────────────────────────────────────
+
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  /**
-   * Fetch user profile from backend
-   * Called after successful authentication
-   */
-  const fetchUserProfile = async () => {
-    try {
-      const profile = await getProfile();
-      setUser(profile);
-    } catch {
-      setUser(null);
-    } finally {
-      setIsLoading(false);
-    }
+  // Schedule a silent token refresh 60s before expiry.
+  const scheduleRefresh = (store: TokenStore) => {
+    if (refreshTimer.current) clearTimeout(refreshTimer.current);
+    const delay = store.expiresAt - Date.now() - 60_000;
+    if (delay <= 0) return;
+    refreshTimer.current = setTimeout(() => silentRefresh(store.userID), delay);
   };
 
-  /**
-   * Initialize auth state on mount
-   * Check for existing session and listen for changes
-   */
-  useEffect(() => {
-    // Safety net — if Supabase never responds, unblock the UI after 3s
-    const timeout = setTimeout(() => setIsLoading(false), 3000);
-
-    // getSession handles the initial load — resolves immediately from local storage
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      clearTimeout(timeout);
-      if (session) {
-        fetchUserProfile();
-      } else {
-        setIsLoading(false);
-      }
-    });
-
-    // onAuthStateChange handles subsequent changes (login, logout, token refresh)
-    // Skip INITIAL_SESSION — getSession already handled it above
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'INITIAL_SESSION') return;
-      if (session) {
-        fetchUserProfile();
-      } else {
+  const silentRefresh = async (userID: string): Promise<TokenStore | null> => {
+    if (_refreshPromise) return _refreshPromise;
+    _refreshPromise = apiFetch("/auth/refresh", {
+      method: "POST",
+      body: JSON.stringify({ user_id: userID }),
+    })
+      .then((data) => {
+        const store: TokenStore = {
+          accessToken: data.access_token,
+          expiresAt: Date.now() + data.expires_in * 1000,
+          userID: data.user_id,
+          userType: data.user_type,
+        };
+        _tokenStore = store;
+        scheduleRefresh(store);
+        return store;
+      })
+      .catch(() => {
+        _tokenStore = null;
         setUser(null);
+        return null;
+      })
+      .finally(() => { _refreshPromise = null; });
+    return _refreshPromise;
+  };
+
+  // On mount: attempt a silent refresh to restore session from the httpOnly cookie.
+  useEffect(() => {
+    const restore = async () => {
+      try {
+        // We don't know the userID yet — send empty string; the server reads the cookie.
+        const data = await apiFetch("/auth/refresh", {
+          method: "POST",
+          body: JSON.stringify({ user_id: "" }),
+        });
+        const store: TokenStore = {
+          accessToken: data.access_token,
+          expiresAt: Date.now() + data.expires_in * 1000,
+          userID: data.user_id,
+          userType: data.user_type,
+        };
+        _tokenStore = store;
+        scheduleRefresh(store);
+        const profile = await getProfile();
+        setUser(profile);
+      } catch {
+        _tokenStore = null;
+        setUser(null);
+      } finally {
         setIsLoading(false);
       }
-    });
-
-    return () => {
-      clearTimeout(timeout);
-      subscription.unsubscribe();
     };
+    restore();
+    return () => { if (refreshTimer.current) clearTimeout(refreshTimer.current); };
   }, []);
 
-  /**
-   * Sign Up: Create new user account
-   * 
-   * Flow:
-   * 1. Create Supabase auth account
-   * 2. Complete profile in backend (set user_type)
-   * 3. Fetch full profile
-   * 4. Navigate based on user type
-   */
   const signUp = async (data: SignupData) => {
     setIsLoading(true);
     try {
-      // Store profile data so AuthCallback can complete it after email confirmation.
-      // This survives the redirect because it's in localStorage, not memory.
-      localStorage.setItem("bukr_pending_profile", JSON.stringify({
-        name: data.name,
-        userType: data.userType,
-        orgName: data.orgName,
-      }));
-
-      // 1. Sign up with Supabase — redirectTo tells it where to send the confirmation link
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: data.email,
-        password: data.password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/#/auth/callback`,
-        },
+      const res = await apiFetch("/auth/register", {
+        method: "POST",
+        body: JSON.stringify({
+          name: data.name,
+          email: data.email,
+          password: data.password,
+          user_type: data.userType,
+          org_name: data.orgName,
+        }),
       });
-
-      if (authError) throw authError;
-
-      if (authData.session) {
-        // No email confirmation required (e.g. disabled in Supabase dashboard)
-        localStorage.removeItem("bukr_pending_profile");
-        await completeProfile({ name: data.name, userType: data.userType, orgName: data.orgName });
-        await fetchUserProfile();
-        navigate(data.userType === 'organizer' ? "/dashboard" : "/app");
-      }
-      // If session is null, email confirmation is required — AuthCallback handles the rest.
-    } catch (error) {
-      throw error;
+      const store: TokenStore = {
+        accessToken: res.access_token,
+        expiresAt: Date.now() + res.expires_in * 1000,
+        userID: res.user_id,
+        userType: res.user_type,
+      };
+      _tokenStore = store;
+      scheduleRefresh(store);
+      const profile = await getProfile();
+      setUser(profile);
+      navigate(data.userType === "organizer" ? "/dashboard" : "/app");
     } finally {
       setIsLoading(false);
     }
   };
 
-  /**
-   * Sign In: Authenticate existing user
-   * 
-   * Flow:
-   * 1. Sign in with Supabase
-   * 2. Fetch user profile
-   * 3. Navigate to app
-   */
   const signIn = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      const res = await apiFetch("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
       });
-
-      if (error) throw error;
-      
-      // Fetch profile (onAuthStateChange will also trigger this)
-      await fetchUserProfile();
-      
-      // Navigate to app (component protection handles specific routing)
-      navigate("/app"); 
-      
-    } catch (error) {
-      throw error;
+      const store: TokenStore = {
+        accessToken: res.access_token,
+        expiresAt: Date.now() + res.expires_in * 1000,
+        userID: res.user_id,
+        userType: res.user_type,
+      };
+      _tokenStore = store;
+      scheduleRefresh(store);
+      const profile = await getProfile();
+      setUser(profile);
+      navigate(res.user_type === "organizer" ? "/dashboard" : "/app");
     } finally {
       setIsLoading(false);
     }
   };
 
-  /**
-   * Sign Out: Clear session and navigate home
-   */
   const signOut = async () => {
-    setIsLoading(true);
+    const store = _tokenStore;
+    _tokenStore = null;
+    if (refreshTimer.current) clearTimeout(refreshTimer.current);
     try {
-      await supabase.auth.signOut();
-    } catch {
-      // signOut failure is non-critical — clear local state regardless
-    } finally {
-      setUser(null);
-      setIsLoading(false);
-      navigate("/");
-    }
+      await apiFetch("/auth/logout", {
+        method: "POST",
+        body: JSON.stringify({ user_id: store?.userID ?? "", jti: "" }),
+      });
+    } catch { /* best-effort */ }
+    setUser(null);
+    navigate("/");
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{
+      user,
+      isAuthenticated: !!user,
+      isLoading,
+      accessToken: _tokenStore?.accessToken ?? null,
+      signUp,
+      signIn,
+      signOut,
+    }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-/**
- * useAuth: Hook to access auth context
- * 
- * Must be used within AuthProvider
- */
 export const useAuth = (): AuthContextType => {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error("useAuth must be used within an AuthProvider");
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within an AuthProvider");
+  return ctx;
 };

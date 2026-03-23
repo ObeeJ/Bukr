@@ -28,10 +28,6 @@ services:
     envVars:
       - key: VITE_API_URL
         value: https://bukr-gateway.onrender.com/api/v1
-      - key: VITE_SUPABASE_URL
-        sync: false
-      - key: VITE_SUPABASE_ANON_KEY
-        sync: false
 
   # ── Go API Gateway ──────────────────────────────────────────────────────────
   - type: web
@@ -45,12 +41,8 @@ services:
     envVars:
       - key: PORT
         value: "8080"
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_SERVICE_KEY
-        sync: false
-      - key: SUPABASE_JWT_SECRET
-        sync: false
+      - key: APP_ENV
+        value: "production"
       - key: DATABASE_URL
         sync: false
       - key: REDIS_URL
@@ -58,18 +50,35 @@ services:
           name: bukr-redis
           type: redis
           property: connectionString
-      # Render internal networking: bukr-core is reachable via its service host
       - key: RUST_SERVICE_URL
         fromService:
           name: bukr-core
           type: web
           property: host
-      # Set to your actual Render frontend URL after first deploy
-      # Format: https://bukr-frontend.onrender.com
       - key: ALLOWED_ORIGINS
-        sync: false
+        value: "https://bukr.onrender.com"
       - key: LOG_LEVEL
         value: "info"
+      # JWT — generate with: openssl rand -hex 32
+      - key: APP_JWT_SECRET
+        sync: false
+      - key: ADMIN_JWT_SECRET
+        sync: false
+      # SMTP (Gmail STARTTLS)
+      - key: SMTP_HOST
+        value: "smtp.gmail.com"
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: EMAIL_FROM_NAME
+        value: "Bukr"
+      - key: PAYSTACK_SECRET_KEY
+        sync: false
+      - key: PAYSTACK_WEBHOOK_SECRET
+        sync: false
 
   # ── Rust Core Service ───────────────────────────────────────────────────────
   - type: web

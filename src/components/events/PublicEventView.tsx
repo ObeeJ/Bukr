@@ -30,7 +30,7 @@ const PublicEventView = ({ event }: PublicEventViewProps) => {
     const handleClaimFreeTicket = async () => {
         if (!user) {
             toast.error('Please sign in to claim ticket');
-            navigate('/signin');
+            navigate('/auth');
             return;
         }
 

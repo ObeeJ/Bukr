@@ -1,16 +1,3 @@
-/**
- * INFRASTRUCTURE LAYER - Configuration
- * 
- * Config: The settings loader - turning environment variables into useful configuration
- * 
- * Architecture Layer: Infrastructure (Layer 6)
- * Dependencies: Environment variables
- * Responsibility: Load and provide application configuration
- * 
- * Why centralize config? Because scattered os.Getenv() calls are a nightmare
- * Change a variable name? Update it once here, not in 20 files
- */
-
 package shared
 
 import (
@@ -18,94 +5,74 @@ import (
 	"os"
 )
 
-/**
- * Config: All the settings the Go gateway needs
- * 
- * Loaded once at startup, passed to all modules
- * Contains connection strings, secrets, and feature flags
- */
+// Config holds all runtime configuration for the Go gateway.
 type Config struct {
-	Port              string
-	SupabaseURL       string
-	SupabaseKey       string
-	SupabaseJWTSecret string
-	DatabaseURL       string
-	RedisURL          string
-	RustServiceURL    string
-	AllowedOrigins    string
-	LogLevel          string
-	PaystackSecret    string // for credits webhook verification
+	Port            string
+	DatabaseURL     string
+	RedisURL        string
+	RustServiceURL  string
+	AllowedOrigins  string
+	LogLevel        string
+	PaystackSecret  string
+
+	// JWT secrets — different keys make user and admin tokens cryptographically separate.
+	AppJWTSecret   string // signs user access tokens (HS256)
+	AdminJWTSecret string // signs admin access tokens (HS256)
+
+	// SMTP — Gmail STARTTLS on port 587.
+	SMTPHost     string
+	SMTPPort     string
+	SMTPUser     string
+	SMTPPass     string
+	EmailFromName string
 }
 
-/**
- * LoadConfig: Load configuration from environment variables
- * 
- * Reads from .env file (via godotenv) or system environment
- * Provides sensible defaults for development
- * Logs warnings for missing critical config
- * 
- * Pattern: getEnv(key, default) for each setting
- * 
- * @returns Populated Config struct
- */
 func LoadConfig() *Config {
 	cfg := &Config{
-		// Server port - default to 8080 for development
-		Port:             getEnv("PORT", "8080"),
-		
-		// Supabase configuration - empty defaults (will fail gracefully)
-		SupabaseURL:      getEnv("SUPABASE_URL", ""),
-		SupabaseKey:      getEnv("SUPABASE_SERVICE_KEY", ""),
-		SupabaseJWTSecret: getEnv("SUPABASE_JWT_SECRET", ""),
-		
-		// Database URL - empty default (app can run without DB in dev mode)
-		DatabaseURL:      getEnv("DATABASE_URL", ""),
-		
-		// Redis URL - empty default (caching is optional)
-		RedisURL:         getEnv("REDIS_URL", ""),
-		
-		// Rust service URL - default to localhost for development
-		RustServiceURL:   getEnv("RUST_SERVICE_URL", "http://localhost:8081"),
-		
-		// CORS origins - default to local dev frontend
-		AllowedOrigins:   getEnv("ALLOWED_ORIGINS", "http://localhost:5173"),
-		
-		// Log level - default to info (not too verbose, not too quiet)
-		LogLevel:         getEnv("LOG_LEVEL", "info"),
-		PaystackSecret:   getEnv("PAYSTACK_SECRET_KEY", ""),
+		Port:           getEnv("PORT", "8080"),
+		DatabaseURL:    getEnv("DATABASE_URL", ""),
+		RedisURL:       getEnv("REDIS_URL", ""),
+		RustServiceURL: getEnv("RUST_SERVICE_URL", "http://localhost:8081"),
+		AllowedOrigins: getEnv("ALLOWED_ORIGINS", "http://localhost:5173"),
+		LogLevel:       getEnv("LOG_LEVEL", "info"),
+		PaystackSecret: getEnv("PAYSTACK_SECRET_KEY", ""),
+
+		AppJWTSecret:   getEnv("APP_JWT_SECRET", ""),
+		AdminJWTSecret: getEnv("ADMIN_JWT_SECRET", ""),
+
+		SMTPHost:      getEnv("SMTP_HOST", "smtp.gmail.com"),
+		SMTPPort:      getEnv("SMTP_PORT", "587"),
+		SMTPUser:      getEnv("SMTP_USER", ""),
+		SMTPPass:      getEnv("SMTP_PASS", ""),
+		EmailFromName: getEnv("EMAIL_FROM_NAME", "Bukr"),
 	}
 
-	// Warn if database URL is missing - app will work but with limited features
 	if cfg.DatabaseURL == "" {
-		log.Println("WARNING: DATABASE_URL not set, database features will be unavailable")
+		log.Println("WARNING: DATABASE_URL not set")
 	}
 
-	// Fail fast if critical secrets are missing in production
 	if os.Getenv("APP_ENV") == "production" {
-		if cfg.SupabaseURL == "" || cfg.SupabaseKey == "" {
-			log.Fatal("FATAL: SUPABASE_URL and SUPABASE_SERVICE_KEY are required in production")
+		fatal := func(msg string) { log.Fatal("FATAL: " + msg) }
+		if cfg.AppJWTSecret == "" {
+			fatal("APP_JWT_SECRET is required in production")
+		}
+		if cfg.AdminJWTSecret == "" {
+			fatal("ADMIN_JWT_SECRET is required in production")
 		}
 		if cfg.DatabaseURL == "" {
-			log.Fatal("FATAL: DATABASE_URL is required in production")
+			fatal("DATABASE_URL is required in production")
+		}
+		if cfg.SMTPUser == "" || cfg.SMTPPass == "" {
+			fatal("SMTP_USER and SMTP_PASS are required in production")
 		}
 		if cfg.PaystackSecret == "" {
-			log.Fatal("FATAL: PAYSTACK_SECRET_KEY is required in production")
+			fatal("PAYSTACK_SECRET_KEY is required in production")
 		}
 	}
 
 	return cfg
 }
 
-/**
- * getEnv: Helper to get environment variable with fallback
- * 
- * Checks if environment variable exists
- * Returns its value if present, fallback if not
- * 
- * @param key - Environment variable name
- * @param fallback - Default value if variable not set
- * @returns Variable value or fallback
- */
 func getEnv(key, fallback string) string {
 	if val := os.Getenv(key); val != "" {
 		return val

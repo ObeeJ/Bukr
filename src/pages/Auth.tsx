@@ -13,8 +13,9 @@ import {
   ArrowLeft, Mail, Lock, UserCircle, ArrowRight,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/lib/supabase";
 import AnimatedLogo from "@/components/AnimatedLogo";
+
+const API = import.meta.env.VITE_API_URL || "http://localhost:8080/api/v1";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Tab = "signin" | "signup";
@@ -276,11 +277,16 @@ const Auth = () => {
     clearFeedback();
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-        redirectTo: `${window.location.origin}/#/reset-password`,
+      const res = await fetch(`${API}/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: resetEmail.trim().toLowerCase() }),
       });
-      if (error) throw error;
-      setFeedback({ type: "success", msg: "Reset link sent! Check your inbox." });
+      const body = await res.json();
+      if (!res.ok && body?.error?.message) throw new Error(body.error.message);
+      setFeedback({ type: "success", msg: "If that email is registered, a 6-digit code is on its way." });
+      // Move to reset-password page so user can enter the OTP
+      setTimeout(() => navigate(`/reset-password?email=${encodeURIComponent(resetEmail.trim())}`), 1200);
     } catch (err) {
       setFeedback({ type: "error", msg: getErrorMessage(err, "forgot") });
     } finally {
@@ -348,7 +354,7 @@ const Auth = () => {
             <div className="auth-form-section animate-fade-in">
               <div className="auth-card__header">
                 <h2 className="auth-card__title">Reset password</h2>
-                <p className="auth-card__sub">We'll send a magic link to your inbox.</p>
+                <p className="auth-card__sub">Enter your email and we'll send a 6-digit code.</p>
               </div>
 
               {feedback && <Feedback type={feedback.type} msg={feedback.msg} />}
@@ -367,7 +373,7 @@ const Auth = () => {
               </div>
 
               <Button onClick={handleForgot} variant="glow" className="w-full h-11 cta" disabled={isLoading}>
-                {isLoading ? "Sending…" : "Send reset link"}
+                {isLoading ? "Sending code…" : "Send reset code"}
               </Button>
 
               <button

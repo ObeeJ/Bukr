@@ -26,7 +26,7 @@ const ScannerPage = () => {
 
   useEffect(() => {
     if (!user && !eventKey && !eventId) {
-      navigate("/signin");
+      navigate("/auth");
       return;
     }
 

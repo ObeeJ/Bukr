@@ -16,7 +16,7 @@ const Index = () => {
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Button onClick={() => navigate("/explore")}>Explore Events</Button>
-          <Button variant="secondary" onClick={() => navigate("/signin")}>
+          <Button variant="secondary" onClick={() => navigate("/auth")}>
             Sign In to Get Started
           </Button>
         </div>
