@@ -30,8 +30,10 @@ pub async fn create_pool(database_url: &str) -> PgPool {
             .expect("This should not be called without a DATABASE_URL")
     } else {
         PgPoolOptions::new()
-            .max_connections(10)
+            .max_connections(5)
             .min_connections(1)
+            // Disable prepared-statement cache — required for PgBouncer transaction mode (port 6543).
+            .statement_cache_capacity(0)
             // Give more headroom on cold starts (Render DB may need to wake up).
             .acquire_timeout(Duration::from_secs(10))
             .max_lifetime(Duration::from_secs(1800))

@@ -23,6 +23,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -40,12 +41,13 @@ func NewDatabasePool(databaseURL string) *pgxpool.Pool {
 		log.Fatalf("Failed to parse DATABASE_URL: %v", err)
 	}
 
-	// Pool tuned for production throughput.
-	// MaxConns=50: handles concurrent bursts without exhausting Postgres.
-	// MinConns=10: keeps connections warm so cold-start latency is zero.
-	// MaxConnWaitDuration: fail fast under extreme load instead of queuing forever.
-	config.MaxConns = 50
-	config.MinConns = 10
+	// Transaction-mode pooler (port 6543) does not support prepared statements.
+	// SimpleProtocol sends queries as plain text — required for PgBouncer transaction mode.
+	config.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
+
+	// Keep min low: pooler multiplexes connections, no need to pre-warm many.
+	config.MaxConns = 20
+	config.MinConns = 2
 	config.MaxConnLifetime = 30 * time.Minute
 	config.MaxConnIdleTime = 5 * time.Minute
 
@@ -58,6 +60,6 @@ func NewDatabasePool(databaseURL string) *pgxpool.Pool {
 		log.Fatalf("Failed to ping database: %v", err)
 	}
 
-	log.Println("Database connection pool established (max=50, min=10)")
+	log.Println("Database connection pool established (max=20, min=2, simple-protocol)")
 	return pool
 }
