@@ -16,8 +16,9 @@
  * driving from the garage every time someone needs a ride
  */
 
-use sqlx::postgres::PgPoolOptions;
+use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
 use sqlx::PgPool;
+use std::str::FromStr;
 use std::time::Duration;
 
 pub async fn create_pool(database_url: &str) -> PgPool {
@@ -29,16 +30,19 @@ pub async fn create_pool(database_url: &str) -> PgPool {
             .await
             .expect("This should not be called without a DATABASE_URL")
     } else {
+        // Disable prepared-statement cache — required for PgBouncer transaction mode (port 6543).
+        let connect_opts = PgConnectOptions::from_str(database_url)
+            .expect("Invalid DATABASE_URL")
+            .statement_cache_capacity(0);
+
         PgPoolOptions::new()
             .max_connections(5)
             .min_connections(1)
-            // Disable prepared-statement cache — required for PgBouncer transaction mode (port 6543).
-            .statement_cache_capacity(0)
             // Give more headroom on cold starts (Render DB may need to wake up).
             .acquire_timeout(Duration::from_secs(10))
             .max_lifetime(Duration::from_secs(1800))
             .idle_timeout(Duration::from_secs(300))
-            .connect(database_url)
+            .connect_with(connect_opts)
             .await
             .expect("Failed to connect to database")
     }

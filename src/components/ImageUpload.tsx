@@ -9,18 +9,20 @@ interface ImageUploadProps {
   onChange: (url: string) => void;
   bucket?: string;
   label?: string;
+  accept?: string;
 }
 
-export const ImageUpload = ({ value, onChange, bucket = 'event-images', label = 'Upload Image' }: ImageUploadProps) => {
+export const ImageUpload = ({ value, onChange, bucket = 'event-images', label = 'Upload Image', accept = 'image/*' }: ImageUploadProps) => {
   const [uploading, setUploading] = useState(false);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please upload an image file');
+    // Validate file type against the accepted pattern
+    const acceptedPrefix = accept.replace('/*', '/');
+    if (!file.type.startsWith(acceptedPrefix)) {
+      toast.error(`Please upload a valid ${acceptedPrefix.replace('/', '')} file`);
       return;
     }
 
@@ -90,7 +92,7 @@ export const ImageUpload = ({ value, onChange, bucket = 'event-images', label = 
               )}
               <input
                 type="file"
-                accept="image/*"
+                accept={accept}
                 className="hidden"
                 onChange={handleUpload}
                 disabled={uploading}

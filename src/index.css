@@ -1200,3 +1200,169 @@
   .landing-features { padding: 1.5rem 1rem 2.5rem; gap: 0.75rem; }
   .auth-card { padding: 1.25rem 1rem; }
 }
+
+/* ============================================================================
+   WAITLIST SECTION
+   ============================================================================ */
+
+.waitlist-section {
+  position: relative;
+  z-index: 10;
+  padding: 4rem 1.5rem 5rem;
+  text-align: center;
+  overflow: hidden;
+  border-top: 1px solid hsl(193 100% 75% / 0.06);
+}
+
+.waitlist-orb {
+  position: absolute;
+  width: 600px;
+  height: 300px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(ellipse, hsl(193 100% 65% / 0.06) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.waitlist-inner {
+  max-width: 560px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.waitlist-heading {
+  font-family: 'Clash Display', sans-serif;
+  font-size: clamp(1.75rem, 5vw, 2.75rem);
+  font-weight: 900;
+  color: hsl(0 0% 100%);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  text-shadow: 0 0 60px hsl(193 100% 75% / 0.12);
+}
+
+.waitlist-sub {
+  font-size: 0.9375rem;
+  color: hsl(0 0% 100% / 0.45);
+  max-width: 420px;
+  line-height: 1.7;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.waitlist-form {
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.waitlist-input-wrap {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.waitlist-input {
+  flex: 1;
+  height: 3rem;
+  padding: 0 1rem;
+  border-radius: 0.875rem;
+  background: hsl(213 60% 8% / 0.6);
+  border: 1px solid hsl(193 100% 75% / 0.12);
+  color: hsl(0 0% 100%);
+  font-size: 0.9375rem;
+  font-family: 'Montserrat', sans-serif;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.waitlist-input::placeholder {
+  color: hsl(0 0% 100% / 0.25);
+}
+
+.waitlist-input:focus {
+  border-color: hsl(193 100% 65% / 0.4);
+  box-shadow: 0 0 0 3px hsl(193 100% 65% / 0.08);
+}
+
+.waitlist-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 3rem;
+  padding: 0 1.5rem;
+  border-radius: 0.875rem;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-family: 'Clash Display', sans-serif;
+  white-space: nowrap;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  border: none;
+}
+
+.waitlist-btn:hover:not(:disabled) {
+  box-shadow: 0 0 24px hsl(193 100% 65% / 0.35);
+  transform: translateY(-1px);
+}
+
+.waitlist-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.waitlist-success {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.875rem;
+  background: hsl(193 100% 65% / 0.08);
+  border: 1px solid hsl(193 100% 65% / 0.2);
+  color: hsl(193 100% 75%);
+  font-size: 0.9375rem;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.waitlist-error {
+  font-size: 0.8125rem;
+  color: hsl(0 90% 70%);
+  font-family: 'Montserrat', sans-serif;
+  text-align: left;
+  padding-left: 0.25rem;
+}
+
+.waitlist-proof {
+  font-size: 0.8125rem;
+  color: hsl(0 0% 100% / 0.25);
+  font-family: 'Clash Grotesk', sans-serif;
+  letter-spacing: 0.01em;
+}
+
+@media (max-width: 480px) {
+  .waitlist-input-wrap { flex-direction: column; }
+  .waitlist-btn { width: 100%; justify-content: center; height: 3.25rem; }
+}
+
+/* ============================================================================
+   FEEDBACK MODAL ANIMATION
+   ============================================================================ */
+
+@keyframes slideUpModal {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

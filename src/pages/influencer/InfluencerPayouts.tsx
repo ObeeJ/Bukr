@@ -9,9 +9,14 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { getInfluencerProfile, getPayoutHistory, requestPayout } from "@/api/influencer";
 import { payoutStatusBadge } from "@/lib/badges";
+import { useAuth } from "@/contexts/AuthContext";
+import { useFeedback } from "@/hooks/useFeedback";
+import FeedbackModal from "@/components/FeedbackModal";
 
 export default function InfluencerPayouts() {
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const { feedbackState, triggerFeedback, closeFeedback } = useFeedback();
   const [amount, setAmount] = useState("");
   const [bankCode, setBankCode] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
@@ -39,6 +44,7 @@ export default function InfluencerPayouts() {
       setAmount(""); setBankCode(""); setAccountNumber(""); setAccountName("");
       qc.invalidateQueries({ queryKey: ["influencer-profile"] });
       qc.invalidateQueries({ queryKey: ["payout-history"] });
+      if (user?.id) triggerFeedback(user.id, 'influencer', 'payout_requested');
     },
     onError: (err: any) => {
       const msg = err?.response?.data?.message ?? "Payout request failed. Try again.";
@@ -128,6 +134,15 @@ export default function InfluencerPayouts() {
           ))}
         </div>
       </div>
+
+      {feedbackState && (
+        <FeedbackModal
+          open={feedbackState.open}
+          userType={feedbackState.userType}
+          journey={feedbackState.journey}
+          onClose={closeFeedback}
+        />
+      )}
     </div>
   );
 }

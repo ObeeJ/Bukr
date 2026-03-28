@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Calendar, Search, Zap, ShieldCheck, Smartphone, Compass } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import AnimatedLogo from "@/components/AnimatedLogo";
+import WaitlistSection from "@/components/WaitlistSection";
 
 // ─── Typed headline ────────────────────────────────────────────────────────────
 const HEADLINE = "Make every moment count.";
@@ -333,6 +334,9 @@ const Landing = () => {
           </div>
         ))}
       </section>
+
+      {/* ── Waitlist ── */}
+      <WaitlistSection />
     </div>
   );
 };

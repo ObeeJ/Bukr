@@ -7,6 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { registerVendor } from "@/api/vendors";
+import { useAuth } from "@/contexts/AuthContext";
+import { useFeedback } from "@/hooks/useFeedback";
+import FeedbackModal from "@/components/FeedbackModal";
 
 const CATEGORIES = ["DJ", "Catering", "Photography", "Videography", "MC", "Decoration", "Security", "AV_Tech", "Makeup", "Ushers", "Logistics", "Other"];
 
@@ -31,6 +34,8 @@ const TIERS = [
 
 export default function VendorRegister() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { feedbackState, triggerFeedback, closeFeedback } = useFeedback();
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
     businessName: "",
@@ -49,6 +54,7 @@ export default function VendorRegister() {
     mutationFn: () => registerVendor(form),
     onSuccess: () => {
       toast.success("You're on Bukr!", { description: "Your vendor profile is live. Organizers can now find you." });
+      if (user?.id) triggerFeedback(user.id, 'vendor', 'vendor_registered');
       navigate("/vendor-dashboard");
     },
     onError: (err: any) => {
@@ -192,6 +198,15 @@ export default function VendorRegister() {
           </div>
         )}
       </div>
+
+      {feedbackState && (
+        <FeedbackModal
+          open={feedbackState.open}
+          userType={feedbackState.userType}
+          journey={feedbackState.journey}
+          onClose={closeFeedback}
+        />
+      )}
     </div>
   );
 }

@@ -22,8 +22,6 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    ports:
-      - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -38,22 +36,18 @@ services:
     restart: unless-stopped
     ports:
       - "8081:8081"
+    env_file:
+      - ./backend/.env
     environment:
       PORT: "8081"
-      DATABASE_URL: ${DATABASE_URL}
       REDIS_URL: redis://redis:6379
-      QR_HMAC_SECRET: ${QR_HMAC_SECRET:-bukr-dev-secret-change-in-production}
-      PAYSTACK_SECRET_KEY: ${PAYSTACK_SECRET_KEY:-}
-      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
-      PAYSTACK_WEBHOOK_SECRET: ${PAYSTACK_WEBHOOK_SECRET:-}
-      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       ALLOWED_ORIGINS: "http://localhost:3000,http://localhost:5173"
       RUST_LOG: "bukr_core=info,tower_http=info"
     depends_on:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8081/health"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8081/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -66,14 +60,12 @@ services:
     restart: unless-stopped
     ports:
       - "8080:8080"
+    env_file:
+      - ./backend/.env
     environment:
       PORT: "8080"
-      DATABASE_URL: ${DATABASE_URL}
       REDIS_URL: redis://redis:6379
       RUST_SERVICE_URL: http://core:8081
-      SUPABASE_URL: ${SUPABASE_URL}
-      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY}
-      SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET}
       ALLOWED_ORIGINS: "http://localhost:3000,http://localhost:5173"
       LOG_LEVEL: "info"
     depends_on:
@@ -82,7 +74,7 @@ services:
       core:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
       interval: 10s
       timeout: 5s
       retries: 5

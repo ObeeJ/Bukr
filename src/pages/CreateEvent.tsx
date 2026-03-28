@@ -7,13 +7,17 @@ import { ArrowLeft, Loader2, Repeat2, Clock, RefreshCw, Gamepad2, UtensilsCrosse
 import { useNavigate, useParams } from 'react-router-dom';
 import { useEvent } from '@/contexts/EventContext';
 import { toast } from 'sonner';
-
 import { ImageUpload } from '@/components/ImageUpload';
+import { useAuth } from '@/contexts/AuthContext';
+import { useFeedback } from '@/hooks/useFeedback';
+import FeedbackModal from '@/components/FeedbackModal';
 
 const CreateEvent = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { addEvent, updateEvent, getEvent } = useEvent();
+  const { user } = useAuth();
+  const { feedbackState, triggerFeedback, closeFeedback } = useFeedback();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const isEditMode = !!id;
@@ -28,6 +32,8 @@ const CreateEvent = () => {
     totalTickets: '',
     currency: 'NGN',
     thumbnailUrl: '',
+    flierUrl: '',
+    videoUrl: '',
     niche: '',
     ticketModel: 'single',
     usageTotal: '',
@@ -52,6 +58,8 @@ const CreateEvent = () => {
             totalTickets: event.totalTickets?.toString() || '0',
             currency: event.currency || 'NGN',
             thumbnailUrl: event.thumbnailUrl || '',
+            flierUrl: event.flierUrl || '',
+            videoUrl: event.videoUrl || '',
             niche: (event as any).niche || '',
             ticketModel: 'single',
             usageTotal: '',
@@ -106,6 +114,8 @@ const CreateEvent = () => {
         totalTickets,
         currency: formData.currency,
         thumbnailUrl: formData.thumbnailUrl || undefined,
+        flierUrl: formData.flierUrl || undefined,
+        videoUrl: formData.videoUrl || undefined,
         niche: formData.niche || undefined,
         usageModel: formData.ticketModel !== 'single' ? formData.ticketModel : undefined,
         usageTotal: formData.usageTotal ? parseInt(formData.usageTotal) : undefined,
@@ -120,6 +130,8 @@ const CreateEvent = () => {
       } else {
         await addEvent(eventData);
         toast.success('Event created successfully!');
+        // Trigger feedback only on new event creation, not edits
+        if (user?.id) triggerFeedback(user.id, 'organizer', 'event_created');
       }
       navigate('/dashboard');
     } catch (err: any) {
@@ -238,11 +250,32 @@ const CreateEvent = () => {
           </div>
 
           <div className="space-y-2">
-            <Label>Event Image (Optional)</Label>
+            <Label>Event Thumbnail (Optional)</Label>
             <ImageUpload
               value={formData.thumbnailUrl}
               onChange={(url) => setFormData({ ...formData, thumbnailUrl: url })}
               label="Upload event thumbnail"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Event Flier (Optional)</Label>
+            <ImageUpload
+              value={formData.flierUrl}
+              onChange={(url) => setFormData({ ...formData, flierUrl: url })}
+              bucket="event-fliers"
+              label="Upload event flier"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Event Video (Optional)</Label>
+            <ImageUpload
+              value={formData.videoUrl}
+              onChange={(url) => setFormData({ ...formData, videoUrl: url })}
+              bucket="event-videos"
+              accept="video/*"
+              label="Upload event video"
             />
           </div>
 
@@ -398,6 +431,15 @@ const CreateEvent = () => {
           </Button>
         </form>
       </div>
+
+      {feedbackState && (
+        <FeedbackModal
+          open={feedbackState.open}
+          userType={feedbackState.userType}
+          journey={feedbackState.journey}
+          onClose={closeFeedback}
+        />
+      )}
     </div>
   );
 };

@@ -109,8 +109,13 @@ func (p *RustProxy) Forward(c *fiber.Ctx, rustPath string) error {
 		return shared.Error(c, fiber.StatusBadGateway, shared.CodeInternalError, "Failed to create proxy request")
 	}
 
-	// Copy content headers
-	req.Header.Set("Content-Type", string(c.Request().Header.ContentType()))
+	// Copy content headers; fall back to application/json so Axum's JSON
+	// extractor never rejects a forwarded request with 415.
+	ct := string(c.Request().Header.ContentType())
+	if ct == "" {
+		ct = "application/json"
+	}
+	req.Header.Set("Content-Type", ct)
 	if accept := c.Get("Accept"); accept != "" {
 		req.Header.Set("Accept", accept)
 	}

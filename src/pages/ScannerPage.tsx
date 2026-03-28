@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Check, X, AlertCircle, ArrowLeft, Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { Event } from "@/types";
+import { useFeedback } from "@/hooks/useFeedback";
+import FeedbackModal from "@/components/FeedbackModal";
 
 const ScannerPage = () => {
   const { eventId, eventKey } = useParams<{ eventId?: string; eventKey?: string }>();
@@ -19,10 +21,21 @@ const ScannerPage = () => {
   const { toast } = useToast();
   const { getEvent, getEventByKey } = useEvent();
   const { user } = useAuth();
+  const { feedbackState, triggerFeedback, closeFeedback } = useFeedback();
   const [status, setStatus] = useState<"valid" | "invalid" | "used" | null>(null);
   const [scanCount, setScanCount] = useState({ valid: 0, invalid: 0, used: 0 });
   const [currentEvent, setCurrentEvent] = useState<Event | null>(null);
   const [loadingEvent, setLoadingEvent] = useState(true);
+
+  // Trigger feedback when scanner leaves with at least 1 scan done
+  useEffect(() => {
+    return () => {
+      if (user?.id && scanCount.valid > 0) {
+        triggerFeedback(user.id, 'scanner', 'scan_session_ended');
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!user && !eventKey && !eventId) {
@@ -72,7 +85,6 @@ const ScannerPage = () => {
     try {
       const data = JSON.parse(code);
       if (data.ticketId) {
-        // Optimistic counter increment — TicketScanner will show the real result dialog
         setScanCount((prev) => ({ ...prev, valid: prev.valid + 1 }));
         setStatus("valid");
       }
@@ -80,6 +92,13 @@ const ScannerPage = () => {
       setScanCount((prev) => ({ ...prev, invalid: prev.invalid + 1 }));
       setStatus("invalid");
     }
+  };
+
+  const handleEndSession = () => {
+    if (user?.id && scanCount.valid > 0) {
+      triggerFeedback(user.id, 'scanner', 'scan_session_ended');
+    }
+    navigate("/dashboard");
   };
 
   if (loadingEvent) {
@@ -99,7 +118,7 @@ const ScannerPage = () => {
       <div className="flex items-center gap-4 mb-6">
         <Button
           variant="ghost"
-          onClick={() => navigate("/dashboard")}
+          onClick={handleEndSession}
           className="p-2 hover-glow"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
@@ -154,6 +173,15 @@ const ScannerPage = () => {
       )}
 
       <TicketScanner onScan={handleScan} />
+
+      {feedbackState && (
+        <FeedbackModal
+          open={feedbackState.open}
+          userType={feedbackState.userType}
+          journey={feedbackState.journey}
+          onClose={closeFeedback}
+        />
+      )}
     </div>
   );
 };

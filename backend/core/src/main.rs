@@ -46,11 +46,51 @@ mod vendors;
 
 use std::sync::Arc;
 use axum::{
+    extract::FromRef,
     routing::{get, patch, post, delete},
     Router,
 };
+use sqlx::PgPool;
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
+
+/// Single shared state projected to each service type via FromRef.
+/// Applied ONCE at the top-level router — per-router .with_state() calls
+/// corrupt matchit's radix trie for parameterised routes in Axum 0.7.
+#[derive(Clone)]
+struct AppState {
+    ticket_service:  Arc<tickets::service::TicketService>,
+    scanner_service: Arc<scanner::service::ScannerService>,
+    promo_service:   Arc<promos::service::PromoService>,
+    payment_service: Arc<payments::service::PaymentService>,
+    vendor_service:  Arc<vendors::service::VendorService>,
+    pool:            PgPool,
+    arc_pool:        Arc<PgPool>,
+}
+
+impl FromRef<AppState> for Arc<tickets::service::TicketService> {
+    fn from_ref(s: &AppState) -> Self { s.ticket_service.clone() }
+}
+impl FromRef<AppState> for Arc<scanner::service::ScannerService> {
+    fn from_ref(s: &AppState) -> Self { s.scanner_service.clone() }
+}
+impl FromRef<AppState> for Arc<promos::service::PromoService> {
+    fn from_ref(s: &AppState) -> Self { s.promo_service.clone() }
+}
+impl FromRef<AppState> for Arc<payments::service::PaymentService> {
+    fn from_ref(s: &AppState) -> Self { s.payment_service.clone() }
+}
+impl FromRef<AppState> for Arc<vendors::service::VendorService> {
+    fn from_ref(s: &AppState) -> Self { s.vendor_service.clone() }
+}
+/// analytics handlers use `State(pool): State<PgPool>`
+impl FromRef<AppState> for PgPool {
+    fn from_ref(s: &AppState) -> Self { s.pool.clone() }
+}
+/// transfer handler uses `State(pool): State<Arc<PgPool>>`
+impl FromRef<AppState> for Arc<PgPool> {
+    fn from_ref(s: &AppState) -> Self { s.arc_pool.clone() }
+}
 
 /**
  * Main Entry Point
@@ -116,89 +156,90 @@ async fn main() {
  * @param cfg - Application configuration
  * @returns Configured Axum router
  */
-async fn build_router(pool: sqlx::PgPool, cfg: config::Config) -> Router {
-    // REPOSITORY LAYER: Initialize repositories
-    let promo_repo = promos::repository::PromoRepository::new(pool.clone());
+async fn build_router(pool: PgPool, cfg: config::Config) -> Router {
+    // REPOSITORY LAYER
+    let promo_repo  = promos::repository::PromoRepository::new(pool.clone());
     let ticket_repo = tickets::repository::TicketRepository::new(pool.clone());
 
-    // USE CASE LAYER: Initialize services with dependencies
-    let ticket_service = Arc::new(tickets::service::TicketService::new(ticket_repo, promo_repo.clone()));
-    let promo_service = Arc::new(promos::service::PromoService::new(promo_repo));
+    // SERVICE LAYER
+    let ticket_service  = Arc::new(tickets::service::TicketService::new(ticket_repo, promo_repo.clone()));
+    let promo_service   = Arc::new(promos::service::PromoService::new(promo_repo));
     let scanner_service = Arc::new(scanner::service::ScannerService::new_with_redis(pool.clone()).await);
     let payment_service = Arc::new(payments::service::PaymentService::new(
         pool.clone(),
         cfg.paystack_secret_key,
         cfg.paystack_webhook_secret,
     ));
+    let vendor_service = Arc::new(vendors::service::VendorService::new(
+        vendors::repository::VendorRepository::new(pool.clone()),
+    ));
 
-    // CONTROLLER LAYER: Build route groups
-    
-    // Ticket routes: Purchase and retrieval
+    let state = AppState {
+        ticket_service,
+        scanner_service,
+        promo_service,
+        payment_service,
+        vendor_service,
+        arc_pool: Arc::new(pool.clone()),
+        pool,
+    };
+
+    // ROUTE GROUPS — NO .with_state() per router.
+    // State is applied once at the end via AppState + FromRef.
+    // Per-router .with_state() seals Router<S> → Router<()> before the radix
+    // trie is merged, which silently drops all parameterised route nodes.
+
     let ticket_routes = Router::new()
         .route("/purchase", post(tickets::handler::purchase_ticket))
         .route("/me", get(tickets::handler::get_my_tickets))
-        .route("/event/{event_id}", get(tickets::handler::get_event_tickets))
+        .route("/event/:event_id", get(tickets::handler::get_event_tickets))
         .route("/claim-free", post(tickets::handler::claim_free_ticket))
-        .route("/{ticket_id}/qr", get(tickets::handler::get_dynamic_qr))
-        .with_state(ticket_service);
+        .route("/:ticket_id/qr", get(tickets::handler::get_dynamic_qr))
+        .route("/:ticket_id/transfer", post(tickets::transfer::transfer_ticket))
+        .route("/:ticket_id/renew", post(scanner::handler::renew_ticket));
 
-    // Transfer route uses pool directly (different state type)
-    let transfer_routes = Router::new()
-        .route("/{ticket_id}/transfer", post(tickets::transfer::transfer_ticket))
-        .with_state(Arc::new(pool.clone()));
-
-    // Promo routes: Discount code management
     let promo_routes = Router::new()
-        .route("/events/{event_id}/promos", get(promos::handler::list_promos).post(promos::handler::create_promo))
-        .route("/events/{event_id}/promos/{promo_id}", delete(promos::handler::delete_promo))
-        .route("/events/{event_id}/promos/{promo_id}/toggle", patch(promos::handler::toggle_promo))
-        .route("/promos/validate", post(promos::handler::validate_promo))
-        .with_state(promo_service);
+        .route("/events/:event_id/promos", get(promos::handler::list_promos).post(promos::handler::create_promo))
+        .route("/events/:event_id/promos/:promo_id", delete(promos::handler::delete_promo))
+        .route("/events/:event_id/promos/:promo_id/toggle", patch(promos::handler::toggle_promo))
+        .route("/promos/validate", post(promos::handler::validate_promo));
 
-    // Scanner routes: Ticket validation at gates
     let scanner_routes = Router::new()
         .route("/verify-access", post(scanner::handler::verify_access))
         .route("/validate", post(scanner::handler::validate_ticket))
         .route("/manual-validate", post(scanner::handler::manual_validate))
-        .route("/mark-used/{ticket_id}", patch(scanner::handler::mark_used))
-        .route("/{event_id}/stats", get(scanner::handler::get_stats))
-        .with_state(scanner_service.clone());
+        .route("/mark-used/:ticket_id", patch(scanner::handler::mark_used))
+        .route("/:event_id/stats", get(scanner::handler::get_stats));
 
-    // Renewal route — separate state clone
-    let renewal_routes = Router::new()
-        .route("/tickets/{ticket_id}/renew", post(scanner::handler::renew_ticket))
-        .with_state(scanner_service);
-
-    // Payment routes: Payment processing and webhooks
     let payment_routes = Router::new()
         .route("/initialize", post(payments::handler::initialize_payment))
         .route("/webhook/paystack", post(payments::handler::paystack_webhook))
-        .route("/{reference}/verify", get(payments::handler::verify_payment))
-        .with_state(payment_service);
+        .route("/:reference/verify", get(payments::handler::verify_payment));
 
-    // Analytics routes: Reporting and metrics
     let analytics_routes = Router::new()
-        .route("/events/{event_id}", get(analytics::handler::get_event_analytics))
-        .route("/dashboard", get(analytics::handler::get_platform_metrics))
-        .with_state(pool.clone());
+        .route("/events/:event_id", get(analytics::handler::get_event_analytics))
+        .route("/dashboard", get(analytics::handler::get_platform_metrics));
 
-    // Vendor marketplace routes
-    let vendor_service = Arc::new(vendors::service::VendorService::new(
-        vendors::repository::VendorRepository::new(pool.clone()),
-    ));
-    let vendor_routes = Router::new()
-        .route("/vendors", get(vendors::handler::search_vendors).post(vendors::handler::register_vendor))
-        .route("/vendors/match", get(vendors::handler::match_vendors))
-        .route("/vendors/{id}", get(vendors::handler::get_vendor))
-        .route("/vendors/availability", post(vendors::handler::set_availability))
-        .route("/vendor-hires", post(vendors::handler::request_hire))
-        .route("/vendor-hires/{id}/respond", post(vendors::handler::respond_hire))
-        .route("/vendor-hires/{id}/complete", post(vendors::handler::complete_hire))
-        .route("/vendor-reviews", post(vendors::handler::submit_review))
-        .route("/vendor-invitations", post(vendors::handler::send_invitation))
-        .route("/vendor-invitations/claim/{token}", get(vendors::handler::claim_invitation))
-        .route("/vendor/me/hires", get(vendors::handler::get_my_hires))
-        .with_state(vendor_service);
+    let vendor_profile_routes = Router::new()
+        .route("/", get(vendors::handler::search_vendors).post(vendors::handler::register_vendor))
+        .route("/match", get(vendors::handler::match_vendors))
+        .route("/availability", post(vendors::handler::set_availability))
+        .route("/:id", get(vendors::handler::get_vendor));
+
+    let vendor_hire_routes = Router::new()
+        .route("/", post(vendors::handler::request_hire))
+        .route("/:id/respond", post(vendors::handler::respond_hire))
+        .route("/:id/complete", post(vendors::handler::complete_hire));
+
+    let vendor_review_routes = Router::new()
+        .route("/", post(vendors::handler::submit_review));
+
+    let vendor_invitation_routes = Router::new()
+        .route("/", post(vendors::handler::send_invitation))
+        .route("/claim/:token", get(vendors::handler::claim_invitation));
+
+    let vendor_me_routes = Router::new()
+        .route("/hires", get(vendors::handler::get_my_hires));
 
     // MIDDLEWARE LAYER: Configure CORS — restrict to known origins in production
     let allowed_origin = std::env::var("ALLOWED_ORIGINS")
@@ -218,19 +259,23 @@ async fn build_router(pool: sqlx::PgPool, cfg: config::Config) -> Router {
         // preflight before the real request — doubling request count.
         .max_age(std::time::Duration::from_secs(3600));
 
-    // Compose all routes into main router
+    // COMPOSE — one .with_state(state) at the very end.
+    // Each prefix appears exactly once; sub-routers carry only relative paths.
     Router::new()
         .route("/health", get(health))
-        .nest("/api/v1/tickets", ticket_routes)
-        .nest("/api/v1/tickets", transfer_routes)
-        .nest("/api/v1", promo_routes)
-        .nest("/api/v1/scanner", scanner_routes)
-        .nest("/api/v1", renewal_routes)
-        .nest("/api/v1/payments", payment_routes)
-        .nest("/api/v1/analytics", analytics_routes)
-        .nest("/api/v1", vendor_routes)
+        .nest("/api/v1/tickets",          ticket_routes)
+        .nest("/api/v1/scanner",          scanner_routes)
+        .nest("/api/v1/payments",         payment_routes)
+        .nest("/api/v1/analytics",        analytics_routes)
+        .nest("/api/v1/vendors",          vendor_profile_routes)
+        .nest("/api/v1/vendor-hires",     vendor_hire_routes)
+        .nest("/api/v1/vendor-reviews",   vendor_review_routes)
+        .nest("/api/v1/vendor-invitations", vendor_invitation_routes)
+        .nest("/api/v1/vendor/me",        vendor_me_routes)
+        .nest("/api/v1",                  promo_routes)
         .layer(cors)
         .layer(TraceLayer::new_for_http())
+        .with_state(state)
 }
 
 /**

@@ -4,11 +4,16 @@ import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
+import { useFeedback } from '@/hooks/useFeedback';
+import FeedbackModal from '@/components/FeedbackModal';
 
 const PaymentVerify = () => {
   const { reference } = useParams<{ reference: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { feedbackState, triggerFeedback, closeFeedback } = useFeedback();
   const [status, setStatus] = useState<'loading' | 'success' | 'failed'>('loading');
   const [message, setMessage] = useState('Verifying payment...');
 
@@ -27,6 +32,8 @@ const PaymentVerify = () => {
           setStatus('success');
           setMessage('Payment successful! Your ticket has been confirmed.');
           toast.success('Payment verified successfully');
+          // Trigger feedback after successful ticket purchase
+          if (user?.id) triggerFeedback(user.id, 'user', 'ticket_purchased');
         } else {
           setStatus('failed');
           setMessage('Payment verification failed. Please contact support.');
@@ -101,6 +108,15 @@ const PaymentVerify = () => {
           </>
         )}
       </div>
+
+      {feedbackState && (
+        <FeedbackModal
+          open={feedbackState.open}
+          userType={feedbackState.userType}
+          journey={feedbackState.journey}
+          onClose={closeFeedback}
+        />
+      )}
     </div>
   );
 };

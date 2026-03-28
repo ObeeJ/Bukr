@@ -72,6 +72,21 @@ func (h *Handler) RegisterTicketRoutes(router fiber.Router) {
 	router.Post("/claim-free", func(c *fiber.Ctx) error {
 		return h.proxy.Forward(c, "/api/v1/tickets/claim-free")
 	})
+	router.Get("/:ticket_id/qr", func(c *fiber.Ctx) error {
+		ticketID := c.Params("ticket_id")
+		return h.proxy.Forward(c, fmt.Sprintf("/api/v1/tickets/%s/qr", ticketID))
+	})
+	// Explicit suffixes required — Fiber v2 matches the first registered
+	// parametric POST route and stops. Both /transfer and /renew share the
+	// same /:ticket_id/* shape, so they must be distinct named routes.
+	router.Post("/:ticket_id/transfer", func(c *fiber.Ctx) error {
+		ticketID := c.Params("ticket_id")
+		return h.proxy.Forward(c, fmt.Sprintf("/api/v1/tickets/%s/transfer", ticketID))
+	})
+	router.Post("/:ticket_id/renew", func(c *fiber.Ctx) error {
+		ticketID := c.Params("ticket_id")
+		return h.proxy.Forward(c, fmt.Sprintf("/api/v1/tickets/%s/renew", ticketID))
+	})
 }
 
 /**

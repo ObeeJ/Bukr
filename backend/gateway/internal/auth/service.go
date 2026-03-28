@@ -34,6 +34,11 @@ func NewService(repo *Repository, mailer *Mailer, rdb *redis.Client, appSecret, 
 	}
 }
 
+// ParseAppToken parses a user access token using the app secret.
+func (s *Service) ParseAppToken(tokenStr string) (*BukrClaims, error) {
+	return ParseToken(s.appSecret, tokenStr)
+}
+
 // ── Register ──────────────────────────────────────────────────────────────────
 
 func (s *Service) Register(ctx context.Context, req RegisterRequest, fp string) (*TokenPair, string, error) {

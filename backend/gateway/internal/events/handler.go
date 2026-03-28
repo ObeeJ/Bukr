@@ -55,7 +55,7 @@ func NewHandler(service *Service) *Handler {
  */
 func (h *Handler) RegisterPublicRoutes(router fiber.Router) {
 	router.Get("/", h.ListEvents)
-	router.Get("/search", h.ListEvents)    // Same handler, uses query params
+	router.Get("/search", h.ListEvents) // Same handler, uses query params
 	router.Get("/categories", h.GetCategories)
 	router.Get("/key/:eventKey", h.GetByEventKey)
 	router.Get("/:id", h.GetByID)

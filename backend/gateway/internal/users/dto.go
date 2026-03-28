@@ -66,7 +66,7 @@ type UserResponse struct {
 // Includes all fields including sensitive ones
 type User struct {
 	ID          string
-	SupabaseUID string    // Supabase auth user ID
+	SupabaseUID *string   // Supabase auth user ID (nullable — phased out by native auth)
 	Email       string
 	Name        string
 	Phone       *string

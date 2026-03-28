@@ -13,6 +13,7 @@ import (
 	"github.com/bukr/gateway/internal/credits"
 	"github.com/bukr/gateway/internal/events"
 	"github.com/bukr/gateway/internal/favorites"
+	"github.com/bukr/gateway/internal/feedback"
 	"github.com/bukr/gateway/internal/influencer_portal"
 	"github.com/bukr/gateway/internal/influencers"
 	"github.com/bukr/gateway/internal/middleware"
@@ -102,6 +103,9 @@ func main() {
 	eventRepo := events.NewRepository(db)
 	eventService := events.NewService(eventRepo, rdb)
 	eventHandler := events.NewHandler(eventService)
+	// /me must be registered before /:id to prevent the wildcard swallowing it.
+	// It carries auth middleware even though it lives in the public group.
+	eventsPublic.Get("/me", userAuth, eventHandler.ListMyEvents)
 	eventHandler.RegisterPublicRoutes(eventsPublic)
 
 	// ── Protected user routes ──────────────────────────────────────────────────
@@ -147,9 +151,23 @@ func main() {
 	scannerGroup := v1.Group("/scanner", userAuth)
 	proxyHandler.RegisterScannerRoutes(scannerGroup)
 
+	// ── Payment webhooks (public — no auth) ──────────────────────────────────
+	// MUST be registered before any v1.Group("/payments", userAuth) call.
+	// Fiber's Group(prefix, middleware) creates a USE handler for the prefix;
+	// routes registered BEFORE the USE call bypass it, routes registered AFTER do not.
+	// All /payments/webhook/* routes go here — Paystack calls them with no bearer token.
+	paymentsWebhookGroup := v1.Group("/payments")
+	proxyHandler.RegisterPaymentWebhooks(paymentsWebhookGroup)
+
+	// Credits webhook also on the no-auth group — must be registered here,
+	// before paymentGroup creates the USE handler below.
+	creditsRepo := credits.NewRepository(db)
+	creditsService := credits.NewService(creditsRepo, cfg.PaystackSecret, cfg.AllowedOrigins)
+	creditsHandler := credits.NewHandler(creditsService, cfg.PaystackSecret)
+	creditsHandler.RegisterWebhook(paymentsWebhookGroup)
+
 	paymentGroup := v1.Group("/payments", userAuth)
 	proxyHandler.RegisterPaymentRoutes(paymentGroup)
-	proxyHandler.RegisterPaymentWebhooks(v1.Group("/payments"))
 
 	analyticsGroup := v1.Group("/analytics", userAuth, middleware.RequireOrganizer())
 	proxyHandler.RegisterAnalyticsRoutes(analyticsGroup)
@@ -181,12 +199,17 @@ func main() {
 	infPortalHandler.RegisterRoutes(infPortalGroup)
 	infPortalHandler.RegisterClaimRoute(infPortalGroup)
 
-	creditsRepo := credits.NewRepository(db)
-	creditsService := credits.NewService(creditsRepo, cfg.PaystackSecret, cfg.AllowedOrigins)
-	creditsHandler := credits.NewHandler(creditsService, cfg.PaystackSecret)
 	creditsGroup := v1.Group("/credits", userAuth, middleware.RequireOrganizer())
 	creditsHandler.RegisterRoutes(creditsGroup)
-	creditsHandler.RegisterWebhook(v1.Group("/payments"))
+
+	// ── Feedback & Waitlist ────────────────────────────────────────────────────
+	// Waitlist is public; feedback requires auth; admin read requires admin token.
+	feedbackHandler := feedback.NewHandler(db)
+	feedbackHandler.RegisterRoutes(
+		v1,                                      // public  — POST /waitlist
+		v1.Group("/feedback", userAuth),         // protected — POST /feedback
+		v1.Group("/admin", adminAuth),           // admin — GET /admin/feedback
+	)
 
 	// ── Admin routes (separate secret) ────────────────────────────────────────
 	adminGroup := v1.Group("/admin", adminAuth)

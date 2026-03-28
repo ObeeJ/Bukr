@@ -120,15 +120,21 @@ func (h *Handler) Refresh(c *fiber.Ctx) error {
 
 // Logout godoc
 // POST /api/v1/auth/logout
-// Accepts optional JSON body with user_id and jti for blacklisting.
+// Reads the JTI from the Authorization header's Bearer token to blacklist it.
 func (h *Handler) Logout(c *fiber.Ctx) error {
-	var body struct {
-		UserID string `json:"user_id"`
-		JTI    string `json:"jti"`
+	// Extract and parse the access token to get the JTI for blacklisting.
+	tokenStr := ""
+	if auth := c.Get("Authorization"); strings.HasPrefix(auth, "Bearer ") {
+		tokenStr = strings.TrimPrefix(auth, "Bearer ")
 	}
-	_ = c.BodyParser(&body)
-	if body.UserID != "" {
-		h.svc.Logout(c.Context(), body.UserID, body.JTI, time.Now().Add(AccessTokenTTL)) //nolint:errcheck
+	if tokenStr != "" {
+		if claims, err := h.svc.ParseAppToken(tokenStr); err == nil {
+			exp := time.Now().Add(AccessTokenTTL)
+			if claims.ExpiresAt != nil {
+				exp = claims.ExpiresAt.Time
+			}
+			h.svc.Logout(c.Context(), claims.UserID, claims.JTI, exp) //nolint:errcheck
+		}
 	}
 	clearCookie(c, refreshCookie)
 	return shared.Success(c, fiber.StatusOK, fiber.Map{"message": "Signed out successfully"})
