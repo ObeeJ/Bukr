@@ -45,7 +45,7 @@ export function getAccessToken(): string | null {
 
 // ── API base ──────────────────────────────────────────────────────────────────
 
-import api from "@/lib/api";
+import { registerSilentRefresh } from "@/lib/api";
 
 async function apiFetch(path: string, init: RequestInit = {}): Promise<any> {
   const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:8080/api/v1"}${path}`, {
@@ -104,25 +104,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return _refreshPromise;
   };
 
-  // On mount: attempt a silent refresh to restore session from the httpOnly cookie.
+  // On mount: register silentRefresh with the api interceptor, then restore session.
   useEffect(() => {
+    registerSilentRefresh(silentRefresh);
+
     const restore = async () => {
       try {
         // We don't know the userID yet — send empty string; the server reads the cookie.
-        const data = await apiFetch("/auth/refresh", {
-          method: "POST",
-          body: JSON.stringify({ user_id: "" }),
-        });
-        const store: TokenStore = {
-          accessToken: data.access_token,
-          expiresAt: Date.now() + data.expires_in * 1000,
-          userID: data.user_id,
-          userType: data.user_type,
-        };
-        _tokenStore = store;
-        scheduleRefresh(store);
-        const profile = await getProfile();
-        setUser(profile);
+        const store = await silentRefresh("");
+        if (store) {
+          const profile = await getProfile();
+          setUser(profile);
+        }
       } catch {
         _tokenStore = null;
         setUser(null);
@@ -132,7 +125,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
     restore();
     return () => { if (refreshTimer.current) clearTimeout(refreshTimer.current); };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const signUp = async (data: SignupData) => {
     setIsLoading(true);

@@ -246,7 +246,7 @@ func setRefreshCookie(c *fiber.Ctx, name, value string, maxAge int) {
 		MaxAge:   maxAge,
 		HTTPOnly: true,
 		Secure:   true,
-		SameSite: "Strict",
+		SameSite: "None", // cross-origin: frontend & gateway are different subdomains on onrender.com (PSL entry)
 		Path:     "/",
 	})
 }
@@ -258,7 +258,7 @@ func clearCookie(c *fiber.Ctx, name string) {
 		MaxAge:   -1,
 		HTTPOnly: true,
 		Secure:   true,
-		SameSite: "Strict",
+		SameSite: "None",
 		Path:     "/",
 	})
 }

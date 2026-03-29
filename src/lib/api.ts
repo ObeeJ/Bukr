@@ -8,6 +8,18 @@
 import axios from "axios";
 import { getAccessToken } from "@/contexts/AuthContext";
 
+// ── Silent refresh registration ───────────────────────────────────────────────
+// AuthContext registers its silentRefresh fn here on mount so the 401 response
+// interceptor can trigger a token refresh and retry the original request.
+// This avoids a circular import (AuthContext already imports api).
+
+type SilentRefreshFn = (userId: string) => Promise<{ accessToken: string } | null>;
+let _silentRefresh: SilentRefreshFn | null = null;
+
+export function registerSilentRefresh(fn: SilentRefreshFn) {
+  _silentRefresh = fn;
+}
+
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://localhost:8080/api/v1",
   headers: { "Content-Type": "application/json" },
@@ -23,7 +35,7 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
-// Unwrap { status, data, error } envelope and surface backend error messages.
+// Unwrap { status, data, error } envelope, surface error messages, and retry on 401.
 api.interceptors.response.use(
   (response) => {
     const body = response.data;
@@ -35,12 +47,26 @@ api.interceptors.response.use(
     }
     return response;
   },
-  (error) => {
+  async (error) => {
+    const status = error.response?.status;
+    const config = error.config;
+
+    // On 401, attempt one silent refresh then retry the original request.
+    // _retried flag prevents infinite loops if refresh itself returns 401.
+    if (status === 401 && config && !config._retried && _silentRefresh) {
+      config._retried = true;
+      const store = await _silentRefresh("").catch(() => null);
+      if (store?.accessToken) {
+        config.headers.Authorization = `Bearer ${store.accessToken}`;
+        return api(config);
+      }
+    }
+
     const body = error.response?.data;
     if (body?.status === "error" && body?.error?.message) {
       error.message = body.error.message;
     }
-    return Promise.reject(error);
+    throw error;
   }
 );
 

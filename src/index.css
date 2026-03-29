@@ -958,7 +958,7 @@
 /* ── Headline ── */
 .landing-headline {
   font-family: 'Clash Display', sans-serif;
-  font-size: clamp(1.75rem, 5.5vw, 3.375rem);
+  font-size: clamp(1.625rem, 5.3vw, 3.25rem);
   font-weight: 900;
   line-height: 1.1;
   white-space: nowrap;
@@ -971,7 +971,7 @@
   .landing-headline {
     white-space: normal;
     word-break: break-word;
-    font-size: clamp(1.4rem, 7.5vw, 2rem);
+    font-size: clamp(1.275rem, 7.3vw, 1.875rem);
   }
 }
 
@@ -1268,13 +1268,13 @@
 
 .waitlist-input {
   flex: 1;
-  height: 3rem;
+  height: 3.25rem;
   padding: 0 1rem;
   border-radius: 0.875rem;
   background: hsl(213 60% 8% / 0.6);
   border: 1px solid hsl(193 100% 75% / 0.12);
   color: hsl(0 0% 100%);
-  font-size: 0.9375rem;
+  font-size: 1rem;
   font-family: 'Montserrat', sans-serif;
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
@@ -1295,7 +1295,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  height: 3rem;
+  height: 3.25rem;
   padding: 0 1.5rem;
   border-radius: 0.875rem;
   background: hsl(var(--primary));
@@ -1349,7 +1349,8 @@
 
 @media (max-width: 480px) {
   .waitlist-input-wrap { flex-direction: column; }
-  .waitlist-btn { width: 100%; justify-content: center; height: 3.25rem; }
+  .waitlist-btn { width: 100%; justify-content: center; height: 3.5rem; }
+  .waitlist-input { height: 3.25rem; font-size: 16px; /* prevents iOS zoom */ }
 }
 
 /* ============================================================================
