@@ -9,59 +9,68 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { BookingProvider } from "@/contexts/BookingContext";
 import { EventProvider } from "@/contexts/EventContext";
 import { TicketProvider } from "@/contexts/TicketContext";
-import Landing from "@/pages/Landing";
-import Explore from "@/pages/Explore";
-import Favorites from "@/pages/Favorites";
-import MyEvents from "@/pages/MyEvents";
-import Events from "@/pages/Events";
-import Influencers from "@/pages/Influencers";
-import Profile from "@/pages/Profile";
-import CreateEvent from "@/pages/CreateEvent";
-import EventDashboard from "@/pages/EventDashboard";
-import EventDetail from "@/pages/EventDetail";
-import PrivacyPolicy from "@/pages/PrivacyPolicy";
-import NotFound from "@/pages/NotFound";
-import Tickets from "@/pages/Tickets";
-import ScannerPage from "@/pages/ScannerPage";
-import PaymentVerify from "@/pages/PaymentVerify";
-import UserDashboard from "@/pages/UserDashboard";
-import PurchasePage from "@/pages/PurchasePage";
+import { NotificationProvider } from "@/contexts/NotificationContext";
 import BottomNavigation from "@/components/BottomNavigation";
 import MobileGuard from "@/components/MobileGuard";
 import { useToast } from "@/components/ui/use-toast";
-import ScannerManagement from "@/pages/ScannerManagement";
-import ResetPassword from "@/pages/ResetPassword";
-import Auth from "@/pages/Auth";
-import NotificationPreferences from "@/pages/NotificationPreferences";
-import { NotificationProvider } from "@/contexts/NotificationContext";
 import { lazy, Suspense } from "react";
 
-// Vendor pages (lazy-loaded)
-const VendorMarketplace = lazy(() => import("@/pages/vendors/VendorMarketplace"));
-const VendorProfile     = lazy(() => import("@/pages/vendors/VendorProfile"));
-const VendorRegister    = lazy(() => import("@/pages/vendors/VendorRegister"));
-const VendorDashboard   = lazy(() => import("@/pages/vendors/VendorDashboard"));
-const EventVendors      = lazy(() => import("@/pages/vendors/EventVendors"));
+// Core pages
+const Landing              = lazy(() => import("@/pages/Landing"));
+const Auth                 = lazy(() => import("@/pages/Auth"));
+const ResetPassword        = lazy(() => import("@/pages/ResetPassword"));
+const NotFound             = lazy(() => import("@/pages/NotFound"));
+const PrivacyPolicy        = lazy(() => import("@/pages/PrivacyPolicy"));
 
-// Influencer portal (lazy-loaded)
-const InfluencerDashboard = lazy(() => import("@/pages/influencer/InfluencerDashboard"));
-const InfluencerPayouts   = lazy(() => import("@/pages/influencer/InfluencerPayouts"));
-const InfluencerClaim     = lazy(() => import("@/pages/influencer/InfluencerClaim"));
+// User pages
+const UserDashboard        = lazy(() => import("@/pages/UserDashboard"));
+const Explore              = lazy(() => import("@/pages/Explore"));
+const Favorites            = lazy(() => import("@/pages/Favorites"));
+const Tickets              = lazy(() => import("@/pages/Tickets"));
+const Profile              = lazy(() => import("@/pages/Profile"));
+const NotificationPreferences = lazy(() => import("@/pages/NotificationPreferences"));
+const EventDetail          = lazy(() => import("@/pages/EventDetail"));
+const PaymentVerify        = lazy(() => import("@/pages/PaymentVerify"));
+const PurchasePage         = lazy(() => import("@/pages/PurchasePage"));
+const ScannerPage          = lazy(() => import("@/pages/ScannerPage"));
 
-// Organizer credits (lazy-loaded)
-const CreditsPage = lazy(() => import("@/pages/organizer/CreditsPage"));
+// Organizer pages
+const Events               = lazy(() => import("@/pages/Events"));
+const MyEvents             = lazy(() => import("@/pages/MyEvents"));
+const Influencers          = lazy(() => import("@/pages/Influencers"));
+const CreateEvent          = lazy(() => import("@/pages/CreateEvent"));
+const EventDashboard       = lazy(() => import("@/pages/EventDashboard"));
+const ScannerManagement    = lazy(() => import("@/pages/ScannerManagement"));
 
-// Admin dashboard (lazy-loaded)
-const AdminLayout     = lazy(() => import("@/pages/admin/AdminLayout"));
-const AdminOverview   = lazy(() => import("@/pages/admin/sections/AdminOverview"));
-const AdminUsers      = lazy(() => import("@/pages/admin/sections/AdminUsers"));
-const AdminEvents     = lazy(() => import("@/pages/admin/sections/AdminEvents"));
-const AdminTickets    = lazy(() => import("@/pages/admin/sections/AdminTickets"));
-const AdminFinance    = lazy(() => import("@/pages/admin/sections/AdminFinance"));
-const AdminOrganizers = lazy(() => import("@/pages/admin/sections/AdminOrganizers"));
-const AdminVendors    = lazy(() => import("@/pages/admin/sections/AdminVendors"));
-const AdminInfluencers = lazy(() => import("@/pages/admin/sections/AdminInfluencers"));
-const AdminSystem     = lazy(() => import("@/pages/admin/sections/AdminSystem"));
+// Vendor pages
+const VendorMarketplace    = lazy(() => import("@/pages/vendors/VendorMarketplace"));
+const VendorProfile        = lazy(() => import("@/pages/vendors/VendorProfile"));
+const VendorRegister       = lazy(() => import("@/pages/vendors/VendorRegister"));
+const VendorDashboard      = lazy(() => import("@/pages/vendors/VendorDashboard"));
+const EventVendors         = lazy(() => import("@/pages/vendors/EventVendors"));
+
+// Influencer portal
+const InfluencerDashboard  = lazy(() => import("@/pages/influencer/InfluencerDashboard"));
+const InfluencerPayouts    = lazy(() => import("@/pages/influencer/InfluencerPayouts"));
+const InfluencerClaim      = lazy(() => import("@/pages/influencer/InfluencerClaim"));
+
+// Organizer credits
+const CreditsPage          = lazy(() => import("@/pages/organizer/CreditsPage"));
+
+// Admin dashboard
+const AdminLayout          = lazy(() => import("@/pages/admin/AdminLayout"));
+const AdminOverview        = lazy(() => import("@/pages/admin/sections/AdminOverview"));
+const AdminUsers           = lazy(() => import("@/pages/admin/sections/AdminUsers"));
+const AdminEvents          = lazy(() => import("@/pages/admin/sections/AdminEvents"));
+const AdminTickets         = lazy(() => import("@/pages/admin/sections/AdminTickets"));
+const AdminFinance         = lazy(() => import("@/pages/admin/sections/AdminFinance"));
+const AdminOrganizers      = lazy(() => import("@/pages/admin/sections/AdminOrganizers"));
+const AdminVendors         = lazy(() => import("@/pages/admin/sections/AdminVendors"));
+const AdminInfluencers     = lazy(() => import("@/pages/admin/sections/AdminInfluencers"));
+const AdminSystem          = lazy(() => import("@/pages/admin/sections/AdminSystem"));
+const AdminPayments        = lazy(() => import("@/pages/admin/sections/AdminPayments"));
+const AdminAuditLog        = lazy(() => import("@/pages/admin/sections/AdminAuditLog"));
+const AdminDisputes        = lazy(() => import("@/pages/admin/sections/AdminDisputes"));
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 2, staleTime: 5 * 60 * 1000 } },
@@ -134,40 +143,38 @@ const ScannerRoute = ({ children }: { children: JSX.Element }) => {
 
 const AppRoutes = () => (
   <Routes>
-    <Route path="/" element={<Landing />} />
+    <Route path="/" element={<Suspense fallback={null}><Landing /></Suspense>} />
 
-    {/* Single auth entry point */}
-    <Route path="/auth" element={<Auth />} />
-    {/* Legacy redirects — keep for any bookmarked links */}
+    <Route path="/auth" element={<Suspense fallback={null}><Auth /></Suspense>} />
     <Route path="/signin" element={<Navigate to="/auth" replace />} />
     <Route path="/signup" element={<Navigate to="/auth?tab=signup" replace />} />
 
-    <Route path="/reset-password" element={<ResetPassword />} />
+    <Route path="/reset-password" element={<Suspense fallback={null}><ResetPassword /></Suspense>} />
 
-    <Route path="/app" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
-    <Route path="/explore" element={<ProtectedRoute><Explore /></ProtectedRoute>} />
-    <Route path="/favorites" element={<ProtectedRoute><Favorites /></ProtectedRoute>} />
-    <Route path="/tickets" element={<ProtectedRoute><Tickets /></ProtectedRoute>} />
-    <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-    <Route path="/notification-preferences" element={<ProtectedRoute><NotificationPreferences /></ProtectedRoute>} />
+    <Route path="/app" element={<ProtectedRoute><Suspense fallback={null}><UserDashboard /></Suspense></ProtectedRoute>} />
+    <Route path="/explore" element={<ProtectedRoute><Suspense fallback={null}><Explore /></Suspense></ProtectedRoute>} />
+    <Route path="/favorites" element={<ProtectedRoute><Suspense fallback={null}><Favorites /></Suspense></ProtectedRoute>} />
+    <Route path="/tickets" element={<ProtectedRoute><Suspense fallback={null}><Tickets /></Suspense></ProtectedRoute>} />
+    <Route path="/profile" element={<ProtectedRoute><Suspense fallback={null}><Profile /></Suspense></ProtectedRoute>} />
+    <Route path="/notification-preferences" element={<ProtectedRoute><Suspense fallback={null}><NotificationPreferences /></Suspense></ProtectedRoute>} />
 
-    <Route path="/events" element={<ProtectedRoute requiredUserType="organizer"><Events /></ProtectedRoute>} />
-    <Route path="/myevents" element={<ProtectedRoute requiredUserType="organizer"><MyEvents /></ProtectedRoute>} />
-    <Route path="/influencers" element={<ProtectedRoute requiredUserType="organizer"><Influencers /></ProtectedRoute>} />
-    <Route path="/create-event" element={<ProtectedRoute requiredUserType="organizer"><CreateEvent /></ProtectedRoute>} />
-    <Route path="/create-event/:id" element={<ProtectedRoute requiredUserType="organizer"><CreateEvent /></ProtectedRoute>} />
-    <Route path="/events/:id/edit" element={<ProtectedRoute requiredUserType="organizer"><CreateEvent /></ProtectedRoute>} />
-    <Route path="/dashboard" element={<ProtectedRoute requiredUserType="organizer"><EventDashboard /></ProtectedRoute>} />
-    <Route path="/events/:eventId/scanners" element={<ProtectedRoute requiredUserType="organizer"><ScannerManagement /></ProtectedRoute>} />
+    <Route path="/events" element={<ProtectedRoute requiredUserType="organizer"><Suspense fallback={null}><Events /></Suspense></ProtectedRoute>} />
+    <Route path="/myevents" element={<ProtectedRoute requiredUserType="organizer"><Suspense fallback={null}><MyEvents /></Suspense></ProtectedRoute>} />
+    <Route path="/influencers" element={<ProtectedRoute requiredUserType="organizer"><Suspense fallback={null}><Influencers /></Suspense></ProtectedRoute>} />
+    <Route path="/create-event" element={<ProtectedRoute requiredUserType="organizer"><Suspense fallback={null}><CreateEvent /></Suspense></ProtectedRoute>} />
+    <Route path="/create-event/:id" element={<ProtectedRoute requiredUserType="organizer"><Suspense fallback={null}><CreateEvent /></Suspense></ProtectedRoute>} />
+    <Route path="/events/:id/edit" element={<ProtectedRoute requiredUserType="organizer"><Suspense fallback={null}><CreateEvent /></Suspense></ProtectedRoute>} />
+    <Route path="/dashboard" element={<ProtectedRoute requiredUserType="organizer"><Suspense fallback={null}><EventDashboard /></Suspense></ProtectedRoute>} />
+    <Route path="/events/:eventId/scanners" element={<ProtectedRoute requiredUserType="organizer"><Suspense fallback={null}><ScannerManagement /></Suspense></ProtectedRoute>} />
 
-    <Route path="/events/:id" element={<ProtectedRoute><EventDetail /></ProtectedRoute>} />
-    <Route path="/payment/verify/:reference" element={<ProtectedRoute><PaymentVerify /></ProtectedRoute>} />
-    <Route path="/purchase/:eventKey" element={<ProtectedRoute><PurchasePage /></ProtectedRoute>} />
+    <Route path="/events/:id" element={<ProtectedRoute><Suspense fallback={null}><EventDetail /></Suspense></ProtectedRoute>} />
+    <Route path="/payment/verify/:reference" element={<ProtectedRoute><Suspense fallback={null}><PaymentVerify /></Suspense></ProtectedRoute>} />
+    <Route path="/purchase/:eventKey" element={<ProtectedRoute><Suspense fallback={null}><PurchasePage /></Suspense></ProtectedRoute>} />
 
-    <Route path="/scan/:eventId" element={<ScannerRoute><ScannerPage /></ScannerRoute>} />
-    <Route path="/scan/key/:eventKey" element={<ScannerRoute><ScannerPage /></ScannerRoute>} />
+    <Route path="/scan/:eventId" element={<ScannerRoute><Suspense fallback={null}><ScannerPage /></Suspense></ScannerRoute>} />
+    <Route path="/scan/key/:eventKey" element={<ScannerRoute><Suspense fallback={null}><ScannerPage /></Suspense></ScannerRoute>} />
 
-    <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+    <Route path="/privacy-policy" element={<Suspense fallback={null}><PrivacyPolicy /></Suspense>} />
 
     {/* Vendor marketplace */}
     <Route path="/vendors" element={<Suspense fallback={null}><VendorMarketplace /></Suspense>} />
@@ -194,6 +201,9 @@ const AppRoutes = () => (
       <Route path="organizers" element={<Suspense fallback={null}><AdminOrganizers /></Suspense>} />
       <Route path="vendors" element={<Suspense fallback={null}><AdminVendors /></Suspense>} />
       <Route path="influencers" element={<Suspense fallback={null}><AdminInfluencers /></Suspense>} />
+      <Route path="payments" element={<Suspense fallback={null}><AdminPayments /></Suspense>} />
+      <Route path="disputes" element={<Suspense fallback={null}><AdminDisputes /></Suspense>} />
+      <Route path="audit-log" element={<Suspense fallback={null}><AdminAuditLog /></Suspense>} />
       <Route path="system" element={<Suspense fallback={null}><AdminSystem /></Suspense>} />
     </Route>
 

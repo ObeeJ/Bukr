@@ -2,6 +2,7 @@ import { NavLink, Outlet } from "react-router-dom";
 import {
   LayoutDashboard, Users, CalendarDays, Ticket, DollarSign,
   Building2, Store, Users2, Settings, ChevronRight,
+  CreditCard, ClipboardList, Scale,
 } from "lucide-react";
 
 const NAV = [
@@ -10,9 +11,12 @@ const NAV = [
   { to: "/admin/events",       icon: <CalendarDays className="h-4 w-4" />,   label: "Events" },
   { to: "/admin/tickets",      icon: <Ticket className="h-4 w-4" />,         label: "Tickets" },
   { to: "/admin/finance",      icon: <DollarSign className="h-4 w-4" />,     label: "Finance" },
+  { to: "/admin/payments",     icon: <CreditCard className="h-4 w-4" />,     label: "Payments" },
   { to: "/admin/organizers",   icon: <Building2 className="h-4 w-4" />,      label: "Organizers" },
   { to: "/admin/vendors",      icon: <Store className="h-4 w-4" />,          label: "Vendors" },
   { to: "/admin/influencers",  icon: <Users2 className="h-4 w-4" />,         label: "Influencers" },
+  { to: "/admin/disputes",     icon: <Scale className="h-4 w-4" />,          label: "Disputes" },
+  { to: "/admin/audit-log",    icon: <ClipboardList className="h-4 w-4" />,  label: "Audit Log" },
   { to: "/admin/system",       icon: <Settings className="h-4 w-4" />,       label: "System" },
 ];
 

@@ -139,3 +139,50 @@ export const getSystemLogs = async (params: { page?: number; limit?: number } = 
   const { data } = await api.get('/admin/system/logs', { params });
   return mapFromApi(data);
 };
+
+// ── AUDIT LOG ────────────────────────────────────────────────────────────────
+
+export interface AuditLogParams {
+  adminId?: string;
+  entityType?: string;
+  action?: string;
+  page?: number;
+  limit?: number;
+}
+
+export const getAuditLog = async (params: AuditLogParams = {}) => {
+  const { data } = await api.get('/admin/audit-log', { params: mapToApi(params) });
+  return mapFromApi(data);
+};
+
+// ── PAYMENTS ─────────────────────────────────────────────────────────────────
+
+export interface PaymentParams {
+  status?: string;
+  page?: number;
+  limit?: number;
+}
+
+export const listPayments = async (params: PaymentParams = {}) => {
+  const { data } = await api.get('/admin/payments', { params: mapToApi(params) });
+  return mapFromApi(data);
+};
+
+// ── DISPUTES ─────────────────────────────────────────────────────────────────
+
+export const listDisputes = async (params: { page?: number; limit?: number } = {}) => {
+  const { data } = await api.get('/admin/disputes', { params });
+  return mapFromApi(data);
+};
+
+export const resolveDispute = async (id: string, body: { resolution: string; finalAmount?: number; note?: string }) => {
+  const { data } = await api.patch(`/admin/disputes/${id}/resolve`, mapToApi(body));
+  return mapFromApi(data);
+};
+
+// ── ORGANIZERS ───────────────────────────────────────────────────────────────
+
+export const listOrganizers = async (params: { page?: number; limit?: number } = {}) => {
+  const { data } = await api.get('/admin/organizers', { params });
+  return mapFromApi(data);
+};
