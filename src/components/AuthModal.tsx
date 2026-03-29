@@ -7,8 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Eye, EyeOff, User, Building, AlertCircle, CheckCircle, ArrowLeft, Mail, Lock, UserCircle } from "lucide-react";
 import AnimatedLogo from "./AnimatedLogo";
 import { useAuth } from "@/contexts/AuthContext";
-
-const API = import.meta.env.VITE_API_URL || "http://localhost:8080/api/v1";
+import api from "@/lib/api";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -205,13 +204,7 @@ const AuthModal = ({ isOpen, onClose, defaultTab = "signin" }: AuthModalProps) =
     clearFeedback();
     setIsLoading(true);
     try {
-      const res = await fetch(`${API}/auth/forgot-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: resetEmail.trim().toLowerCase() }),
-      });
-      const body = await res.json();
-      if (!res.ok && body?.error?.message) throw new Error(body.error.message);
+      await api.post("/auth/forgot-password", { email: resetEmail.trim().toLowerCase() });
       setFeedback({
         type: "success",
         message: "If that email is registered, a 6-digit code is on its way. Check your inbox.",

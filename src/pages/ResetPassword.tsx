@@ -5,8 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff, Lock, CheckCircle, AlertCircle } from "lucide-react";
 import AnimatedLogo from "@/components/AnimatedLogo";
-
-const API = import.meta.env.VITE_API_URL || "http://localhost:8080/api/v1";
+import api from "@/lib/api";
 
 // ── OTP digit boxes ───────────────────────────────────────────────────────────
 const OtpInput = ({ value, onChange }: { value: string; onChange: (v: string) => void }) => {
@@ -94,18 +93,12 @@ const ResetPassword = () => {
     setIsLoading(true);
     setFeedback(null);
     try {
-      const res = await fetch(`${API}/auth/reset-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          email: email.trim().toLowerCase(),
-          otp,
-          password,
-        }),
+      const { data } = await api.post("/auth/reset-password", {
+        email: email.trim().toLowerCase(),
+        otp,
+        password,
       });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body?.error?.message || "Reset failed");
+      void data; // response body not needed
       setFeedback({ type: "success", msg: "Password updated. Taking you to sign in." });
       setTimeout(() => navigate("/auth"), 1500);
     } catch (err: any) {

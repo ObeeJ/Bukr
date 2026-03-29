@@ -45,12 +45,12 @@ export function getAccessToken(): string | null {
 
 // ── API base ──────────────────────────────────────────────────────────────────
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:8080/api/v1";
+import api from "@/lib/api";
 
 async function apiFetch(path: string, init: RequestInit = {}): Promise<any> {
-  const res = await fetch(`${API}${path}`, {
+  const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:8080/api/v1"}${path}`, {
     ...init,
-    credentials: "include", // sends httpOnly refresh cookie automatically
+    credentials: "include",
     headers: { "Content-Type": "application/json", ...(init.headers ?? {}) },
   });
   const body = await res.json();

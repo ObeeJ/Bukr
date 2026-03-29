@@ -202,6 +202,11 @@ func main() {
 	creditsGroup := v1.Group("/credits", userAuth, middleware.RequireOrganizer())
 	creditsHandler.RegisterRoutes(creditsGroup)
 
+	// ── Notifications ────────────────────────────────────────────────────────────
+	notifHandler := notifications.NewHandler(db)
+	notifGroup := v1.Group("/notifications", userAuth)
+	notifHandler.RegisterRoutes(notifGroup)
+
 	// ── Feedback & Waitlist ────────────────────────────────────────────────────
 	// Waitlist is public; feedback requires auth; admin read requires admin token.
 	feedbackHandler := feedback.NewHandler(db)

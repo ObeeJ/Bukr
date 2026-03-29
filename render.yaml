@@ -1,9 +1,11 @@
-# Render Blueprint — Bukr Full Stack
-# Deploys: Go Gateway + Rust Core + Redis + Frontend (static site)
+# Render Blueprint — Bukr Full Stack (single source of truth)
+# Deploys: Redis → bukr-core → bukr-gateway → bukr (frontend)
 # https://render.com/docs/blueprint-spec
 #
-# Deploy order: Redis → bukr-core → bukr-gateway → bukr-frontend
-# Render resolves fromService references automatically.
+# Deploy order is automatic — Render resolves fromService references.
+#
+# Secrets marked sync: false MUST be set manually in the Render dashboard.
+# Generate strong secrets with: openssl rand -hex 32
 
 services:
   # ── Frontend (React/Vite static site) ──────────────────────────────────────
@@ -21,18 +23,22 @@ services:
       - path: /*
         name: X-Content-Type-Options
         value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
     routes:
       # SPA fallback — all routes serve index.html so React Router works
       - type: rewrite
         source: /*
         destination: /index.html
     envVars:
+      # Baked into the JS bundle at build time — must be the real Render URL.
       - key: VITE_API_URL
         value: https://bukr-gateway.onrender.com/api/v1
       - key: VITE_SUPABASE_URL
-        sync: false
+        sync: false   # dashboard: https://YOUR_REF.supabase.co
       - key: VITE_SUPABASE_ANON_KEY
-        sync: false
+        sync: false   # dashboard: your anon/public key
 
   # ── Go API Gateway ──────────────────────────────────────────────────────────
   - type: web
@@ -46,31 +52,65 @@ services:
     envVars:
       - key: PORT
         value: "8080"
+      - key: APP_ENV
+        value: production   # enables fatal startup guard in config.go
+
+      # ── JWT secrets (generate: openssl rand -hex 32) ──────────────────────
+      - key: APP_JWT_SECRET
+        sync: false         # signs user access tokens — must match bukr-core
+      - key: ADMIN_JWT_SECRET
+        sync: false         # signs admin tokens — gateway only
+
+      # ── Database ──────────────────────────────────────────────────────────
+      - key: DATABASE_URL
+        sync: false         # postgresql://user:pass@host:5432/db
+
+      # ── Redis (auto-wired from bukr-redis service) ─────────────────────────
+      - key: REDIS_URL
+        fromService:
+          name: bukr-redis
+          type: redis
+          property: connectionString
+
+      # ── Rust Core URL (full HTTPS — NOT property: host) ───────────────────
+      # On free plan: use the public Render URL.
+      # On starter plan with private networking: use http://bukr-core:8081
+      - key: RUST_SERVICE_URL
+        value: https://bukr-core.onrender.com
+
+      # ── CORS ──────────────────────────────────────────────────────────────
+      - key: ALLOWED_ORIGINS
+        value: https://bukr.onrender.com
+
+      # ── Supabase (gateway uses service key for admin SDK calls) ───────────
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_SERVICE_KEY
         sync: false
       - key: SUPABASE_JWT_SECRET
         sync: false
-      - key: DATABASE_URL
+
+      # ── Paystack ──────────────────────────────────────────────────────────
+      - key: PAYSTACK_SECRET_KEY
         sync: false
-      - key: REDIS_URL
-        fromService:
-          name: bukr-redis
-          type: redis
-          property: connectionString
-      # Render internal networking: bukr-core is reachable via its service host
-      - key: RUST_SERVICE_URL
-        fromService:
-          name: bukr-core
-          type: web
-          property: host
-      # Set to your actual Render frontend URL after first deploy
-      # Format: https://bukr-frontend.onrender.com
-      - key: ALLOWED_ORIGINS
+      - key: PAYSTACK_WEBHOOK_SECRET
         sync: false
+
+      # ── SMTP (Gmail STARTTLS) ──────────────────────────────────────────────
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false         # your Gmail address
+      - key: SMTP_PASS
+        sync: false         # Gmail app password (not your account password)
+      - key: EMAIL_FROM_NAME
+        value: Bukr
+
+      # ── Logging ───────────────────────────────────────────────────────────
       - key: LOG_LEVEL
-        value: "info"
+        value: info
 
   # ── Rust Core Service ───────────────────────────────────────────────────────
   - type: web
@@ -84,29 +124,47 @@ services:
     envVars:
       - key: PORT
         value: "8081"
+      - key: APP_ENV
+        value: production   # enables Rust startup guard
+
+      # ── Database ──────────────────────────────────────────────────────────
       - key: DATABASE_URL
         sync: false
+
+      # ── Redis ─────────────────────────────────────────────────────────────
       - key: REDIS_URL
         fromService:
           name: bukr-redis
           type: redis
           property: connectionString
-      # REQUIRED: HMAC secret for QR nonce signing — set a strong random value
-      # Generate with: openssl rand -hex 32
+
+      # ── JWT (must match gateway APP_JWT_SECRET exactly) ───────────────────
+      - key: APP_JWT_SECRET
+        sync: false
+
+      # ── QR HMAC (generate: openssl rand -hex 32) ──────────────────────────
       - key: QR_HMAC_SECRET
         sync: false
+
+      # ── Paystack ──────────────────────────────────────────────────────────
       - key: PAYSTACK_SECRET_KEY
-        sync: false
-      - key: STRIPE_SECRET_KEY
         sync: false
       - key: PAYSTACK_WEBHOOK_SECRET
         sync: false
+
+      # ── Stripe ────────────────────────────────────────────────────────────
+      - key: STRIPE_SECRET_KEY
+        sync: false
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
+
+      # ── CORS (core only serves gateway — but set for safety) ──────────────
       - key: ALLOWED_ORIGINS
-        sync: false
+        value: https://bukr.onrender.com
+
+      # ── Logging ───────────────────────────────────────────────────────────
       - key: RUST_LOG
-        value: "bukr_core=info,tower_http=info"
+        value: bukr_core=info,tower_http=info
 
   # ── Redis ───────────────────────────────────────────────────────────────────
   - type: redis

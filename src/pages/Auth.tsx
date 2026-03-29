@@ -14,8 +14,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import AnimatedLogo from "@/components/AnimatedLogo";
-
-const API = import.meta.env.VITE_API_URL || "http://localhost:8080/api/v1";
+import api from "@/lib/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Tab = "signin" | "signup";
@@ -277,13 +276,7 @@ const Auth = () => {
     clearFeedback();
     setIsLoading(true);
     try {
-      const res = await fetch(`${API}/auth/forgot-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: resetEmail.trim().toLowerCase() }),
-      });
-      const body = await res.json();
-      if (!res.ok && body?.error?.message) throw new Error(body.error.message);
+      await api.post("/auth/forgot-password", { email: resetEmail.trim().toLowerCase() });
       setFeedback({ type: "success", msg: "If that email is registered, a 6-digit code is on its way." });
       // Move to reset-password page so user can enter the OTP
       setTimeout(() => navigate(`/reset-password?email=${encodeURIComponent(resetEmail.trim())}`), 1200);

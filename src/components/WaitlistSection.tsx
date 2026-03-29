@@ -8,19 +8,10 @@
 
 import { useState } from "react";
 import { ArrowRight, Loader2, CheckCircle2, Users } from "lucide-react";
-
-const API = import.meta.env.VITE_API_URL || "http://localhost:8080/api/v1";
+import api from "@/lib/api";
 
 async function joinWaitlist(email: string): Promise<void> {
-  const res = await fetch(`${API}/waitlist`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email }),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body?.error?.message || "Failed to join waitlist");
-  }
+  await api.post("/waitlist", { email });
 }
 
 export default function WaitlistSection() {
