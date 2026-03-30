@@ -70,11 +70,8 @@ const PublicEventView = ({ event }: PublicEventViewProps) => {
             return;
         }
 
-        // Validate Guest Names
-        if (quantity > 1 && guestNames.filter(n => n.trim() !== '').length < quantity - 1) {
-            const proceed = window.confirm("Some guest names are missing. Proceed anyway?");
-            if (!proceed) return;
-        }
+        // Missing guest names are non-blocking — proceed to purchase
+        // window.confirm is synchronous and blocked on iOS Safari/PWA
 
         // Navigate to purchase page with ticket details
         navigate(`/purchase/${event.eventKey || event.id}`);
@@ -85,11 +82,17 @@ const PublicEventView = ({ event }: PublicEventViewProps) => {
             {/* Hero Section */}
             <div className="relative h-[50vh] w-full overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent to-background/90 z-10" />
-                <img
-                    src={event.image || "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=2070&auto=format&fit=crop"}
-                    alt={event.title}
-                    className="w-full h-full object-cover"
-                />
+                {(event.thumbnailUrl || event.flierUrl || event.image) ? (
+                    <img
+                        src={event.thumbnailUrl || event.flierUrl || event.image}
+                        alt={event.title}
+                        className="w-full h-full object-cover"
+                    />
+                ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center">
+                        <span className="text-8xl">{event.emoji || '🎉'}</span>
+                    </div>
+                )}
                 <div className="absolute top-4 left-4 z-20 flex justify-between w-[calc(100%-2rem)]">
                     <Button variant="ghost" onClick={() => navigate('/events')} className="bg-background/20 backdrop-blur-md hover:bg-background/40 text-white">
                         <ArrowLeft className="w-5 h-5 mr-2" />
@@ -125,23 +128,19 @@ const PublicEventView = ({ event }: PublicEventViewProps) => {
                 {/* Ticket Selection Section */}
                 <div className="grid md:grid-cols-3 gap-8">
                     <div className="md:col-span-2 space-y-8">
-                        {/* Gallery Section */}
+                        {/* Gallery — only rendered when event has real images */}
+                        {event.galleryImages && event.galleryImages.length > 0 && (
                         <div>
                             <h2 className="text-2xl font-bold mb-6">Event Gallery</h2>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                {/* Placeholders for gallery */}
-                                {[
-                                    "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?q=80&w=1000&auto=format&fit=crop",
-                                    "https://images.unsplash.com/photo-1459749411177-8c4750bb0e8f?q=80&w=1000&auto=format&fit=crop",
-                                    "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?q=80&w=1000&auto=format&fit=crop",
-                                    "https://images.unsplash.com/photo-1533174072545-e8d4aa97edf9?q=80&w=1000&auto=format&fit=crop"
-                                ].map((src, i) => (
+                                {event.galleryImages.slice(0, 4).map((src, i) => (
                                     <div key={i} className={`rounded-xl overflow-hidden glass-card hover:scale-[1.02] transition-transform duration-300 ${i === 0 ? 'col-span-2 row-span-2' : ''}`}>
-                                        <img src={src} alt={`Event gallery ${i + 1}`} className="w-full h-full object-cover aspect-square" />
+                                        <img src={src} alt={`${event.title} gallery ${i + 1}`} className="w-full h-full object-cover aspect-square" />
                                     </div>
                                 ))}
                             </div>
                         </div>
+                        )}
                     </div>
 
                     {/* Booking Card */}
@@ -203,7 +202,7 @@ const PublicEventView = ({ event }: PublicEventViewProps) => {
                                                             </DialogHeader>
                                                             <SeatingMap
                                                                 config={ticket.seatingConfig}
-                                                                bookedSeats={['seat-1-1', 'seat-1-2', 'table-1-s1', 'table-1-s2']} // Mock booked seats
+                                                                bookedSeats={[]}
                                                                 selectedSeat={null}
                                                                 onSelect={() => { }} // No-op for single select in this mode
                                                                 onSelectMultiple={(seats) => setSelectedSeats(seats)}

@@ -242,9 +242,10 @@ const OrganizerDashboard = () => {
 
   const totalTicketsSold = events.reduce((sum, event) => sum + (event.soldTickets || 0), 0);
   const totalRevenue = events.reduce((sum, event) => {
-    const revenue = typeof event.revenue === 'number' ? event.revenue : parseFloat(String(event.revenue || 0));
-    return sum + (isNaN(revenue) ? 0 : revenue);
+    const revenue = typeof event.revenue === 'number' ? event.revenue : Number.parseFloat(String(event.revenue || 0));
+    return sum + (Number.isNaN(revenue) ? 0 : revenue);
   }, 0);
+  const currency = events[0]?.currency === 'NGN' ? '₦' : '$';
 
   return (
     <div className="min-h-screen pt-8 pb-24 px-4 responsive-spacing">
@@ -288,7 +289,7 @@ const OrganizerDashboard = () => {
             <CardTitle className="text-lg font-medium">Total Revenue</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-primary">${totalRevenue.toFixed(2)}</div>
+            <div className="text-3xl font-bold text-primary">{currency}{totalRevenue.toFixed(2)}</div>
           </CardContent>
         </Card>
       </div>

@@ -10,6 +10,7 @@ export interface User {
   userType: "user" | "organizer";
   orgName?: string;
   avatarUrl?: string;
+  isActive?: boolean;
   createdAt?: string;
 }
 
@@ -58,6 +59,7 @@ export interface Event {
   revenue?: number | string;
   ticketTypes?: TicketType[];
   allowShare?: boolean;
+  galleryImages?: string[];
 }
 
 // Also export as EventType for components that import it by that name
@@ -170,7 +172,7 @@ export interface FavoriteEvent {
   date: string;
   time: string;
   location: string;
-  price: number;
+  price: number | null;
   currency: string;
   category: string;
   emoji?: string;
@@ -178,6 +180,24 @@ export interface FavoriteEvent {
   thumbnailUrl?: string;
   availableTickets: number;
   organizerName: string;
+}
+
+// =====================
+// Collaborator Types
+// =====================
+
+export interface Collaborator {
+  id: string;
+  name: string;
+  email: string;
+  accountNumber: string;
+  bankName: string;
+  ticketAllocation: number;
+  discountPercentage: number;
+  uniqueCode: string;
+  referralLink?: string;
+  ticketsSold?: number;
+  earnings?: number;
 }
 
 // =====================

@@ -20,56 +20,13 @@ import { useToast } from "@/components/ui/use-toast";
 import AnimatedLogo from "@/components/AnimatedLogo";
 import { Event } from "@/types";
 import QRCode from "react-qr-code";
-
-// ── Fee engine (mirrors Rust fees.rs exactly) ─────────────────────────────────
-const PAYSTACK_RATE = 0.015;
-const PLATFORM_RATE = 0.02;
-const DIVISOR = 1 - PAYSTACK_RATE - PLATFORM_RATE; // 0.965
-
-function ceilTo(value: number, nearest: number): number {
-  return Math.ceil(value / nearest) * nearest;
-}
-
-interface FeeBreakdown {
-  buyerPricePerTicket: number;
-  buyerTotal: number;
-  serviceFee: number;
-  organizerPayout: number;
-  feeMode: 'pass_to_buyer' | 'absorb';
-}
-
-function computeFees(
-  desiredPayoutPerTicket: number,
-  quantity: number,
-  feeMode: 'pass_to_buyer' | 'absorb' = 'pass_to_buyer'
-): FeeBreakdown {
-  if (desiredPayoutPerTicket === 0) {
-    return { buyerPricePerTicket: 0, buyerTotal: 0, serviceFee: 0, organizerPayout: 0, feeMode };
-  }
-  const shield = desiredPayoutPerTicket < 1000 ? 75 : 100;
-  const roundTo = desiredPayoutPerTicket >= 10_000 ? 100 : 50;
-  const buyerPricePerTicket = feeMode === 'pass_to_buyer'
-    ? ceilTo((desiredPayoutPerTicket + shield) / DIVISOR, roundTo)
-    : desiredPayoutPerTicket;
-  const buyerTotal = buyerPricePerTicket * quantity;
-  const platformFee = buyerTotal * PLATFORM_RATE;
-  const bukrshieldFee = shield * quantity;
-  const paystackFee = buyerTotal * PAYSTACK_RATE;
-  const organizerPayout = buyerTotal - paystackFee - platformFee - bukrshieldFee;
-  const serviceFee = buyerTotal - (feeMode === 'pass_to_buyer' ? desiredPayoutPerTicket * quantity : organizerPayout);
-  return { buyerPricePerTicket, buyerTotal, serviceFee: Math.max(0, serviceFee), organizerPayout, feeMode };
-}
-
-function fmtPrice(n: number, symbol: string): string {
-  return symbol + Math.round(n).toLocaleString();
-}
-// ─────────────────────────────────────────────────────────────────────────────
+import { computeFees, formatPrice as fmtPrice } from "@/lib/fees";
 
 const PurchasePage = () => {
   const { eventKey } = useParams<{ eventKey: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { getEventByKey, validatePromo } = useEvent();
+  const { getEventByKey, getEvent, validatePromo } = useEvent();
   const { purchaseTicket } = useTicket();
   const { user } = useAuth();
 
@@ -86,8 +43,8 @@ const PurchasePage = () => {
   const [discount, setDiscount] = useState<number>(0);
   const [event, setEvent] = useState<Event | null>(null);
   const [loadingEvent, setLoadingEvent] = useState(true);
-  const [paymentUrl, setPaymentUrl] = useState<string>("");
   const [showBreakdown, setShowBreakdown] = useState(false);
+  const [confirmedTotal, setConfirmedTotal] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchEvent = async () => {
@@ -96,18 +53,29 @@ const PurchasePage = () => {
         return;
       }
       setLoadingEvent(true);
-      const foundEvent = await getEventByKey(eventKey);
+      let foundEvent = await getEventByKey(eventKey);
+      // Fallback: if eventKey is a UUID (from Explore page fallback), try getEvent by ID
+      if (!foundEvent && /^[0-9a-f]{8}-[0-9a-f]{4}-/.test(eventKey)) {
+        foundEvent = await getEvent(eventKey);
+      }
       if (foundEvent) {
         setEvent(foundEvent);
         if (referralCode) {
-          const collaboratorDiscount = 10;
-          setDiscount(collaboratorDiscount);
-          setPromoApplied(true);
-          setPromoCode(`REF-${referralCode}`);
-          toast({
-            title: "Referral discount applied",
-            description: `You got a ${collaboratorDiscount}% discount from your referral!`,
-          });
+          // Validate referral code via API — do not trust client-side discount values
+          try {
+            const refPromo = await validatePromo(foundEvent.id, `REF-${referralCode}`);
+            if (refPromo && refPromo.isActive) {
+              setDiscount(refPromo.discountPercentage);
+              setPromoApplied(true);
+              setPromoCode(`REF-${referralCode}`);
+              toast({
+                title: "Referral discount applied",
+                description: `You got a ${refPromo.discountPercentage}% discount from your referral!`,
+              });
+            }
+          } catch {
+            // Referral code invalid or expired — proceed without discount
+          }
         }
       } else {
         navigate("/app");
@@ -160,7 +128,7 @@ const PurchasePage = () => {
         description: "Please log in to purchase tickets.",
         variant: "destructive",
       });
-      navigate("/login");
+      navigate("/auth");
       return;
     }
 
@@ -186,10 +154,11 @@ const PurchasePage = () => {
       });
 
       setTicketId(result.ticket.ticketId);
+      // Use server-confirmed amount for the success screen
+      setConfirmedTotal(result.payment?.amount ?? null);
 
       // If payment provider returns an authorization URL, redirect
       if (result.payment?.authorizationUrl) {
-        setPaymentUrl(result.payment.authorizationUrl);
         window.location.href = result.payment.authorizationUrl;
         return;
       }
@@ -213,27 +182,22 @@ const PurchasePage = () => {
 
   const handleShare = () => {
     if (!event) return;
-
+    // Share the event page URL — no user ID in the link.
+    // Influencers share their own referral links from the influencer portal.
+    const shareUrl = `${window.location.origin}/#/purchase/${event.eventKey}`;
     const shareData = {
-      title: `My ticket for ${event.title}`,
-      text: `Check out my ticket for ${event.title} on ${event.date}!`,
-      url: `${window.location.origin}/events/${event.eventKey}?ref=${user?.id || "user"}`,
+      title: `${event.title} — get your ticket on Bukr`,
+      text: `I'm going to ${event.title} on ${event.date}. Grab your ticket!`,
+      url: shareUrl,
     };
 
     if (navigator.share) {
       navigator.share(shareData).catch(() => {
-        toast({
-          title: "Share Failed",
-          description: "Unable to share ticket. Please try copying the link manually.",
-          variant: "destructive",
-        });
+        toast({ title: "Share Failed", description: "Unable to share. Link copied instead.", variant: "destructive" });
       });
     } else {
-      navigator.clipboard.writeText(shareData.url);
-      toast({
-        title: "Link Copied",
-        description: "Event link copied to clipboard!",
-      });
+      navigator.clipboard.writeText(shareUrl);
+      toast({ title: "Link Copied", description: "Event link copied to clipboard!" });
     }
   };
 
@@ -269,6 +233,7 @@ const PurchasePage = () => {
         <button
           key={star}
           onClick={() => setRating(star)}
+          aria-label={`Rate ${star} star${star > 1 ? 's' : ''}`}
           className="focus:outline-none touch-target"
         >
           <Star
@@ -438,7 +403,7 @@ const PurchasePage = () => {
                       <div className="mb-6 rounded-xl border border-border/40 overflow-hidden">
                         <div className="p-4 bg-primary/5">
                           <div className="flex items-baseline justify-between">
-                            <span className="text-sm text-muted-foreground font-montserrat">Total</span>
+                            <span className="text-sm text-muted-foreground font-montserrat">Estimated total</span>
                             <span className="text-2xl font-bold tracking-tight">
                               {fees.buyerTotal === 0 ? 'Free' : fmtPrice(fees.buyerTotal, currencySymbol)}
                             </span>
@@ -569,7 +534,7 @@ const PurchasePage = () => {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Total Paid:</span>
-                      <span>{currencySymbol}{totalPrice.toLocaleString()}</span>
+                      <span>{currencySymbol}{(confirmedTotal ?? totalPrice).toLocaleString()}</span>
                     </div>
                   </div>
                 </div>

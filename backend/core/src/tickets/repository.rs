@@ -18,6 +18,7 @@ use chrono::Utc;
 use rust_decimal::Decimal;
 use sqlx::{PgPool, Row};
 use uuid::Uuid;
+// Decimal kept: used in EventData and create_free_with_tx price binds
 
 use super::dto::Ticket;
 
@@ -312,7 +313,7 @@ fn row_to_ticket(row: &sqlx::postgres::PgRow) -> Ticket {
 
 impl TicketRepository {
     pub async fn get_event(&self, event_id: Uuid) -> Result<Option<EventData>, sqlx::Error> {
-        let row = sqlx::query("SELECT id, price, available_tickets, status FROM events WHERE id = $1")
+        let row = sqlx::query("SELECT id, price, available_tickets, status, currency FROM events WHERE id = $1")
             .bind(event_id)
             .fetch_optional(&self.pool)
             .await?;
@@ -321,6 +322,30 @@ impl TicketRepository {
             price: r.get("price"),
             available_tickets: r.get("available_tickets"),
             status: r.get("status"),
+            currency: r.get("currency"),
+        }))
+    }
+
+    /// Same as get_event but acquires a row-level lock inside an open transaction.
+    /// Used by claim_free to prevent the race condition where two concurrent
+    /// requests both pass the availability check before either inserts.
+    pub async fn get_event_for_update(
+        &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        event_id: Uuid,
+    ) -> Result<Option<EventData>, sqlx::Error> {
+        let row = sqlx::query(
+            "SELECT id, price, available_tickets, status, currency FROM events WHERE id = $1 FOR UPDATE"
+        )
+        .bind(event_id)
+        .fetch_optional(&mut **tx)
+        .await?;
+        Ok(row.map(|r| EventData {
+            id: r.get("id"),
+            price: r.get("price"),
+            available_tickets: r.get("available_tickets"),
+            status: r.get("status"),
+            currency: r.get("currency"),
         }))
     }
 
@@ -335,14 +360,66 @@ impl TicketRepository {
         Ok(count > 0)
     }
 
-    pub async fn create_ticket(&self, user_id: Uuid, event_id: Uuid, price: Decimal, promo_code_id: Option<Uuid>) -> Result<Ticket, sqlx::Error> {
-        let ticket_id = format!("BUKR-{}", Uuid::new_v4().to_string().split('-').next().unwrap().to_uppercase());
-        let qr_data = format!("{{\"ticket_id\":\"{}\",\"event_id\":\"{}\"}}", ticket_id, event_id);
-        self.create(
-            event_id, user_id, &ticket_id, "general", 1, 1, price, price,
-            Decimal::ZERO, promo_code_id, "NGN", &qr_data,
-            &format!("FREE-{}", Uuid::new_v4()), "free", None, None, None
-        ).await
+    /// Duplicate check inside an open transaction — consistent read under the FOR UPDATE lock.
+    pub async fn check_user_ticket_tx(
+        &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        user_id: Uuid,
+        event_id: Uuid,
+    ) -> Result<bool, sqlx::Error> {
+        let count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM tickets WHERE user_id = $1 AND event_id = $2 AND status != 'cancelled'"
+        )
+        .bind(user_id)
+        .bind(event_id)
+        .fetch_one(&mut **tx)
+        .await?;
+        Ok(count > 0)
+    }
+
+    /// Insert a free ticket inside an open transaction.
+    /// The DB trigger decrements available_tickets atomically on INSERT.
+    pub async fn create_free_with_tx(
+        &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        user_id: Uuid,
+        event_id: Uuid,
+        currency: &str,
+    ) -> Result<Ticket, sqlx::Error> {
+        let ticket_id = format!(
+            "BUKR-{}",
+            Uuid::new_v4().to_string().split('-').next().unwrap().to_uppercase()
+        );
+        let qr_data = format!(
+            "{{\"ticket_id\":\"{}\",\"event_id\":\"{}\"}}",
+            ticket_id, event_id
+        );
+        let payment_ref = format!("FREE-{}", Uuid::new_v4());
+
+        let row = sqlx::query(
+            r#"INSERT INTO tickets
+                (event_id, user_id, ticket_id, ticket_type, quantity, usage_limit, usage_count,
+                 unit_price, total_price, discount_applied, currency,
+                 qr_code_data, payment_ref, payment_provider, status)
+            VALUES ($1, $2, $3, 'general', 1, 1, 0,
+                    0, 0, 0, $6,
+                    $4, $5, 'free', 'valid')
+            RETURNING id, ticket_id, event_id, user_id, ticket_type, quantity, usage_limit, usage_count,
+                      unit_price, total_price, discount_applied, promo_code_id,
+                      currency, status, qr_code_data, valid_from, valid_until,
+                      payment_ref, payment_provider, excitement_rating, scanned_at,
+                      purchase_date, created_at"#,
+        )
+        .bind(event_id)
+        .bind(user_id)
+        .bind(&ticket_id)
+        .bind(&qr_data)
+        .bind(&payment_ref)
+        .bind(currency)
+        .fetch_one(&mut **tx)
+        .await?;
+
+        Ok(row_to_ticket(&row))
     }
 }
 
@@ -351,4 +428,5 @@ pub struct EventData {
     pub price: Decimal,
     pub available_tickets: i32,
     pub status: String,
+    pub currency: String,
 }

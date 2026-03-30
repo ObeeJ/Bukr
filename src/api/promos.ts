@@ -38,21 +38,21 @@ export const createPromo = async (req: {
 /**
  * deletePromo
  * High-level: Permanently deletes a promo code.
- * Low-level: Sends DELETE /promos/:id. Any in-flight uses of the code
- * may still succeed depending on backend transaction ordering.
+ * Low-level: Sends DELETE /promos/:id?event_id=X. Gateway requires event_id
+ * to route to the correct Rust endpoint.
  */
-export const deletePromo = async (id: string): Promise<void> => {
-  await api.delete(`/promos/${id}`);
+export const deletePromo = async (id: string, eventId: string): Promise<void> => {
+  await api.delete(`/promos/${id}`, { params: { event_id: eventId } });
 };
 
 /**
  * togglePromo
  * High-level: Flips a promo code between active and inactive without deleting it.
- * Low-level: Sends PATCH /promos/:id/toggle — no body needed, backend handles
- * the state flip and returns the updated PromoCode.
+ * Low-level: Sends PATCH /promos/:id/toggle?event_id=X. Gateway requires event_id
+ * to route to the correct Rust endpoint.
  */
-export const togglePromo = async (id: string): Promise<PromoCode> => {
-  const { data } = await api.patch(`/promos/${id}/toggle`);
+export const togglePromo = async (id: string, eventId: string): Promise<PromoCode> => {
+  const { data } = await api.patch(`/promos/${id}/toggle`, null, { params: { event_id: eventId } });
   return mapFromApi<PromoCode>(data);
 };
 

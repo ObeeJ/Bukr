@@ -41,7 +41,7 @@ const EventDetail = () => {
       const eventData = await getEvent(id);
       setEvent(eventData);
 
-      if (eventData && user?.userType === 'organizer') {
+      if (eventData && user?.userType === 'organizer' && eventData.organizerId === user.id) {
         // Fetch organizer-specific data in parallel
         const [promosData, ticketsData] = await Promise.all([
           getPromos(id).catch(() => [] as PromoCode[]),
@@ -107,7 +107,7 @@ const EventDetail = () => {
   const endDate = event.endDate ? new Date(event.endDate) : new Date(eventDate.getTime() + 4 * 60 * 60 * 1000);
   const isActive = now < endDate && event.status === 'active';
 
-  const isOwner = user?.userType === 'organizer';
+  const isOwner = user?.userType === 'organizer' && event.organizerId === user.id;
 
   if (isOwner) {
     return <OrganizerEventView event={event} metrics={metrics} promos={promos} isActive={isActive} />;
