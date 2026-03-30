@@ -204,8 +204,11 @@ impl PaymentService {
     }
 
     pub fn verify_paystack_signature(&self, body: &[u8], signature: &str) -> bool {
+        // Fail-closed: no secret configured means reject all webhooks.
+        // An empty secret in production is a misconfiguration, not a free pass.
         if self.paystack_webhook_secret.is_empty() {
-            return true;
+            tracing::warn!("PAYSTACK_WEBHOOK_SECRET is empty — rejecting webhook");
+            return false;
         }
         let mut mac = Hmac::<Sha512>::new_from_slice(self.paystack_webhook_secret.as_bytes())
             .expect("HMAC can take key of any size");

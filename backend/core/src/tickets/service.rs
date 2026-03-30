@@ -77,8 +77,8 @@ impl TicketService {
             return Err(AppError::Validation("Quantity must be between 1 and 10".into()));
         }
         if let Some(rating) = req.excitement_rating {
-            if rating < 1 || rating > 10 {
-                return Err(AppError::Validation("Excitement rating must be between 1 and 10".into()));
+            if rating < 1 || rating > 5 {
+                return Err(AppError::Validation("Excitement rating must be between 1 and 5".into()));
             }
         }
         if req.payment_provider != "paystack" {
@@ -294,6 +294,22 @@ impl TicketService {
         self.repo.get_event_tickets(event_id).await.map_err(AppError::Database)
     }
 
+    // Verify the caller owns the event. Returns Forbidden if not.
+    // Used by handlers that need ownership checks beyond what the gateway provides.
+    pub async fn verify_event_owner(&self, user_id: Uuid, event_id: Uuid) -> Result<()> {
+        let row = sqlx::query("SELECT organizer_id FROM events WHERE id = $1")
+            .bind(event_id)
+            .fetch_optional(self.repo.pool())
+            .await
+            .map_err(AppError::Database)?
+            .ok_or_else(|| AppError::NotFound("Event not found".into()))?;
+        let organizer_id: Uuid = row.get("organizer_id");
+        if organizer_id != user_id {
+            return Err(AppError::Forbidden);
+        }
+        Ok(())
+    }
+
     /**
      * Mark a ticket as used (scanned at the door)
      * 
@@ -319,29 +335,37 @@ impl TicketService {
      * @returns Created ticket
      */
     pub async fn claim_free(&self, user_id: Uuid, event_id: Uuid) -> Result<super::dto::Ticket> {
-        // Verify event exists and is free
-        let event = self.repo.get_event(event_id).await
+        // Open transaction and lock the event row — same pattern as purchase().
+        // Without FOR UPDATE, two concurrent claims both pass the availability
+        // check before either inserts, producing duplicate free tickets.
+        let mut tx = self.repo.pool().begin().await.map_err(AppError::Database)?;
+
+        let event = self.repo.get_event_for_update(&mut tx, event_id).await
             .map_err(AppError::Database)?
             .ok_or_else(|| AppError::NotFound("Event not found".into()))?;
 
+        if event.status != "active" {
+            return Err(AppError::BadRequest("Event is not active".into()));
+        }
         if event.price > Decimal::ZERO {
             return Err(AppError::BadRequest("Event is not free".into()));
         }
-
         if event.available_tickets <= 0 {
             return Err(AppError::BadRequest("No tickets available".into()));
         }
 
-        // Check if user already claimed
-        let existing = self.repo.check_user_ticket(user_id, event_id).await
+        // Duplicate check inside the same transaction — consistent read under lock.
+        let existing = self.repo.check_user_ticket_tx(&mut tx, user_id, event_id).await
             .map_err(AppError::Database)?;
         if existing {
             return Err(AppError::BadRequest("Already claimed ticket for this event".into()));
         }
 
-        // Create free ticket
-        self.repo.create_ticket(user_id, event_id, Decimal::ZERO, None).await
-            .map_err(AppError::Database)
+        let ticket = self.repo.create_free_with_tx(&mut tx, user_id, event_id, &event.currency).await
+            .map_err(AppError::Database)?;
+
+        tx.commit().await.map_err(AppError::Database)?;
+        Ok(ticket)
     }
 
     /**
@@ -353,15 +377,17 @@ impl TicketService {
      * @param ticket_id - Human-readable ticket ID
      * @returns Signed QR JSON payload
      */
-    pub async fn get_dynamic_qr(&self, ticket_id: &str) -> Result<String> {
-        // Resolve event_key and ticket info
+    pub async fn get_dynamic_qr(&self, ticket_id: &str, user_id: Uuid) -> Result<String> {
+        // Ownership check: user_id must match the ticket owner.
+        // Without this, any authenticated user can fetch any ticket's QR by guessing the ID.
         let row = sqlx::query(
             r#"SELECT e.event_key 
                FROM tickets t 
                JOIN events e ON t.event_id = e.id 
-               WHERE t.ticket_id = $1"#
+               WHERE t.ticket_id = $1 AND t.user_id = $2"#
         )
         .bind(ticket_id)
+        .bind(user_id)
         .fetch_optional(self.repo.pool())
         .await
         .map_err(AppError::Database)?

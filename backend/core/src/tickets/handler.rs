@@ -112,12 +112,16 @@ pub async fn get_my_tickets(
  */
 pub async fn get_event_tickets(
     State(service): State<Arc<TicketService>>,
+    headers: HeaderMap,
     Path(event_id): Path<Uuid>,
 ) -> Result<Json<Value>> {
-    // Fetch all tickets for this event - organizer privilege
+    // Verify the caller actually owns this event — gateway only checks role,
+    // not ownership. Without this, any organizer can fetch any event's tickets.
+    let user_id = extract_user_id(&headers)?;
+    service.verify_event_owner(user_id, event_id).await?;
+
     let tickets = service.get_event_tickets(event_id).await?;
 
-    // Wrap and return
     Ok(Json(json!({
         "status": "success",
         "data": { "tickets": tickets }
@@ -164,13 +168,11 @@ pub async fn claim_free_ticket(
  */
 pub async fn get_dynamic_qr(
     State(service): State<Arc<TicketService>>,
-    _headers: HeaderMap,
+    headers: HeaderMap,
     Path(ticket_id): Path<String>,
 ) -> Result<Json<Value>> {
-    // Note: We should verify the user owns this ticket
-    // For now, we trust the x-user-id header from Go gateway (which checks JWT)
-    // The service handles the heavy lifting
-    let qr_data = service.get_dynamic_qr(&ticket_id).await?;
+    let user_id = extract_user_id(&headers)?;
+    let qr_data = service.get_dynamic_qr(&ticket_id, user_id).await?;
 
     Ok(Json(json!({
         "status": "success",

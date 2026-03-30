@@ -8,7 +8,7 @@
 #
 # Services:
 #   redis     → localhost:6379
-#   core      → localhost:8081  (Rust — tickets, scanner, payments)
+#   core      → internal:8081   (Rust — tickets, scanner, payments, no public port)
 #   gateway   → localhost:8080  (Go — auth, events, CRUD)
 #   frontend  → localhost:3000  (React/Vite via Nginx)
 #
@@ -34,8 +34,10 @@ services:
       context: ./backend/core
       dockerfile: Dockerfile
     restart: unless-stopped
-    ports:
-      - "8081:8081"
+    # No public port — core is internal-only, reachable by gateway via Docker network.
+    # Exposing it publicly would let attackers bypass gateway auth with forged X-User-ID headers.
+    expose:
+      - "8081"
     env_file:
       - ./backend/.env
     environment:

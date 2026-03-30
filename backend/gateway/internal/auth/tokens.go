@@ -12,7 +12,7 @@ import (
 
 const (
 	AccessTokenTTL  = 15 * time.Minute
-	RefreshTokenTTL = 30 * 24 * time.Hour
+	RefreshTokenTTL = 7 * 24 * time.Hour
 	AdminTokenTTL   = 10 * time.Minute
 )
 
