@@ -45,11 +45,12 @@ import (
 // A single shared http.Client with a tuned Transport is used for all requests.
 // This keeps TCP connections alive between calls instead of dialing fresh each time.
 type RustProxy struct {
-	baseURL string
-	client  *http.Client
+	baseURL       string
+	gatewaySecret string
+	client        *http.Client
 }
 
-func NewRustProxy(rustServiceURL string) *RustProxy {
+func NewRustProxy(rustServiceURL string, gatewaySecret string) *RustProxy {
 	// Transport is the connection pool. All proxy calls go to one host (Rust),
 	// so MaxIdleConnsPerHost is set high to match expected concurrency.
 	// DisableCompression avoids CPU overhead — JSON payloads are already small.
@@ -63,7 +64,8 @@ func NewRustProxy(rustServiceURL string) *RustProxy {
 		ExpectContinueTimeout: 1 * time.Second,
 	}
 	return &RustProxy{
-		baseURL: rustServiceURL,
+		baseURL:       rustServiceURL,
+		gatewaySecret: gatewaySecret,
 		client: &http.Client{
 			// 10s is generous for an internal service call.
 			// If Rust takes >10s something is seriously wrong.
@@ -124,6 +126,9 @@ func (p *RustProxy) Forward(c *fiber.Ctx, rustPath string) error {
 	if auth := c.Get("Authorization"); auth != "" {
 		req.Header.Set("Authorization", auth)
 	}
+
+	// Inject gateway secret for Rust trust boundary
+	req.Header.Set("X-Gateway-Secret", p.gatewaySecret)
 
 	// Inject user claims from Go Gateway auth
 	// Rust trusts these headers (no JWT re-validation)

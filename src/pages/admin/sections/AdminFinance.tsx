@@ -30,8 +30,8 @@ export default function AdminFinance() {
     staleTime: 60_000,
   });
 
-  const summary = summaryData?.data ?? {};
-  const entries = streamData?.data?.entries ?? [];
+  const summary = summaryData ?? {};
+  const entries = streamData?.entries ?? [];
 
   return (
     <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-6">

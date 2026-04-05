@@ -117,9 +117,9 @@ export default function EventVendors() {
     onError: () => toast.error("Failed to complete hire"),
   });
 
-  const hires: any[] = hiresData?.data?.hires ?? [];
-  const vendors: any[] = browseData?.data?.vendors ?? [];
-  const matches: any[] = matchData?.data ?? [];
+  const hires: any[] = hiresData?.hires ?? [];
+  const vendors: any[] = browseData?.vendors ?? [];
+  const matches: any[] = matchData ?? [];
 
   // ── render ─────────────────────────────────────────────────────────────────
 

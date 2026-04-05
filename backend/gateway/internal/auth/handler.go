@@ -227,11 +227,22 @@ func (h *Handler) AdminRefresh(c *fiber.Ctx) error {
 func (h *Handler) AdminLogout(c *fiber.Ctx) error {
 	var body struct {
 		AdminID string `json:"admin_id"`
-		JTI     string `json:"jti"`
 	}
 	_ = c.BodyParser(&body)
-	if body.AdminID != "" {
-		h.svc.AdminLogout(c.Context(), body.AdminID, body.JTI, time.Now().Add(AdminTokenTTL)) //nolint:errcheck
+
+	// Extract JTI from the Bearer token — never trust the client to supply it.
+	if auth := c.Get("Authorization"); strings.HasPrefix(auth, "Bearer ") {
+		tokenStr := strings.TrimPrefix(auth, "Bearer ")
+		if claims, err := h.svc.ParseAdminToken(tokenStr); err == nil {
+			exp := time.Now().Add(AdminTokenTTL)
+			if claims.ExpiresAt != nil {
+				exp = claims.ExpiresAt.Time
+			}
+			h.svc.AdminLogout(c.Context(), claims.UserID, claims.JTI, exp) //nolint:errcheck
+		}
+	} else if body.AdminID != "" {
+		// Fallback: no token present (already expired), clear refresh token only.
+		h.svc.AdminLogout(c.Context(), body.AdminID, "", time.Now()) //nolint:errcheck
 	}
 	clearCookie(c, adminRefreshCookie)
 	return shared.Success(c, fiber.StatusOK, fiber.Map{"message": "Signed out successfully"})

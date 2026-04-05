@@ -585,7 +585,7 @@ func (h *Handler) GetFeatureFlags(c *fiber.Ctx) error {
 	if err != nil {
 		return shared.Success(c, 200, fiber.Map{"flags": fiber.Map{}})
 	}
-	return c.Status(200).JSON(fiber.Map{"status": "success", "data": fiber.Map{"flags": flagsJSON}})
+	return c.Status(200).JSON(fiber.Map{"status": "success", "data": fiber.Map{"flags": json.RawMessage(flagsJSON)}})
 }
 
 func (h *Handler) UpdateFeatureFlags(c *fiber.Ctx) error {

@@ -10,7 +10,8 @@ import { FavoriteEvent } from '@/types';
 export const getFavorites = async (): Promise<FavoriteEvent[]> => {
   try {
     const { data } = await api.get('/favorites');
-    return mapFromApi<FavoriteEvent[]>(data?.favorites || data || []);
+    // Go handler returns { events: [...] } — fall back to bare array for safety
+    return mapFromApi<FavoriteEvent[]>(data?.events || data?.favorites || []);
   } catch {
     return [];
   }

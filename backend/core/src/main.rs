@@ -44,11 +44,16 @@ mod payments;
 mod analytics;
 mod vendors;
 
+use crate::error::{AppError, Result};
 use std::sync::Arc;
 use axum::{
-    extract::FromRef,
+    extract::{FromRef, State},
     routing::{get, patch, post, delete},
     Router,
+    middleware,
+    response::Response,
+    body::Body,
+    http::Request,
 };
 use sqlx::PgPool;
 use tower_http::cors::CorsLayer;
@@ -66,6 +71,7 @@ struct AppState {
     vendor_service:  Arc<vendors::service::VendorService>,
     pool:            PgPool,
     arc_pool:        Arc<PgPool>,
+    gateway_secret:  String,
 }
 
 impl FromRef<AppState> for Arc<tickets::service::TicketService> {
@@ -90,6 +96,9 @@ impl FromRef<AppState> for PgPool {
 /// transfer handler uses `State(pool): State<Arc<PgPool>>`
 impl FromRef<AppState> for Arc<PgPool> {
     fn from_ref(s: &AppState) -> Self { s.arc_pool.clone() }
+}
+impl FromRef<AppState> for String {
+    fn from_ref(s: &AppState) -> Self { s.gateway_secret.clone() }
 }
 
 /**
@@ -182,6 +191,7 @@ async fn build_router(pool: PgPool, cfg: config::Config) -> Router {
         vendor_service,
         arc_pool: Arc::new(pool.clone()),
         pool,
+        gateway_secret: cfg.gateway_secret,
     };
 
     // ROUTE GROUPS — NO .with_state() per router.
@@ -273,9 +283,34 @@ async fn build_router(pool: PgPool, cfg: config::Config) -> Router {
         .nest("/api/v1/vendor-invitations", vendor_invitation_routes)
         .nest("/api/v1/vendor/me",        vendor_me_routes)
         .nest("/api/v1",                  promo_routes)
+        .layer(middleware::from_fn_with_state(state.clone(), check_gateway_secret))
         .layer(cors)
         .layer(TraceLayer::new_for_http())
         .with_state(state)
+}
+
+/**
+ * Gateway Secret Middleware
+ * 
+ * Ensures only the Go Gateway can talk to this service directly.
+ * Blocks external traffic attempting to spoof user headers.
+ */
+async fn check_gateway_secret(
+    State(secret): State<String>,
+    req: Request<Body>,
+    next: middleware::Next,
+) -> Result<Response> {
+    let provided = req.headers()
+        .get("x-gateway-secret")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+
+    if provided != secret {
+        tracing::warn!("UNAUTHORIZED: Invalid or missing X-Gateway-Secret");
+        return Err(AppError::Unauthorized);
+    }
+
+    Ok(next.run(req).await)
 }
 
 /**

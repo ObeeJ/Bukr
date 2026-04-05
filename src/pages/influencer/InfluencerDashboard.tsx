@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Copy, TrendingUp, DollarSign, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,20 +8,31 @@ import { Badge } from "@/components/ui/badge";
 import { getInfluencerProfile, getInfluencerLinks } from "@/api/influencer";
 
 export default function InfluencerDashboard() {
-  const { data: profileData, isLoading: profileLoading } = useQuery({
+  const navigate = useNavigate();
+
+  const { data: profileData, isLoading: profileLoading, isError: profileError } = useQuery({
     queryKey: ["influencer-profile"],
     queryFn: getInfluencerProfile,
     staleTime: 5 * 60_000,
+    retry: false,
   });
+
+  // No influencer profile — send them to claim their invite
+  if (!profileLoading && (profileError || !profileData)) {
+    navigate("/influencer/claim", { replace: true });
+    return null;
+  }
 
   const { data: linksData, isLoading: linksLoading } = useQuery({
     queryKey: ["influencer-links"],
     queryFn: getInfluencerLinks,
     staleTime: 60_000,
+    retry: false,
+    enabled: !!profileData,
   });
 
-  const profile = profileData?.data;
-  const links = linksData?.data?.links ?? [];
+  const profile = profileData;
+  const links = linksData?.links ?? [];
 
   const copyLink = (url: string) => {
     navigator.clipboard.writeText(url).then(() => {

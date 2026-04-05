@@ -14,6 +14,7 @@ type Config struct {
 	AllowedOrigins  string
 	LogLevel        string
 	PaystackSecret  string
+	GatewaySecret   string
 
 	// JWT secrets — different keys make user and admin tokens cryptographically separate.
 	AppJWTSecret   string // signs user access tokens (HS256)
@@ -36,6 +37,7 @@ func LoadConfig() *Config {
 		AllowedOrigins: getEnv("ALLOWED_ORIGINS", "http://localhost:5173"),
 		LogLevel:       getEnv("LOG_LEVEL", "info"),
 		PaystackSecret: getEnv("PAYSTACK_SECRET_KEY", ""),
+		GatewaySecret:  getEnv("GATEWAY_SECRET", ""),
 
 		AppJWTSecret:   getEnv("APP_JWT_SECRET", ""),
 		AdminJWTSecret: getEnv("ADMIN_JWT_SECRET", ""),
@@ -67,6 +69,9 @@ func LoadConfig() *Config {
 		}
 		if cfg.PaystackSecret == "" {
 			fatal("PAYSTACK_SECRET_KEY is required in production")
+		}
+		if cfg.GatewaySecret == "" {
+			fatal("GATEWAY_SECRET is required in production")
 		}
 	}
 

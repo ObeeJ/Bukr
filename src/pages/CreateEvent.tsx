@@ -11,6 +11,7 @@ import { ImageUpload } from '@/components/ImageUpload';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFeedback } from '@/hooks/useFeedback';
 import FeedbackModal from '@/components/FeedbackModal';
+import { createEventSchema } from '@/lib/validation-schemas';
 
 const CreateEvent = () => {
   const navigate = useNavigate();
@@ -60,7 +61,7 @@ const CreateEvent = () => {
             thumbnailUrl: event.thumbnailUrl || '',
             flierUrl: event.flierUrl || '',
             videoUrl: event.videoUrl || '',
-            niche: (event as any).niche || '',
+            niche: event.niche || '',
             ticketModel: 'single',
             usageTotal: '',
             validFrom: '',
@@ -80,24 +81,28 @@ const CreateEvent = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Validation
+
     const price = parseFloat(formData.price) || 0;
     const totalTickets = parseInt(formData.totalTickets) || 0;
-    const eventDate = new Date(formData.date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    if (eventDate < today) {
-      toast.error('Event date cannot be in the past');
-      return;
-    }
-    if (price < 0) {
-      toast.error('Price cannot be negative');
-      return;
-    }
-    if (totalTickets < 1) {
-      toast.error('Total tickets must be at least 1');
+
+    // Run Zod schema — catches title length, description length, time format,
+    // future-date constraint, and price/ticket bounds in one pass.
+    const parsed = createEventSchema.safeParse({
+      title: formData.title,
+      description: formData.description,
+      date: formData.date,
+      time: formData.time,
+      location: formData.location,
+      price,
+      currency: formData.currency,
+      totalTickets,
+      availableTickets: totalTickets,
+      category: formData.category || undefined,
+    });
+
+    if (!parsed.success) {
+      const first = parsed.error.errors[0];
+      toast.error(first?.message || 'Please check your form inputs');
       return;
     }
     

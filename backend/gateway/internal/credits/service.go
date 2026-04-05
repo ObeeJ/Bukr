@@ -2,6 +2,8 @@ package credits
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -119,8 +121,12 @@ func (s *Service) initPaystack(email string, amountKobo int64, ref, callbackURL 
 	return result.Data.AuthorizationURL, nil
 }
 
-// pseudoRand returns a small random-ish number for reference generation.
-// Not cryptographic — just for uniqueness in the reference string.
+// pseudoRand returns a random uint16 for reference generation.
 func pseudoRand() uint16 {
-	return uint16(time.Now().UnixNano() & 0xFFFF)
+	var b [2]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		// Fallback to predictable time-based seed if crypto/rand fails
+		return uint16(time.Now().UnixNano() & 0xFFFF)
+	}
+	return binary.BigEndian.Uint16(b[:])
 }

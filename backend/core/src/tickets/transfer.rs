@@ -84,7 +84,7 @@ pub async fn transfer_ticket(
     // STEP 1: Fetch ticket with row lock — verify ownership and status
     let ticket_row = sqlx::query(
         r#"SELECT t.id, t.ticket_id, t.event_id, t.user_id, t.status,
-                  (e.date + e.time) AS event_starts_at
+                  (e.date + e.time) AT TIME ZONE 'UTC' AS event_starts_at
            FROM tickets t
            JOIN events e ON e.id = t.event_id
            WHERE t.ticket_id = $1

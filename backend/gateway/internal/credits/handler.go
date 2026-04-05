@@ -119,7 +119,9 @@ func (h *Handler) Webhook(c *fiber.Ctx) error {
 
 func (h *Handler) verifySignature(body []byte, sig string) bool {
 	if h.paystackSecret == "" {
-		return true // dev mode
+		// Fail-closed: no secret = reject all webhooks.
+		// An empty secret in production is a misconfiguration, not a free pass.
+		return false
 	}
 	mac := hmac.New(sha512.New, []byte(h.paystackSecret))
 	mac.Write(body)

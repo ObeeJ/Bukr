@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Check, X, AlertCircle, ArrowLeft, Loader2 } from "lucide-react";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import { Event } from "@/types";
 import { useFeedback } from "@/hooks/useFeedback";
 import FeedbackModal from "@/components/FeedbackModal";
@@ -18,7 +18,6 @@ import FeedbackModal from "@/components/FeedbackModal";
 const ScannerPage = () => {
   const { eventId, eventKey } = useParams<{ eventId?: string; eventKey?: string }>();
   const navigate = useNavigate();
-  const { toast } = useToast();
   const { getEvent, getEventByKey } = useEvent();
   const { user } = useAuth();
   const { feedbackState, triggerFeedback, closeFeedback } = useFeedback();
@@ -44,11 +43,7 @@ const ScannerPage = () => {
     }
 
     if (user && user.userType !== "organizer" && !eventKey && !eventId) {
-      toast({
-        title: "Access Denied",
-        description: "Only organizers can access the ticket scanner.",
-        variant: "destructive",
-      });
+      toast.error("Access Denied", { description: "Only organizers can access the ticket scanner." });
       navigate("/app");
       return;
     }
@@ -64,11 +59,7 @@ const ScannerPage = () => {
       }
 
       if (!event) {
-        toast({
-          title: "Event Not Found",
-          description: "The event you are trying to scan tickets for does not exist.",
-          variant: "destructive",
-        });
+        toast.error("Event Not Found", { description: "The event you are trying to scan tickets for does not exist." });
         navigate("/app");
       } else {
         setCurrentEvent(event);
@@ -80,18 +71,15 @@ const ScannerPage = () => {
   }, [eventId, eventKey]);
 
   // TicketScanner handles full validation + mark-used internally.
-  // This callback only updates the local scan counter for the stats badges.
-  const handleScan = (code: string) => {
-    try {
-      const data = JSON.parse(code);
-      if (data.ticketId) {
-        setScanCount((prev) => ({ ...prev, valid: prev.valid + 1 }));
-        setStatus("valid");
-      }
-    } catch {
-      setScanCount((prev) => ({ ...prev, invalid: prev.invalid + 1 }));
-      setStatus("invalid");
-    }
+  // This callback receives the raw QR string — we don't parse it here.
+  // Scan counter is driven by the validated result via onScanResult.
+  const handleScan = (_code: string) => {
+    // intentionally empty: counter updates happen in handleScanResult
+  };
+
+  const handleScanResult = (status: 'valid' | 'invalid' | 'used') => {
+    setScanCount(prev => ({ ...prev, [status]: prev[status] + 1 }));
+    setStatus(status);
   };
 
   const handleEndSession = () => {
@@ -172,7 +160,7 @@ const ScannerPage = () => {
         </Alert>
       )}
 
-      <TicketScanner onScan={handleScan} />
+      <TicketScanner onScan={handleScan} onScanResult={handleScanResult} />
 
       {feedbackState && (
         <FeedbackModal

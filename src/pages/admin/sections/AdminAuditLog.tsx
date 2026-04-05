@@ -77,8 +77,8 @@ export default function AdminAuditLog() {
     refetchInterval: 30_000,
   });
 
-  const logs  = data?.data?.logs ?? [];
-  const total = data?.data?.total ?? 0;
+  const logs  = data?.logs ?? [];
+  const total = data?.total ?? 0;
 
   return (
     <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-5">

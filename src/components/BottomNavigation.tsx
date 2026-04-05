@@ -8,12 +8,17 @@ const BottomNavigation = () => {
   const location = useLocation();
   const { user } = useAuth();
   
-  // Only show bottom navigation on app routes
-  const shouldShow = ["/app", "/favorites", "/events", "/profile", "/create-event", "/dashboard", "/tickets", "/influencers"].some(
-    route => location.pathname === route
-  );
-  
-  if (!shouldShow) return null;
+  // Show nav on all authenticated app routes except public/auth/scanner routes.
+  // Exclusion-based: easier to maintain than an allow-list that breaks on every new route.
+  const HIDE_NAV_ROUTES = ["/", "/auth", "/signin", "/signup", "/reset-password", "/privacy-policy"];
+  const isHiddenRoute =
+    HIDE_NAV_ROUTES.includes(location.pathname) ||
+    location.pathname.startsWith("/scan/") ||
+    location.pathname.startsWith("/influencer/claim/") ||
+    location.pathname.startsWith("/vendors/") ||
+    location.pathname === "/vendors";
+
+  if (isHiddenRoute || !user) return null;
 
   // Define navigation items based on user type
   let navItems = [];

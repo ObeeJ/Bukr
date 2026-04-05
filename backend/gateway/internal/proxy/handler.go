@@ -289,7 +289,4 @@ func (h *Handler) RegisterPromoRoutes(router fiber.Router) {
 		}
 		return h.proxy.Forward(c, fmt.Sprintf("/api/v1/events/%s/promos/%s/toggle", eventID, promoID))
 	})
-	router.Post("/validate", func(c *fiber.Ctx) error {
-		return h.proxy.Forward(c, "/api/v1/promos/validate")
-	})
 }

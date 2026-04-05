@@ -134,7 +134,7 @@ func (w *Worker) schedule(ctx context.Context) {
 		SELECT
 			e.id::text,
 			e.title,
-			(e.date + e.time) AS starts_at,
+			(e.date + e.time) AT TIME ZONE 'UTC' AS starts_at,
 			t.user_id::text,
 			u.email
 		FROM events e

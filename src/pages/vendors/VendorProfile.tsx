@@ -28,7 +28,7 @@ export default function VendorProfile() {
     staleTime: 5 * 60_000,
   });
 
-  const vendor = data?.data;
+  const vendor = data;
 
   const hireMutation = useMutation({
     mutationFn: () => requestHire({

@@ -29,8 +29,8 @@ export default function AdminDisputes() {
     staleTime: 30_000,
   });
 
-  const disputes = data?.data?.disputes ?? [];
-  const total    = data?.data?.total ?? 0;
+  const disputes = data?.disputes ?? [];
+  const total    = data?.total ?? 0;
 
   const resolveMutation = useMutation({
     mutationFn: () => resolveDispute(selected.id, { resolution, note }),

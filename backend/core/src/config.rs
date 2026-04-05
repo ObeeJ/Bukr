@@ -16,6 +16,7 @@ pub struct Config {
     pub paystack_webhook_secret: String,
     pub jwt_secret: String,
     pub qr_hmac_secret: String,
+    pub gateway_secret: String,
 }
 
 impl Config {
@@ -31,6 +32,7 @@ impl Config {
             paystack_webhook_secret: std::env::var("PAYSTACK_WEBHOOK_SECRET").unwrap_or_default(),
             jwt_secret: std::env::var("APP_JWT_SECRET").unwrap_or_default(),
             qr_hmac_secret: std::env::var("QR_HMAC_SECRET").unwrap_or_default(),
+            gateway_secret: std::env::var("GATEWAY_SECRET").unwrap_or_default(),
         };
 
         // Fail loud at boot in production — an empty secret is worse than a crash.
@@ -41,6 +43,7 @@ impl Config {
                 ("QR_HMAC_SECRET", &cfg.qr_hmac_secret),
                 ("PAYSTACK_SECRET_KEY", &cfg.paystack_secret_key),
                 ("PAYSTACK_WEBHOOK_SECRET", &cfg.paystack_webhook_secret),
+                ("GATEWAY_SECRET", &cfg.gateway_secret),
             ];
             for (name, val) in required {
                 if val.is_empty() {

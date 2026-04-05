@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -11,6 +11,7 @@ export default function InfluencerClaim() {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
   const { user } = useUser();
+  const claimed = useRef(false);
 
   const mutation = useMutation({
     mutationFn: () => claimInfluencerToken(token!),
@@ -28,10 +29,11 @@ export default function InfluencerClaim() {
   useEffect(() => {
     if (!token) { navigate("/"); return; }
     if (!user) {
-      // Not logged in — redirect to auth, come back after
       navigate(`/auth?redirect=/influencer/claim/${token}`);
       return;
     }
+    if (claimed.current) return;
+    claimed.current = true;
     mutation.mutate();
   }, [token, user]);  // eslint-disable-line
 

@@ -15,9 +15,9 @@ export default function AdminInfluencers() {
     staleTime: 30_000,
   });
 
-  const influencers = data?.data?.influencers ?? [];
-  const pendingPayouts = data?.data?.pendingPayouts ?? [];
-  const total = data?.data?.total ?? 0;
+  const influencers = data?.influencers ?? [];
+  const pendingPayouts = data?.pendingPayouts ?? [];
+  const total = data?.total ?? 0;
 
   const approveMutation = useMutation({
     mutationFn: (payoutId: string) => approvePayout(payoutId),

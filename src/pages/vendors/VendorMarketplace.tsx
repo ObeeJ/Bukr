@@ -21,11 +21,10 @@ export default function VendorMarketplace() {
     queryKey: ["vendors", filters],
     queryFn: () => searchVendors(filters),
     staleTime: 60_000,
-    onError: () => toast.error("Couldn't load vendors", { description: "Check your connection and try again." }),
   });
 
-  const vendors = data?.data?.vendors ?? [];
-  const total = data?.data?.total ?? 0;
+  const vendors = data?.vendors ?? [];
+  const total = data?.total ?? 0;
 
   const applyCategory = (cat: string) => {
     const next = activeCategory === cat ? undefined : cat;

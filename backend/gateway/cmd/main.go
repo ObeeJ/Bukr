@@ -98,10 +98,16 @@ func main() {
 	userAuth  := middleware.RequireAuth(cfg.AppJWTSecret, rdb)
 	adminAuth := middleware.RequireAdmin(cfg.AdminJWTSecret, rdb)
 
+	// ── Credits service (constructed early — event creation depends on it) ──────
+	creditsRepo := credits.NewRepository(db)
+	creditsService := credits.NewService(creditsRepo, cfg.PaystackSecret, cfg.AllowedOrigins)
+	creditsHandler := credits.NewHandler(creditsService, cfg.PaystackSecret)
+
 	// ── Public event routes ────────────────────────────────────────────────────
 	eventsPublic := v1.Group("/events")
 	eventRepo := events.NewRepository(db)
 	eventService := events.NewService(eventRepo, rdb)
+	eventService.WithCredits(creditsService)
 	eventHandler := events.NewHandler(eventService)
 	// /me must be registered before /:id to prevent the wildcard swallowing it.
 	// It carries auth middleware even though it lives in the public group.
@@ -131,7 +137,7 @@ func main() {
 	infHandler.RegisterRoutes(infGroup)
 
 	// ── Proxy routes (Rust core) ───────────────────────────────────────────────
-	rustProxy := proxy.NewRustProxy(cfg.RustServiceURL)
+	rustProxy := proxy.NewRustProxy(cfg.RustServiceURL, cfg.GatewaySecret)
 	proxyHandler := proxy.NewHandler(rustProxy)
 
 	var ticketLimiterStore fiber.Storage
@@ -148,6 +154,11 @@ func main() {
 	}))
 	proxyHandler.RegisterTicketRoutes(ticketGroup)
 
+	// /tickets/event/:event_id exposes all ticket data for an event — organizer only.
+	v1.Get("/tickets/event/:event_id", userAuth, middleware.RequireOrganizer(), func(c *fiber.Ctx) error {
+		return rustProxy.Forward(c, fmt.Sprintf("/api/v1/tickets/event/%s", c.Params("event_id")))
+	})
+
 	scannerGroup := v1.Group("/scanner", userAuth)
 	proxyHandler.RegisterScannerRoutes(scannerGroup)
 
@@ -161,9 +172,6 @@ func main() {
 
 	// Credits webhook also on the no-auth group — must be registered here,
 	// before paymentGroup creates the USE handler below.
-	creditsRepo := credits.NewRepository(db)
-	creditsService := credits.NewService(creditsRepo, cfg.PaystackSecret, cfg.AllowedOrigins)
-	creditsHandler := credits.NewHandler(creditsService, cfg.PaystackSecret)
 	creditsHandler.RegisterWebhook(paymentsWebhookGroup)
 
 	paymentGroup := v1.Group("/payments", userAuth)
@@ -172,8 +180,13 @@ func main() {
 	analyticsGroup := v1.Group("/analytics", userAuth, middleware.RequireOrganizer())
 	proxyHandler.RegisterAnalyticsRoutes(analyticsGroup)
 
-	promoGroup := v1.Group("/promos", userAuth)
+	// Promo management (organizer only) — create, list, delete, toggle
+	promoGroup := v1.Group("/promos", userAuth, middleware.RequireOrganizer())
 	proxyHandler.RegisterPromoRoutes(promoGroup)
+	// Promo validation is called during checkout by any authenticated user
+	v1.Post("/promos/validate", userAuth, func(c *fiber.Ctx) error {
+		return rustProxy.Forward(c, "/api/v1/promos/validate")
+	})
 
 	vendorPublic := v1.Group("/vendors")
 	proxyHandler.RegisterVendorPublicRoutes(vendorPublic)

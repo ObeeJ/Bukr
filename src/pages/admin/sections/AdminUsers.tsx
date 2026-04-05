@@ -21,8 +21,8 @@ export default function AdminUsers() {
     staleTime: 30_000,
   });
 
-  const users = data?.data?.users ?? [];
-  const total = data?.data?.total ?? 0;
+  const users = data?.users ?? [];
+  const total = data?.total ?? 0;
 
   const updateMutation = useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: Record<string, unknown> }) => updateUser(id, updates),

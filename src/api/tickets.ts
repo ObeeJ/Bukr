@@ -15,6 +15,7 @@
 
 import api, { mapFromApi, mapToApi } from '@/lib/api';
 import { Ticket, PurchaseTicketRequest, PurchaseResponse } from '@/types';
+import { logger } from '@/lib/logger';
 
 /**
  * purchaseTicket
@@ -39,7 +40,8 @@ export const getMyTickets = async (): Promise<Ticket[]> => {
     const { data } = await api.get('/tickets/me');
     const mapped = mapFromApi<{ tickets: Ticket[] }>(data);
     return mapped.tickets || [];
-  } catch {
+  } catch (err) {
+    logger.error('getMyTickets failed', { err });
     return [];
   }
 };
@@ -55,7 +57,8 @@ export const getEventTickets = async (eventId: string): Promise<Ticket[]> => {
     const { data } = await api.get(`/tickets/event/${eventId}`);
     const mapped = mapFromApi<{ tickets: Ticket[] }>(data);
     return mapped.tickets || [];
-  } catch {
+  } catch (err) {
+    logger.error('getEventTickets failed', { eventId, err });
     return [];
   }
 };
@@ -91,5 +94,5 @@ export const renewTicket = async (ticketId: string): Promise<{
   paymentCurrency?: string;
 }> => {
   const { data } = await api.post(`/tickets/${ticketId}/renew`);
-  return mapFromApi(data.data || data);
+  return mapFromApi(data);
 };

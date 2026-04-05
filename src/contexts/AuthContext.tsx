@@ -9,7 +9,7 @@ export interface SignupData {
   email: string;
   password: string;
   name: string;
-  userType: "user" | "organizer";
+  userType: "user" | "organizer" | "vendor" | "influencer";
   orgName?: string;
 }
 
@@ -150,7 +150,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       scheduleRefresh(store);
       const profile = await getProfile();
       setUser(profile);
-      navigate(data.userType === "organizer" ? "/dashboard" : "/app");
+      
+      const urlParams = new URLSearchParams(window.location.search);
+      const redirectTo = urlParams.get("redirect");
+
+      if (redirectTo) {
+        navigate(redirectTo);
+      } else if (data.userType === "organizer") {
+        navigate("/dashboard");
+      } else if (data.userType === "vendor") {
+        navigate("/vendor-dashboard");
+      } else if (data.userType === "influencer") {
+        navigate("/influencer");
+      } else {
+        navigate("/app");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -173,7 +187,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       scheduleRefresh(store);
       const profile = await getProfile();
       setUser(profile);
-      navigate(res.user_type === "organizer" ? "/dashboard" : "/app");
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const redirectTo = urlParams.get("redirect");
+
+      if (redirectTo) {
+        navigate(redirectTo);
+      } else if (res.user_type === "organizer") {
+        navigate("/dashboard");
+      } else if (res.user_type === "vendor") {
+        navigate("/vendor-dashboard");
+      } else if (res.user_type === "influencer") {
+        navigate("/influencer");
+      } else {
+        navigate("/app");
+      }
     } finally {
       setIsLoading(false);
     }

@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS tickets (
     qr_code_data    TEXT NOT NULL,
     payment_ref     VARCHAR(255),
     payment_provider VARCHAR(20),
-    excitement_rating INTEGER CHECK (excitement_rating BETWEEN 1 AND 5),
+    excitement_rating INTEGER CHECK (excitement_rating BETWEEN 1 AND 10),
     scanned_at      TIMESTAMPTZ,
     scanned_by      UUID REFERENCES users(id),
     purchase_date   TIMESTAMPTZ DEFAULT NOW(),

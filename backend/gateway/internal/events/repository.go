@@ -26,6 +26,8 @@ package events
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"math"
 	"strings"
@@ -532,7 +534,13 @@ func generateEventKey(title string) string {
 	}
 
 	// Add random suffix for uniqueness
-	suffix := fmt.Sprintf("%04x", uint16(time.Now().UnixNano()))
+	b := make([]byte, 2)
+	if _, err := rand.Read(b); err != nil {
+		// Fallback if crypto/rand fails
+		suffix := fmt.Sprintf("%04x", uint16(time.Now().UnixNano()))
+		return slug + "-" + suffix
+	}
+	suffix := hex.EncodeToString(b)
 	return slug + "-" + suffix
 }
 

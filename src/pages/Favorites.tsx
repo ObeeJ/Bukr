@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { AnimatedLogo } from "@/components/shared/AnimatedLogo";
+import AnimatedLogo from "@/components/AnimatedLogo";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { FavoriteEvent } from "@/types";
@@ -53,11 +53,11 @@ export default function Favorites() {
   };
 
   const handleBookNow = (event: FavoriteEvent) => {
-    navigate(`/purchase/${event.eventKey}`);
+    navigate(`/purchase/${event.eventKey || event.id}`);
   };
 
   const formatPrice = (event: FavoriteEvent) => {
-    if (!event.price || event.price === 0) return 'Free';
+    if (event.price == null || event.price === 0) return 'Free';
     const symbol = event.currency === 'NGN' ? '₦' : '$';
     return `${symbol}${event.price.toLocaleString()}`;
   };

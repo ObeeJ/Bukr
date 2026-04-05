@@ -16,8 +16,8 @@ export default function AdminTickets() {
     staleTime: 30_000,
   });
 
-  const tickets = data?.data?.tickets ?? [];
-  const total = data?.data?.total ?? 0;
+  const tickets = data?.tickets ?? [];
+  const total = data?.total ?? 0;
 
   return (
     <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-5">

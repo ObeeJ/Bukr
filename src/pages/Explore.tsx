@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Heart, MapPin, Calendar } from 'lucide-react';
+import { ArrowLeft, MapPin, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Event } from '@/types';
 import { getAllEvents } from '@/api/events';
-import { addFavorite } from '@/api/favorites';
+import FavoriteButton from '@/components/FavoriteButton';
 import { toast } from 'sonner';
 
 const Explore = () => {
@@ -27,15 +27,6 @@ const Explore = () => {
     };
     fetchEvents();
   }, []);
-
-  const handleFavorite = async (eventId: string) => {
-    try {
-      await addFavorite(eventId);
-      toast.success('Added to favorites');
-    } catch {
-      toast.error('Failed to add to favorites');
-    }
-  };
 
   const formatPrice = (event: Event) => {
     if (!event.price || event.price === 0) return 'Free';
@@ -82,17 +73,10 @@ const Explore = () => {
                       <span className="text-6xl">{event.emoji || '🎉'}</span>
                     </div>
                   )}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute top-2 right-2 bg-background/20 backdrop-blur-md hover:bg-background/40 text-white rounded-full h-8 w-8"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleFavorite(event.id);
-                    }}
-                  >
-                    <Heart className="h-4 w-4" />
-                  </Button>
+                  {/* Self-contained toggle: checks API state, adds/removes, rolls back on error */}
+                  <div className="absolute top-2 right-2">
+                    <FavoriteButton eventId={event.id} size="sm" />
+                  </div>
                 </div>
 
                 <CardHeader className="pb-2">
@@ -126,7 +110,7 @@ const Explore = () => {
                         variant="glow"
                         size="sm"
                         className="cta text-xs"
-                        onClick={() => navigate(`/purchase/${event.eventKey}`)}
+                        onClick={() => navigate(`/purchase/${event.eventKey || event.id}`)}
                       >
                         Book Now
                       </Button>

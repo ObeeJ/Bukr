@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Star, CheckCircle, XCircle, DollarSign, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,15 +13,25 @@ import { hireStatusBadge } from "@/lib/badges";
 
 export default function VendorDashboard() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
 
   const { data: hiresData, isLoading } = useQuery({
     queryKey: ["vendor-hires"],
     queryFn: getMyVendorHires,
     staleTime: 30_000,
+    retry: false,
+    throwOnError: false,
+    meta: { onError: () => navigate("/vendor/register", { replace: true }) },
   });
 
-  const hires = hiresData?.data?.hires ?? [];
+  // Redirect if no vendor profile (API returns 404)
+  if (!isLoading && !hiresData) {
+    navigate("/vendor/register", { replace: true });
+    return null;
+  }
+
+  const hires = hiresData?.hires ?? [];
   const pending = hires.filter((h: any) => h.status === "pending");
   const active = hires.filter((h: any) => ["accepted", "counter_offered"].includes(h.status));
   const completed = hires.filter((h: any) => h.status === "completed");

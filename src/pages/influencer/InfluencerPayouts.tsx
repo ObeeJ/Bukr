@@ -33,8 +33,8 @@ export default function InfluencerPayouts() {
     staleTime: 30_000,
   });
 
-  const profile = profileData?.data;
-  const history = historyData?.data?.payouts ?? [];
+  const profile = profileData;
+  const history = historyData?.payouts ?? [];
   const pendingEarnings = Number(profile?.pendingEarnings ?? 0);
 
   const mutation = useMutation({

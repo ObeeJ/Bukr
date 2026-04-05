@@ -39,6 +39,11 @@ func (s *Service) ParseAppToken(tokenStr string) (*BukrClaims, error) {
 	return ParseToken(s.appSecret, tokenStr)
 }
 
+// ParseAdminToken parses an admin access token using the admin secret.
+func (s *Service) ParseAdminToken(tokenStr string) (*BukrClaims, error) {
+	return ParseToken(s.adminSecret, tokenStr)
+}
+
 // ── Register ──────────────────────────────────────────────────────────────────
 
 func (s *Service) Register(ctx context.Context, req RegisterRequest, fp string) (*TokenPair, string, error) {
@@ -342,8 +347,8 @@ func validateRegister(req RegisterRequest) error {
 	if err := validatePassword(req.Password); err != nil {
 		return err
 	}
-	if req.UserType != "user" && req.UserType != "organizer" {
-		return fmt.Errorf("%w: user_type must be user or organizer", ErrValidation)
+	if req.UserType != "user" && req.UserType != "organizer" && req.UserType != "vendor" && req.UserType != "influencer" {
+		return fmt.Errorf("%w: user_type must be user, organizer, vendor, or influencer", ErrValidation)
 	}
 	if req.UserType == "organizer" && (req.OrgName == nil || strings.TrimSpace(*req.OrgName) == "") {
 		return fmt.Errorf("%w: org_name is required for organizers", ErrValidation)

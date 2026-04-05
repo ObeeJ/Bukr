@@ -29,17 +29,20 @@ import (
 )
 
 const (
-	// Public event listings are cached for 30 seconds.
-	// This means 500 users hitting the events page in the same window
-	// pay one DB query between them, not 500.
 	eventListCacheTTL = 30 * time.Second
-	// Individual event pages are cached for 60 seconds.
 	eventItemCacheTTL = 60 * time.Second
 )
 
+// CreditConsumer is the minimal interface the event service needs from the
+// credits package. Using an interface avoids a circular import.
+type CreditConsumer interface {
+	ConsumeCredit(ctx context.Context, organizerID string) error
+}
+
 type Service struct {
-	repo *Repository
-	rdb  *redis.Client // nil = caching disabled, app still works
+	repo    *Repository
+	rdb     *redis.Client
+	credits CreditConsumer // nil = credits not enforced (dev / free tier)
 }
 
 func NewService(repo *Repository, rdb ...*redis.Client) *Service {
@@ -48,6 +51,12 @@ func NewService(repo *Repository, rdb ...*redis.Client) *Service {
 		s.rdb = rdb[0]
 	}
 	return s
+}
+
+// WithCredits wires in the credit enforcement dependency.
+// Called from main.go after both services are constructed.
+func (s *Service) WithCredits(c CreditConsumer) {
+	s.credits = c
 }
 
 func (s *Service) GetByID(ctx context.Context, id string) (*EventResponse, error) {
@@ -173,11 +182,20 @@ func (s *Service) Create(ctx context.Context, organizerID string, req CreateEven
 		(req.OnlineLink == nil || *req.OnlineLink == "") {
 		return nil, fmt.Errorf("%w: online_link is required for online and hybrid events", shared.ErrValidation)
 	}
+
+	// Deduct one event credit before writing to DB.
+	// If the organizer has no credits the event is not created.
+	// credits == nil means enforcement is disabled (dev / migration period).
+	if s.credits != nil {
+		if err := s.credits.ConsumeCredit(ctx, organizerID); err != nil {
+			return nil, fmt.Errorf("%w: no event credits remaining — purchase a pack to publish more events", shared.ErrValidation)
+		}
+	}
+
 	ev, err := s.repo.Create(ctx, organizerID, req)
 	if err != nil {
 		return nil, err
 	}
-	// Bust list cache so the new event appears immediately.
 	s.bustListCache(ctx)
 	resp := ev.ToResponse()
 	return &resp, nil

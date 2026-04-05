@@ -1,0 +1,30 @@
+// Kombai Tech Stack Configuration
+// Each value must be a string or an array of strings.
+// Example: "Framework": "Vite" or "Project Type": ["React", "Vue"]
+{
+  "Error Tracking": [
+    "Sentry",
+    "Datadog"
+  ],
+  "Deployment Platform": "Render",
+  "CI/CD Platform": "GitHub Actions",
+  "Animation Library": [
+    "svelte/motion",
+    "Framer Motion"
+  ],
+  "Build Tool": "Vite",
+  "Project Type": "React",
+  "Framework": "Vite",
+  "Component Library": "shadcn",
+  "CSS Implementation": "Vanilla CSS",
+  "Tailwind Version": "v3",
+  "TS/JS": "TS",
+  "Router": "React Router v7 (declarative mode)",
+  "State Management": "Zustand",
+  "API Client": "TanStack Query",
+  "Testing Framework": "Vitest",
+  "Charting Library": "Recharts",
+  "Package Manager": "npm",
+  "Icon Set": "Lucide",
+  "React Version": "18"
+}

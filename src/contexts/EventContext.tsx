@@ -36,20 +36,22 @@ import { getEventPromos, validatePromo as apiValidatePromo } from '@/api/promos'
 
 // Event context interface
 interface EventContextType {
-  events: Event[];                                              // Cached events
-  selectedEvent: Event | null;                                  // Currently selected event
+  events: Event[];        // Public events (alias for publicEvents — backward compat)
+  publicEvents: Event[];  // All public events
+  myEvents: Event[];      // Organizer's own events — never mixed with publicEvents
+  selectedEvent: Event | null;
   setSelectedEvent: (event: Event | null) => void;
-  addEvent: (event: Partial<Event>) => Promise<Event>;         // Create event
+  addEvent: (event: Partial<Event>) => Promise<Event>;
   updateEvent: (id: string, event: Partial<Event>) => Promise<Event>;
-  removeEvent: (id: string) => Promise<void>;                   // Delete event
-  getEvent: (id: string) => Promise<Event | null>;              // Get by ID
-  getEventByKey: (key: string) => Promise<Event | null>;        // Get by URL slug
-  getPromos: (eventId: string) => Promise<PromoCode[]>;         // Get promo codes
+  removeEvent: (id: string) => Promise<void>;
+  getEvent: (id: string) => Promise<Event | null>;
+  getEventByKey: (key: string) => Promise<Event | null>;
+  getPromos: (eventId: string) => Promise<PromoCode[]>;
   validatePromo: (eventId: string, code: string) => Promise<PromoCode | null>;
-  fetchEvents: () => Promise<void>;                             // Fetch all events
-  fetchMyEvents: () => Promise<void>;                           // Fetch organizer's events
+  fetchEvents: () => Promise<void>;
+  fetchMyEvents: () => Promise<void>;
   isLoading: boolean;
-  loading: boolean;                                             // Alias for isLoading
+  loading: boolean;
   error: string | null;
 }
 
@@ -60,20 +62,20 @@ const EventContext = createContext<EventContextType | undefined>(undefined);
  * EventProvider: Global event state provider
  */
 export const EventProvider = ({ children }: { children: React.ReactNode }) => {
-  const [events, setEvents] = useState<Event[]>([]);
+  // Two separate arrays — public listing and organizer's own events never share state.
+  // Mixing them caused the dashboard to show wrong revenue when fetchEvents() ran after fetchMyEvents().
+  const [publicEvents, setPublicEvents] = useState<Event[]>([]);
+  const [myEvents, setMyEvents] = useState<Event[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  /**
-   * Fetch all public events
-   */
   const fetchEvents = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
       const data = await getAllEvents();
-      setEvents(data);
+      setPublicEvents(data);
     } catch (err: any) {
       setError(err.message || 'Failed to load events');
     } finally {
@@ -81,15 +83,12 @@ export const EventProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, []);
 
-  /**
-   * Fetch organizer's events
-   */
   const fetchMyEvents = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
       const data = await getMyEvents();
-      setEvents(data);
+      setMyEvents(data);
     } catch (err: any) {
       setError(err.message || 'Failed to load your events');
     } finally {
@@ -97,51 +96,53 @@ export const EventProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, []);
 
-  /**
-   * Create new event
-   * Updates local cache optimistically
-   */
   const addEvent = async (eventData: Partial<Event>): Promise<Event> => {
-    const newEvent = await apiCreateEvent(eventData);
-    setEvents(prev => [...prev, newEvent]);
-    return newEvent;
+    setError(null);
+    try {
+      const newEvent = await apiCreateEvent(eventData);
+      setMyEvents(prev => [...prev, newEvent]);
+      return newEvent;
+    } catch (err: any) {
+      const msg = err.message || 'Failed to create event';
+      setError(msg);
+      throw new Error(msg);
+    }
   };
 
-  /**
-   * Update existing event
-   * Updates local cache
-   */
   const updateEventFn = async (id: string, eventData: Partial<Event>): Promise<Event> => {
-    const updated = await apiUpdateEvent(id, eventData);
-    setEvents(prev => prev.map(e => e.id === id ? updated : e));
-    return updated;
+    setError(null);
+    try {
+      const updated = await apiUpdateEvent(id, eventData);
+      setMyEvents(prev => prev.map(e => e.id === id ? updated : e));
+      return updated;
+    } catch (err: any) {
+      const msg = err.message || 'Failed to update event';
+      setError(msg);
+      throw new Error(msg);
+    }
   };
 
-  /**
-   * Delete event
-   * Removes from local cache
-   */
   const removeEvent = async (id: string): Promise<void> => {
-    await apiDeleteEvent(id);
-    setEvents(prev => prev.filter(e => e.id !== id));
+    setError(null);
+    try {
+      await apiDeleteEvent(id);
+      setMyEvents(prev => prev.filter(e => e.id !== id));
+    } catch (err: any) {
+      const msg = err.message || 'Failed to delete event';
+      setError(msg);
+      throw new Error(msg);
+    }
   };
 
-  /**
-   * Get event by ID
-   * Checks cache first, then fetches from API
-   */
+  // Check both caches before hitting the network
   const getEvent = async (id: string): Promise<Event | null> => {
-    const cached = events.find(e => e.id === id);
+    const cached = myEvents.find(e => e.id === id) || publicEvents.find(e => e.id === id);
     if (cached) return cached;
     return getEventById(id);
   };
 
-  /**
-   * Get event by URL key (slug)
-   * Checks cache first, then fetches from API
-   */
   const getEventByKeyFn = async (key: string): Promise<Event | null> => {
-    const cached = events.find(e => e.eventKey === key);
+    const cached = myEvents.find(e => e.eventKey === key) || publicEvents.find(e => e.eventKey === key);
     if (cached) return cached;
     return getEventByKey(key);
   };
@@ -163,7 +164,9 @@ export const EventProvider = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <EventContext.Provider value={{
-      events,
+      events: publicEvents,  // backward-compat alias
+      publicEvents,
+      myEvents,
       selectedEvent,
       setSelectedEvent,
       addEvent,

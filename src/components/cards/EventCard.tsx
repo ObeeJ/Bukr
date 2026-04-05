@@ -1,8 +1,9 @@
 import React from 'react';
+import { Event } from '@/types';
 
 interface EventCardProps {
-  event: any;
-  onEdit?: (event: any) => void;
+  event: Event;
+  onEdit?: (event: Event) => void;
 }
 
 export const EventCard = ({ event, onEdit }: EventCardProps) => {

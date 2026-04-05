@@ -1,0 +1,182 @@
+openapi: 3.0.3
+info:
+  title: Bukr Unified API Contract
+  version: 1.0.0
+  description: Combined API contract for Go Gateway (Management) and Rust Core (Execution).
+servers:
+  - url: https://api.bukr.app/api/v1
+    description: Production Gateway
+paths:
+  # --- AUTHENTICATION (Go Gateway) ---
+  /auth/register:
+    post:
+      summary: Register new user
+      tags: [Auth]
+      responses:
+        201: { description: User created }
+  /auth/login:
+    post:
+      summary: Login user
+      tags: [Auth]
+      responses:
+        200: { description: Returns JWT pair }
+  /auth/refresh:
+    post:
+      summary: Refresh access token using httpOnly cookie
+      tags: [Auth]
+  /auth/logout:
+    post:
+      summary: Invalidate session and blacklist JTI
+      tags: [Auth]
+      security: [{ bearerAuth: [] }]
+
+  # --- USER PROFILE (Go Gateway) ---
+  /users/me:
+    get:
+      summary: Get authenticated user profile
+      tags: [Users]
+      security: [{ bearerAuth: [] }]
+    patch:
+      summary: Update profile details
+      tags: [Users]
+      security: [{ bearerAuth: [] }]
+
+  # --- TICKETS (Proxied to Rust Core) ---
+  /tickets/purchase:
+    post:
+      summary: Buy tickets for an event
+      tags: [Tickets]
+      security: [{ bearerAuth: [] }]
+  /tickets/me:
+    get:
+      summary: Get user's tickets
+      tags: [Tickets]
+      security: [{ bearerAuth: [] }]
+  /tickets/event/{event_id}:
+    get:
+      summary: Get all tickets for an event (Organizer only)
+      tags: [Tickets]
+      security: [{ bearerAuth: [] }]
+  /tickets/claim-free:
+    post:
+      summary: Claim a free ticket for a zero-price event
+      tags: [Tickets]
+      security: [{ bearerAuth: [] }]
+  /tickets/{ticket_id}/qr:
+    get:
+      summary: Get rotating dynamic QR payload
+      tags: [Tickets]
+      security: [{ bearerAuth: [] }]
+  /tickets/{ticket_id}/transfer:
+    post:
+      summary: Transfer ticket ownership to another user
+      tags: [Tickets]
+      security: [{ bearerAuth: [] }]
+
+  # --- EVENTS (Go Gateway) ---
+  /events:
+    get:
+      summary: List/search events
+      tags: [Events]
+    post:
+      summary: Create new event (Organizer only)
+      tags: [Events]
+      security: [{ bearerAuth: [] }]
+  /events/{id}:
+    get:
+      summary: Get event details
+      tags: [Events]
+  /events/{id}/scanners:
+    get:
+      summary: List assigned scanners for event
+      tags: [Events]
+      security: [{ bearerAuth: [] }]
+    post:
+      summary: Assign a user as a scanner
+      tags: [Events]
+      security: [{ bearerAuth: [] }]
+  /events/{id}/scanner-mode:
+    post:
+      summary: Generate organizer access code for manual scanning
+      tags: [Events]
+      security: [{ bearerAuth: [] }]
+
+  # --- SCANNER (Proxied to Rust Core) ---
+  /scanner/verify-access:
+    post:
+      summary: Verify scanner access code and event access
+      tags: [Scanner]
+      security: [{ bearerAuth: [] }]
+  /scanner/validate:
+    post:
+      summary: Validate a ticket QR code (Online)
+      tags: [Scanner]
+      security: [{ bearerAuth: [] }]
+  /scanner/manual-validate:
+    post:
+      summary: Manual ticket check-in by ID
+      tags: [Scanner]
+      security: [{ bearerAuth: [] }]
+  /scanner/{event_id}/stats:
+    get:
+      summary: Real-time event check-in statistics
+      tags: [Scanner]
+      security: [{ bearerAuth: [] }]
+
+  # --- PAYMENTS (Proxied to Rust Core) ---
+  /payments/initialize:
+    post:
+      summary: Initialize payment with provider (Paystack)
+      tags: [Payments]
+      security: [{ bearerAuth: [] }]
+  /payments/{reference}/verify:
+    get:
+      summary: Verify a specific payment reference status
+      tags: [Payments]
+  /payments/webhook/paystack:
+    post:
+      summary: Paystack payment confirmation (No Auth)
+      tags: [Payments]
+
+  # --- VENDORS (Proxied to Rust Core) ---
+  /vendors:
+    get:
+      summary: Browse/Search vendor marketplace
+      tags: [Vendors]
+    post:
+      summary: Register as a vendor
+      tags: [Vendors]
+      security: [{ bearerAuth: [] }]
+  /vendors/match:
+    get:
+      summary: AI matchmaking for event organizers
+      tags: [Vendors]
+      security: [{ bearerAuth: [] }]
+  /vendor-hires:
+    post:
+      summary: Request a hire for an event
+      tags: [Vendors]
+      security: [{ bearerAuth: [] }]
+
+  # --- ADMIN (Go Gateway) ---
+  /admin/overview:
+    get:
+      summary: Platform-wide financial and user summary
+      tags: [Admin]
+      security: [{ adminAuth: [] }]
+  /admin/users:
+    get:
+      summary: List and manage system users
+      tags: [Admin]
+      security: [{ adminAuth: [] }]
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    adminAuth:
+      type: apiKey
+      in: header
+      name: Authorization

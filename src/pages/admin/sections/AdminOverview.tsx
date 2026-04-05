@@ -57,10 +57,9 @@ export default function AdminOverview() {
     staleTime: 60_000,
   });
 
-  const kpis         = overviewData?.data ?? {};
-  const revenueBySource = revenueData?.data?.bySource ?? [];
-  // Build a simple daily trend from the raw entries (group by date)
-  const entries: any[] = revenueData?.data?.entries ?? [];
+  const kpis         = overviewData ?? {};
+  const revenueBySource = (revenueData as any)?.bySource ?? [];
+  const entries: any[] = (revenueData as any)?.entries ?? [];
   const trendMap: Record<string, number> = {};
   entries.forEach((e: any) => {
     const day = (e.createdAt ?? "").slice(0, 10);
@@ -68,9 +67,9 @@ export default function AdminOverview() {
   });
   const trendData = Object.entries(trendMap)
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, total]) => ({ date: date.slice(5), total })); // "MM-DD"
+    .map(([date, total]) => ({ date: date.slice(5), total }));
 
-  const summary = summaryData?.data ?? {};
+  const summary = summaryData ?? {};
 
   const kpiCards = [
     { label: "Revenue Today",      value: `₦${Number(kpis.revenueToday  ?? 0).toLocaleString()}`, icon: <DollarSign className="h-4 w-4" />, color: "text-green-400" },

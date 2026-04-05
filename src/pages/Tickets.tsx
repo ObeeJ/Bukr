@@ -1,11 +1,12 @@
 // src/pages/Tickets.tsx
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTicket, Ticket } from "@/contexts/TicketContext";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { useState } from "react";
 import AnimatedLogo from "@/components/AnimatedLogo";
 import TicketCard from "@/components/TicketCard";
 import EmptyState from "@/components/EmptyState";
@@ -13,20 +14,17 @@ import { ArrowLeft } from "lucide-react";
 
 const Tickets = () => {
   const { user } = useAuth();
-  const { getUserTickets, loading, error } = useTicket();
+  // Read directly from context — no local copy.
+  // TicketContext.getUserTickets() already calls setTickets() internally,
+  // so a second useState here just creates a stale shadow copy that diverges
+  // after transfers or purchases update the context.
+  const { tickets, getUserTickets, loading, error } = useTicket();
   const navigate = useNavigate();
-  const [tickets, setTickets] = useState<Ticket[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [ticketDetailsOpen, setTicketDetailsOpen] = useState(false);
 
   useEffect(() => {
-    if (user?.email) {
-      const fetchTickets = async () => {
-        const userTickets = await getUserTickets(user.email);
-        setTickets(userTickets || []);
-      };
-      fetchTickets();
-    }
+    if (user) getUserTickets();
   }, [user, getUserTickets]);
 
   const viewTicket = (ticket: Ticket) => {
@@ -34,14 +32,11 @@ const Tickets = () => {
     setTicketDetailsOpen(true);
   };
 
-  // Refresh list after a transfer — the transferred ticket is gone from this wallet
+  // After transfer the ticket is gone — re-fetch so context stays in sync
   const handleTransferred = async () => {
     setTicketDetailsOpen(false);
     setSelectedTicket(null);
-    if (user?.email) {
-      const updated = await getUserTickets(user.email);
-      setTickets(updated || []);
-    }
+    if (user) await getUserTickets();
   };
 
   if (loading) {

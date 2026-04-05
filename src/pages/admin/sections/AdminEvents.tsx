@@ -17,8 +17,8 @@ export default function AdminEvents() {
     staleTime: 30_000,
   });
 
-  const events = data?.data?.events ?? [];
-  const total = data?.data?.total ?? 0;
+  const events = data?.events ?? [];
+  const total = data?.total ?? 0;
 
   const updateMutation = useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: Record<string, unknown> }) => updateAdminEvent(id, updates),

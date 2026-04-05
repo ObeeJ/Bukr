@@ -2,18 +2,42 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
-import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { BookingProvider } from "@/contexts/BookingContext";
+
 import { EventProvider } from "@/contexts/EventContext";
 import { TicketProvider } from "@/contexts/TicketContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import BottomNavigation from "@/components/BottomNavigation";
 import MobileGuard from "@/components/MobileGuard";
-import { useToast } from "@/components/ui/use-toast";
-import { lazy, Suspense } from "react";
+import { toast } from "sonner";
+import { lazy, Suspense, useEffect, Component, ReactNode } from "react";
+import { useLocation } from "react-router-dom";
+
+// Catches unhandled render errors so a single broken page can't crash the whole app.
+// Shows a minimal recovery UI instead of a blank white screen.
+class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+  static getDerivedStateFromError() { return { hasError: true }; }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-screen gap-4 p-8 text-center">
+          <p className="text-2xl font-bold watermark">Something went wrong</p>
+          <p className="text-muted-foreground font-montserrat">Refresh the page to continue.</p>
+          <button
+            onClick={() => { this.setState({ hasError: false }); window.location.href = '/#/app'; }}
+            className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium"
+          >
+            Go to Home
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // Core pages
 const Landing              = lazy(() => import("@/pages/Landing"));
@@ -78,65 +102,56 @@ const queryClient = new QueryClient({
 
 interface ProtectedRouteProps {
   children: JSX.Element;
-  requiredUserType?: "user" | "organizer" | "vendor" | "influencer" | "admin";
+  requiredUserType?: "user" | "organizer" | "admin";
 }
 
 const ProtectedRoute = ({ children, requiredUserType }: ProtectedRouteProps) => {
   const { isAuthenticated, user, isLoading } = useAuth();
-  const { toast } = useToast();
+
+  // Toast must live in useEffect — render phase must be pure.
+  // Calling toast() directly in render fires twice in React 18 StrictMode.
+  useEffect(() => {
+    if (isLoading) return;
+    if (!isAuthenticated) {
+      toast.error("Authentication Required", { description: "Please sign in to access this page." });
+    } else if (requiredUserType && user?.userType !== requiredUserType) {
+      toast.error("Access Denied", { description: `This page is restricted to ${requiredUserType}s only.` });
+    }
+  }, [isLoading, isAuthenticated, user?.userType, requiredUserType]);
 
   if (isLoading) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
 
-  if (!isAuthenticated) {
-    toast({
-      title: "Authentication Required",
-      description: "Please sign in to access this page.",
-      variant: "destructive",
-    });
-    return <Navigate to="/auth" replace />;
-  }
-
-  if (requiredUserType && user?.userType !== requiredUserType) {
-    toast({
-      title: "Access Denied",
-      description: `This page is restricted to ${requiredUserType}s only.`,
-      variant: "destructive",
-    });
-    return <Navigate to="/app" replace />;
-  }
+  if (!isAuthenticated) return <Navigate to="/auth" replace />;
+  if (user?.isActive === false) return <Navigate to="/auth" replace />;
+  if (requiredUserType && user?.userType !== requiredUserType) return <Navigate to="/app" replace />;
 
   return children;
 };
 
 const ScannerRoute = ({ children }: { children: JSX.Element }) => {
   const { isAuthenticated, user, isLoading } = useAuth();
-  const { toast } = useToast();
+  const { search } = useLocation();
   const isOrganizer = user?.userType === "organizer";
-  const hasAccessCode = window.location.hash.includes("code=");
+  // Access code must be in format ORG-XXXXXX (hex) — read reactively via useLocation
+  const hasAccessCode = /code=ORG-[0-9A-F]{6}/.test(search);
+
+  useEffect(() => {
+    if (isLoading) return;
+    if (!isAuthenticated && !hasAccessCode) {
+      toast.error("Authentication Required", { description: "Please sign in to access the scanner." });
+    } else if (!isOrganizer && !hasAccessCode) {
+      toast.error("Access Denied", { description: "Only organizers or users with a valid access code can use the scanner." });
+    }
+  }, [isLoading, isAuthenticated, isOrganizer, hasAccessCode]);
 
   if (isLoading) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
 
-  if (!isAuthenticated && !hasAccessCode) {
-    toast({
-      title: "Authentication Required",
-      description: "Please sign in to access the scanner.",
-      variant: "destructive",
-    });
-    return <Navigate to="/auth" replace />;
-  }
-
-  if (!isOrganizer && !hasAccessCode) {
-    toast({
-      title: "Access Denied",
-      description: "Only organizers or users with a valid access code can use the scanner.",
-      variant: "destructive",
-    });
-    return <Navigate to="/app" replace />;
-  }
+  if (!isAuthenticated && !hasAccessCode) return <Navigate to="/auth" replace />;
+  if (!isOrganizer && !hasAccessCode) return <Navigate to="/app" replace />;
 
   return children;
 };
@@ -180,12 +195,14 @@ const AppRoutes = () => (
     <Route path="/vendors" element={<Suspense fallback={null}><VendorMarketplace /></Suspense>} />
     <Route path="/vendors/:id" element={<Suspense fallback={null}><VendorProfile /></Suspense>} />
     <Route path="/vendor/register" element={<ProtectedRoute><Suspense fallback={null}><VendorRegister /></Suspense></ProtectedRoute>} />
-    <Route path="/vendor-dashboard" element={<ProtectedRoute requiredUserType="vendor"><Suspense fallback={null}><VendorDashboard /></Suspense></ProtectedRoute>} />
+    {/* vendor/influencer have userType="user" in the JWT — the pages themselves
+        call the backend and redirect if no profile exists. Auth-only guard here. */}
+    <Route path="/vendor-dashboard" element={<ProtectedRoute><Suspense fallback={null}><VendorDashboard /></Suspense></ProtectedRoute>} />
     <Route path="/events/:eventId/vendors" element={<ProtectedRoute requiredUserType="organizer"><Suspense fallback={null}><EventVendors /></Suspense></ProtectedRoute>} />
 
     {/* Influencer portal */}
-    <Route path="/influencer" element={<ProtectedRoute requiredUserType="influencer"><Suspense fallback={null}><InfluencerDashboard /></Suspense></ProtectedRoute>} />
-    <Route path="/influencer/payouts" element={<ProtectedRoute requiredUserType="influencer"><Suspense fallback={null}><InfluencerPayouts /></Suspense></ProtectedRoute>} />
+    <Route path="/influencer" element={<ProtectedRoute><Suspense fallback={null}><InfluencerDashboard /></Suspense></ProtectedRoute>} />
+    <Route path="/influencer/payouts" element={<ProtectedRoute><Suspense fallback={null}><InfluencerPayouts /></Suspense></ProtectedRoute>} />
     <Route path="/influencer/claim/:token" element={<Suspense fallback={null}><InfluencerClaim /></Suspense>} />
 
     {/* Organizer credits */}
@@ -214,21 +231,20 @@ const AppRoutes = () => (
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
+      <Sonner richColors />
       <MobileGuard>
         <HashRouter>
           <AuthProvider>
             <EventProvider>
               <TicketProvider>
-                <BookingProvider>
-                  <NotificationProvider>
-                    <div className="relative">
+                <NotificationProvider>
+                  <div className="relative">
+                    <ErrorBoundary>
                       <AppRoutes />
-                      <BottomNavigation />
-                    </div>
-                  </NotificationProvider>
-                </BookingProvider>
+                    </ErrorBoundary>
+                    <BottomNavigation />
+                  </div>
+                </NotificationProvider>
               </TicketProvider>
             </EventProvider>
           </AuthProvider>

@@ -18,7 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Download, Share2, Send, Loader2, RefreshCw } from 'lucide-react';
 import { Ticket } from '@/contexts/TicketContext';
 import { transferTicket, getTicketQR, renewTicket } from '@/api/tickets';
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 
 interface TicketCardProps {
   ticket: Ticket;
@@ -27,7 +27,6 @@ interface TicketCardProps {
 }
 
 const TicketCard: React.FC<TicketCardProps> = ({ ticket, onTransferred, onRefresh }) => {
-  const { toast } = useToast();
   const qrContainerRef = useRef<HTMLDivElement>(null);
   const [transferOpen, setTransferOpen] = useState(false);
   const [transferEmail, setTransferEmail] = useState('');
@@ -39,13 +38,13 @@ const TicketCard: React.FC<TicketCardProps> = ({ ticket, onTransferred, onRefres
     try {
       const result = await renewTicket(ticket.ticketId);
       if (result.requiresPayment) {
-        toast({ title: 'Payment required', description: `Renewal costs ${result.paymentCurrency} ${result.paymentAmount}. Redirecting...` });
+        toast.info('Payment required', { description: `Renewal costs ${result.paymentCurrency} ${result.paymentAmount}. Redirecting...` });
       } else {
-        toast({ title: 'Ticket renewed!', description: result.message });
+        toast.success('Ticket renewed!', { description: result.message });
         onRefresh?.();
       }
     } catch (e: any) {
-      toast({ title: 'Renewal failed', description: e.message, variant: 'destructive' });
+      toast.error('Renewal failed', { description: e.message });
     } finally {
       setIsRenewing(false);
     }
@@ -58,11 +57,22 @@ const TicketCard: React.FC<TicketCardProps> = ({ ticket, onTransferred, onRefres
   }));
   const [lastRefresh, setLastRefresh] = useState(Date.now());
 
-  // ─── Dynamic QR Refresh (3s window) ──────────────────────────────────────────
-  // The backend uses a 3-second window for TOTP-style HMAC nonces.
-  // We refresh every 3 seconds to ensure the scanner always sees a valid nonce.
+  // ─── Dynamic QR Refresh ──────────────────────────────────────────────────────
+  // Only polls when the card is visible in the viewport (IntersectionObserver).
+  // Prevents rate-limit exhaustion when multiple tickets are rendered.
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = useState(false);
+
   useEffect(() => {
-    if (ticket.status !== 'valid') return;
+    const el = cardRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([entry]) => setIsVisible(entry.isIntersecting), { threshold: 0.1 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (ticket.status !== 'valid' || !isVisible) return;
 
     const refreshQr = async () => {
       try {
@@ -71,18 +81,15 @@ const TicketCard: React.FC<TicketCardProps> = ({ ticket, onTransferred, onRefres
           setQrValue(freshQr);
           setLastRefresh(Date.now());
         }
-      } catch (err) {
-        console.error('Failed to refresh dynamic QR:', err);
+      } catch {
+        // Silent fail — QR will retry on next interval
       }
     };
 
-    // Initial refresh
     refreshQr();
-
-    // Set interval for 3s rotation
     const interval = setInterval(refreshQr, 3000);
     return () => clearInterval(interval);
-  }, [ticket.ticketId, ticket.status]);
+  }, [ticket.ticketId, ticket.status, isVisible]);
 
   // ─── Download ──────────────────────────────────────────────────────────────
   // Renders QR SVG + ticket details onto a canvas, then saves as PNG.
@@ -156,7 +163,7 @@ const TicketCard: React.FC<TicketCardProps> = ({ ticket, onTransferred, onRefres
     link.download = `bukr-ticket-${ticket.ticketId}.png`;
     link.click();
 
-    toast({ title: 'Ticket downloaded', description: `${ticket.ticketId}.png saved` });
+    toast.success('Ticket downloaded', { description: `${ticket.ticketId}.png saved` });
   };
 
   // ─── Share ─────────────────────────────────────────────────────────────────
@@ -168,28 +175,27 @@ const TicketCard: React.FC<TicketCardProps> = ({ ticket, onTransferred, onRefres
       } catch { /* user cancelled */ }
     } else {
       await navigator.clipboard.writeText(shareUrl);
-      toast({ title: 'Link copied', description: 'Event link copied to clipboard' });
+      toast.success('Link copied', { description: 'Event link copied to clipboard' });
     }
   };
 
   // ─── Transfer ──────────────────────────────────────────────────────────────
   const handleTransfer = async () => {
     if (!transferEmail.trim() || !transferEmail.includes('@')) {
-      toast({ title: 'Invalid email', description: 'Enter a valid email address.', variant: 'destructive' });
+      toast.error('Invalid email', { description: 'Enter a valid email address.' });
       return;
     }
     setIsTransferring(true);
     try {
       await transferTicket(ticket.ticketId, transferEmail.trim());
-      toast({
-        title: 'Ticket transferred',
+      toast.success('Ticket transferred', {
         description: `Ownership permanently moved to ${transferEmail}. Your access has been revoked.`,
       });
       setTransferOpen(false);
       setTransferEmail('');
-      onTransferred?.(); // Refresh parent list — this ticket is gone from caller's wallet
+      onTransferred?.();
     } catch (err: any) {
-      toast({ title: 'Transfer failed', description: err.message, variant: 'destructive' });
+      toast.error('Transfer failed', { description: err.message });
     } finally {
       setIsTransferring(false);
     }
@@ -197,7 +203,7 @@ const TicketCard: React.FC<TicketCardProps> = ({ ticket, onTransferred, onRefres
 
   return (
     <>
-      <Card className="glass-card">
+      <Card className="glass-card" ref={cardRef}>
         <CardHeader>
           <CardTitle className="truncate">{ticket.eventTitle || ticket.eventId}</CardTitle>
           <CardDescription>{new Date(ticket.purchaseDate).toLocaleDateString()}</CardDescription>

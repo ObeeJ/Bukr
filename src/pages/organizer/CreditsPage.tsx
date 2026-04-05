@@ -13,7 +13,7 @@ export default function CreditsPage() {
     staleTime: 60_000,
   });
 
-  const credits = data?.data;
+  const credits = data;
   const activePack = credits?.activePack;
   const remaining = credits?.creditsRemaining ?? 0;
   const expiry = credits?.expiresAt ? new Date(credits.expiresAt).toLocaleDateString() : null;
@@ -21,7 +21,7 @@ export default function CreditsPage() {
   const purchaseMutation = useMutation({
     mutationFn: (packType: CreditPackType) => purchaseCredits(packType),
     onSuccess: (res) => {
-      const url = res?.data?.authorizationUrl;
+      const url = res?.authorizationUrl;
       if (url) window.location.href = url;
       else toast.success("Credits added!", { description: "Your event credits are ready to use." });
     },

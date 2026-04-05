@@ -15,8 +15,8 @@ export default function AdminOrganizers() {
     staleTime: 60_000,
   });
 
-  const organizers = data?.data?.organizers ?? [];
-  const total      = data?.data?.total ?? 0;
+  const organizers = data?.organizers ?? [];
+  const total      = data?.total ?? 0;
 
   return (
     <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-5">

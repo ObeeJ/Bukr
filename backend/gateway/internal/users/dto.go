@@ -65,17 +65,16 @@ type UserResponse struct {
 // User: Complete user entity from database
 // Includes all fields including sensitive ones
 type User struct {
-	ID          string
-	SupabaseUID *string   // Supabase auth user ID (nullable — phased out by native auth)
-	Email       string
-	Name        string
-	Phone       *string
-	UserType    string    // "user" or "organizer"
-	OrgName     *string
-	AvatarURL   *string
-	IsActive    bool      // Soft delete flag
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID        string
+	Email     string
+	Name      string
+	Phone     *string
+	UserType  string
+	OrgName   *string
+	AvatarURL *string
+	IsActive  bool
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 /**

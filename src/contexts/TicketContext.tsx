@@ -27,15 +27,14 @@ import { purchaseTicket as apiPurchaseTicket, getMyTickets, getEventTickets as a
 import { validateTicket as apiValidateTicket, markTicketUsed as apiMarkTicketUsed } from '@/api/scanner';
 
 interface TicketContextType {
-  tickets: Ticket[];                                                    // Cached tickets
+  tickets: Ticket[];
   loading: boolean;
   error: string | null;
   purchaseTicket: (req: PurchaseTicketRequest) => Promise<PurchaseResponse>;
-  getUserTickets: (email?: string) => Promise<Ticket[]>;               // Get user's tickets
-  getEventTickets: (eventId: string) => Promise<Ticket[]>;             // Get event tickets
+  getUserTickets: (email?: string) => Promise<Ticket[]>;
+  getEventTickets: (eventId: string) => Promise<Ticket[]>;
   validateTicket: (ticketId: string, eventKey: string) => Promise<ScanValidationResult>;
   markTicketAsUsed: (ticketId: string) => Promise<void>;
-  saveTicket: (ticket: Ticket) => Promise<void>;                       // Legacy: client-side save
 }
 
 // Re-export Ticket type for convenience
@@ -121,14 +120,6 @@ export const TicketProvider = ({ children }: { children: React.ReactNode }) => {
     );
   };
 
-  /**
-   * Save ticket (legacy)
-   * Used by PurchasePage for client-side ticket creation
-   */
-  const saveTicket = async (ticket: Ticket): Promise<void> => {
-    setTickets(prev => [...prev, ticket]);
-  };
-
   return (
     <TicketContext.Provider value={{
       tickets,
@@ -139,7 +130,6 @@ export const TicketProvider = ({ children }: { children: React.ReactNode }) => {
       getEventTickets,
       validateTicket,
       markTicketAsUsed,
-      saveTicket,
     }}>
       {children}
     </TicketContext.Provider>

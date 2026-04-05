@@ -29,9 +29,9 @@
 package events
 
 import (
+	"crypto/rand"
 	"errors"
 	"fmt"
-	"math/rand"
 	"strconv"
 
 	"github.com/bukr/gateway/internal/middleware"
@@ -292,7 +292,13 @@ func (h *Handler) EnableScannerMode(c *fiber.Ctx) error {
 	}
 
 	eventID := c.Params("id")
-	code := fmt.Sprintf("ORG-%06X", rand.Intn(0xFFFFFF))
+	
+	// Secure random code generation
+	var b [3]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return shared.Error(c, fiber.StatusInternalServerError, shared.CodeInternalError, "Failed to generate scanner code")
+	}
+	code := fmt.Sprintf("ORG-%02X%02X%02X", b[0], b[1], b[2])
 
 	_, err := h.service.repo.db.Exec(c.Context(),
 		`INSERT INTO scanner_access_codes (event_id, code, label, is_active)

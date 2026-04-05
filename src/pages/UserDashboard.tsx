@@ -1,11 +1,29 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar, Heart, Ticket, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { getMyTickets } from '@/api/tickets';
+import { getFavorites } from '@/api/favorites';
 
 const UserDashboard = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const [ticketCount, setTicketCount] = useState<number | null>(null);
+  const [favoriteCount, setFavoriteCount] = useState<number | null>(null);
+  const [ticketError, setTicketError] = useState(false);
+  const [favoriteError, setFavoriteError] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    getMyTickets()
+      .then(t => { setTicketCount(t.length); setTicketError(false); })
+      .catch(() => { setTicketCount(0); setTicketError(true); });
+    getFavorites()
+      .then(f => { setFavoriteCount(f.length); setFavoriteError(false); })
+      .catch(() => { setFavoriteCount(0); setFavoriteError(true); });
+  }, [user]);
 
   return (
     <div className="min-h-screen p-4 safe-area-pb">
@@ -22,8 +40,10 @@ const UserDashboard = () => {
               <Heart className="h-4 w-4 ml-auto text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
-              <p className="text-xs text-muted-foreground">Saved events</p>
+              <div className="text-2xl font-bold">{favoriteCount ?? '—'}</div>
+              <p className="text-xs text-muted-foreground">
+                {favoriteError ? 'Could not load' : 'Saved events'}
+              </p>
             </CardContent>
           </Card>
 
@@ -33,27 +53,21 @@ const UserDashboard = () => {
               <Ticket className="h-4 w-4 ml-auto text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
-              <p className="text-xs text-muted-foreground">Active tickets</p>
+              <div className="text-2xl font-bold">{ticketCount ?? '—'}</div>
+              <p className="text-xs text-muted-foreground">
+                {ticketError ? 'Could not load' : 'Active tickets'}
+              </p>
             </CardContent>
           </Card>
         </div>
 
         <div className="space-y-4">
-          <Button 
-            onClick={() => navigate('/explore')} 
-            variant="glow" 
-            className="w-full h-12 cta"
-          >
+          <Button onClick={() => navigate('/explore')} variant="glow" className="w-full h-12 cta">
             <Calendar className="mr-2 h-5 w-5" />
             Explore Events
           </Button>
-          
-          <Button 
-            onClick={() => navigate('/profile')} 
-            variant="outline" 
-            className="w-full h-12"
-          >
+
+          <Button onClick={() => navigate('/profile')} variant="outline" className="w-full h-12">
             <User className="mr-2 h-5 w-5" />
             My Profile
           </Button>

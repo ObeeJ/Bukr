@@ -28,6 +28,8 @@ const PaymentVerify = () => {
       try {
         const { data } = await api.get(`/payments/${reference}/verify`);
         
+        // data is the unwrapped payload: { provider, reference, amount, currency, status }
+        // status here is the payment transaction status, not the API envelope status
         if (data?.status === 'success') {
           setStatus('success');
           setMessage('Payment successful! Your ticket has been confirmed.');

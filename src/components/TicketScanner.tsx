@@ -23,7 +23,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Check, X, Camera, Loader2, QrCode, Ticket, WifiOff, RefreshCw, AlertCircle } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { validateTicket, manualValidateTicket, verifyAccess } from '@/api/scanner';
@@ -106,13 +106,13 @@ interface ScanRecord {
 
 interface TicketScannerProps {
   onScan?: (code: string) => void;
-  eventKey?: string; // Passed from ScannerPage
+  eventKey?: string;
+  onScanResult?: (status: 'valid' | 'invalid' | 'used') => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-const TicketScanner: React.FC<TicketScannerProps> = ({ onScan, eventKey: propEventKey }) => {
-  const { toast } = useToast();
+const TicketScanner: React.FC<TicketScannerProps> = ({ onScan, eventKey: propEventKey, onScanResult }) => {
   const { user } = useAuth();
   const { eventId } = useParams();
   const [searchParams] = useSearchParams();
@@ -192,12 +192,12 @@ const TicketScanner: React.FC<TicketScannerProps> = ({ onScan, eventKey: propEve
       if (result.valid) {
         setAccessVerified(true);
         setAccessDialogOpen(false);
-        toast({ title: 'Access granted', description: result.event?.title || 'Ready to scan' });
+        toast.success('Access granted', { description: result.event?.title || 'Ready to scan' });
       } else {
-        toast({ title: 'Invalid access code', description: 'Check the code and try again.', variant: 'destructive' });
+        toast.error('Invalid access code', { description: 'Check the code and try again.' });
       }
     } catch {
-      toast({ title: 'Verification failed', description: 'Could not verify access code.', variant: 'destructive' });
+      toast.error('Verification failed', { description: 'Could not verify access code.' });
     } finally {
       setIsProcessing(false);
     }
@@ -231,9 +231,9 @@ const TicketScanner: React.FC<TicketScannerProps> = ({ onScan, eventKey: propEve
     } catch (err: any) {
       setIsScanning(false);
       if (err?.name === 'NotAllowedError') {
-        toast({ title: 'Camera access denied', description: 'Allow camera access to scan tickets.', variant: 'destructive' });
+        toast.error('Camera access denied', { description: 'Allow camera access to scan tickets.' });
       } else {
-        toast({ title: 'Camera error', description: 'Could not start camera. Try manual entry.', variant: 'destructive' });
+        toast.error('Camera error', { description: 'Could not start camera. Try manual entry.' });
       }
     }
   }, [selectedCamera, resolvedEventKey]);
@@ -329,19 +329,24 @@ const TicketScanner: React.FC<TicketScannerProps> = ({ onScan, eventKey: propEve
 
       if (status === 'valid') {
         setRecentScans(prev => [record, ...prev].slice(0, 20));
+        onScanResult?.('valid');
         const usageMsg = record.usageLeft !== undefined ? ` — ${record.usageLeft} uses left` : '';
-        toast({ title: '✓ Valid ticket', description: `${record.userName} — ${record.ticketType}${usageMsg}` });
+        toast.success('✓ Valid ticket', { description: `${record.userName} — ${record.ticketType}${usageMsg}` });
       } else if (status === 'used') {
-        toast({ title: 'Already scanned', description: 'This ticket was already used.', variant: 'destructive' });
+        onScanResult?.('used');
+        toast.error('Already scanned', { description: 'This ticket was already used.' });
       } else if (status === 'expired') {
-        toast({ title: 'Ticket expired', description: 'This ticket has expired.', variant: 'destructive' });
+        onScanResult?.('invalid');
+        toast.error('Ticket expired', { description: 'This ticket has expired.' });
       } else if (status === 'depleted_renewable') {
-        toast({ title: 'Uses depleted', description: 'All uses consumed. User must renew.', variant: 'destructive' });
+        onScanResult?.('invalid');
+        toast.error('Uses depleted', { description: 'All uses consumed. User must renew.' });
       } else {
-        toast({ title: 'Invalid ticket', description: result.message || 'Not valid for this event.', variant: 'destructive' });
+        onScanResult?.('invalid');
+        toast.error('Invalid ticket', { description: result.message || 'Not valid for this event.' });
       }
     } catch (err: any) {
-      toast({ title: 'Scan failed', description: err.message || 'Try again.', variant: 'destructive' });
+      toast.error('Scan failed', { description: err.message || 'Try again.' });
     } finally {
       setIsProcessing(false);
     }
@@ -376,7 +381,7 @@ const TicketScanner: React.FC<TicketScannerProps> = ({ onScan, eventKey: propEve
       setManualTicketId('');
       setIsManualEntry(false);
     } catch (err: any) {
-      toast({ title: 'Validation failed', description: err.message, variant: 'destructive' });
+      toast.error('Validation failed', { description: err.message });
     } finally {
       setIsProcessing(false);
     }
@@ -385,7 +390,7 @@ const TicketScanner: React.FC<TicketScannerProps> = ({ onScan, eventKey: propEve
   // ─── Offline sync ────────────────────────────────────────────────────────────
   const handleSync = async () => {
     if (!isOnline) {
-      toast({ title: 'No connection', description: 'Connect to the internet first.', variant: 'destructive' });
+      toast.error('No connection', { description: 'Connect to the internet first.' });
       return;
     }
     setIsSyncing(true);
@@ -405,8 +410,7 @@ const TicketScanner: React.FC<TicketScannerProps> = ({ onScan, eventKey: propEve
 
     setPendingCount(failed);
     setIsSyncing(false);
-    toast({
-      title: `Sync complete`,
+    toast.success('Sync complete', {
       description: `${synced} synced${failed > 0 ? `, ${failed} failed` : ''}`,
     });
   };

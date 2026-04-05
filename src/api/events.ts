@@ -20,6 +20,7 @@
 
 import api, { mapFromApi, mapToApi } from '@/lib/api';
 import { Event, EventListResponse } from '@/types';
+import { logger } from '@/lib/logger';
 
 // Query parameters for event listing
 interface ListEventsParams {
@@ -41,7 +42,8 @@ export const getAllEvents = async (params?: ListEventsParams): Promise<Event[]> 
     const { data } = await api.get('/events', { params });
     const mapped = mapFromApi<EventListResponse>(data);
     return mapped.events || [];
-  } catch {
+  } catch (err) {
+    logger.error('getAllEvents failed', { err });
     return [];
   }
 };
@@ -68,7 +70,8 @@ export const getMyEvents = async (params?: { page?: number; limit?: number }): P
     const { data } = await api.get('/events/me', { params });
     const mapped = mapFromApi<EventListResponse>(data);
     return mapped.events || [];
-  } catch {
+  } catch (err) {
+    logger.error('getMyEvents failed', { err });
     return [];
   }
 };
@@ -83,7 +86,8 @@ export const getEventById = async (id: string): Promise<Event | null> => {
   try {
     const { data } = await api.get(`/events/${id}`);
     return mapFromApi<Event>(data);
-  } catch {
+  } catch (err) {
+    logger.error('getEventById failed', { id, err });
     return null;
   }
 };
@@ -98,7 +102,8 @@ export const getEventByKey = async (eventKey: string): Promise<Event | null> => 
   try {
     const { data } = await api.get(`/events/key/${eventKey}`);
     return mapFromApi<Event>(data);
-  } catch {
+  } catch (err) {
+    logger.error('getEventByKey failed', { eventKey, err });
     return null;
   }
 };
@@ -123,7 +128,8 @@ export const getCategories = async (): Promise<string[]> => {
   try {
     const { data } = await api.get('/events/categories');
     return data?.categories || [];
-  } catch {
+  } catch (err) {
+    logger.error('getCategories failed', { err });
     return [];
   }
 };

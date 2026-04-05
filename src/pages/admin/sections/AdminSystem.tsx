@@ -21,8 +21,8 @@ export default function AdminSystem() {
     staleTime: 30_000,
   });
 
-  const flags = flagsData?.data?.flags ?? {};
-  const logs = logsData?.data?.logs ?? [];
+  const flags = flagsData?.flags ?? {};
+  const logs = logsData?.logs ?? [];
 
   const flagMutation = useMutation({
     mutationFn: (updates: Record<string, unknown>) => updateFeatureFlags(updates),

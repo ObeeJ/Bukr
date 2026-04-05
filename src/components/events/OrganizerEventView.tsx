@@ -5,12 +5,22 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Edit, Users, Tag, Calendar, MapPin, DollarSign, Share2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import AnimatedLogo from '@/components/AnimatedLogo';
-import { Event } from '@/types';
+import { Event, PromoCode } from '@/types';
+
+interface EventMetrics {
+    totalTickets: number;
+    soldTickets: number;
+    remainingTickets: number;
+    usedTickets: number;
+    promoUses: number;
+    collabSales: number;
+    revenue: number;
+}
 
 interface OrganizerEventViewProps {
     event: Event;
-    metrics: any;
-    promos: any[];
+    metrics: EventMetrics;
+    promos: PromoCode[];
     isActive: boolean;
 }
 

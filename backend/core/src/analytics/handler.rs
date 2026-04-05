@@ -23,6 +23,7 @@
 
 use axum::{
     extract::{Path, State},
+    http::HeaderMap,
     Json,
 };
 use chrono;
@@ -31,6 +32,17 @@ use sqlx::{PgPool, Row};
 use uuid::Uuid;
 
 use crate::error::{AppError, Result};
+
+/**
+ * Extract user_id from X-User-ID header forwarded by Go gateway
+ */
+fn extract_user_id(headers: &HeaderMap) -> Result<Uuid> {
+    headers
+        .get("x-user-id")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| Uuid::parse_str(s).ok())
+        .ok_or(AppError::Unauthorized)
+}
 
 /**
  * Get Event Analytics
@@ -51,18 +63,22 @@ use crate::error::{AppError, Result};
  */
 pub async fn get_event_analytics(
     State(pool): State<PgPool>,
+    headers: HeaderMap,
     Path(event_id): Path<Uuid>,
 ) -> Result<Json<Value>> {
-    // Fetch event details
+    let user_id = extract_user_id(&headers)?;
+
+    // Fetch event details and verify ownership
     let event = sqlx::query(
         r#"SELECT e.title, e.total_tickets, e.available_tickets, e.currency
-        FROM events e WHERE e.id = $1"#,
+        FROM events e WHERE e.id = $1 AND e.organizer_id = $2"#,
     )
     .bind(event_id)
+    .bind(user_id)
     .fetch_optional(&pool)
     .await
     .map_err(AppError::Database)?
-    .ok_or_else(|| AppError::NotFound("Event not found".into()))?;
+    .ok_or_else(|| AppError::NotFound("Event not found or not owned by you".into()))?;
 
     // Extract event data
     let title: String = event.get("title");
