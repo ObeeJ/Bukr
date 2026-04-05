@@ -16,16 +16,16 @@ import { Button } from "@/components/ui/button";
 import { Star, Download, Share2, Check, Loader2, Tag, ArrowLeft, Bitcoin, ChevronDown, ChevronUp, ShieldCheck } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import AnimatedLogo from "@/components/AnimatedLogo";
 import { Event } from "@/types";
 import QRCode from "react-qr-code";
 import { computeFees, formatPrice as fmtPrice } from "@/lib/fees";
+import { getTicketQR } from "@/api/tickets";
 
 const PurchasePage = () => {
   const { eventKey } = useParams<{ eventKey: string }>();
   const navigate = useNavigate();
-  const { toast } = useToast();
   const { getEventByKey, getEvent, validatePromo } = useEvent();
   const { purchaseTicket } = useTicket();
   const { user } = useAuth();
@@ -45,6 +45,10 @@ const PurchasePage = () => {
   const [loadingEvent, setLoadingEvent] = useState(true);
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [confirmedTotal, setConfirmedTotal] = useState<number | null>(null);
+  // Live rotating QR — fetched from backend, refreshes every 3s.
+  // Never use a static client-generated QR on the success screen: it can be
+  // screenshotted and reused. The backend QR nonce expires after each scan.
+  const [liveQr, setLiveQr] = useState<string>("");
 
   useEffect(() => {
     const fetchEvent = async () => {
@@ -68,8 +72,7 @@ const PurchasePage = () => {
               setDiscount(refPromo.discountPercentage);
               setPromoApplied(true);
               setPromoCode(`REF-${referralCode}`);
-              toast({
-                title: "Referral discount applied",
+              toast.success("Referral discount applied", {
                 description: `You got a ${refPromo.discountPercentage}% discount from your referral!`,
               });
             }
@@ -79,10 +82,8 @@ const PurchasePage = () => {
         }
       } else {
         navigate("/app");
-        toast({
-          title: "Event not found",
+        toast.error("Event not found", {
           description: "The event you are looking for does not exist.",
-          variant: "destructive",
         });
       }
       setLoadingEvent(false);
@@ -99,18 +100,15 @@ const PurchasePage = () => {
       if (validPromo && validPromo.isActive && validPromo.usedCount < validPromo.ticketLimit) {
         setDiscount(validPromo.discountPercentage);
         setPromoApplied(true);
-        toast({
-          title: "Promo code applied",
+        toast.success("Promo code applied", {
           description: `You got a ${validPromo.discountPercentage}% discount!`,
         });
       } else {
         throw new Error("Invalid promo code");
       }
     } catch (error) {
-      toast({
-        title: "Invalid promo code",
+      toast.error("Invalid promo code", {
         description: "The promo code is invalid, expired, or has reached its usage limit.",
-        variant: "destructive",
       });
     } finally {
       setIsProcessing(false);
@@ -123,21 +121,13 @@ const PurchasePage = () => {
 
   const handleQuantitySubmit = async () => {
     if (!event || !user) {
-      toast({
-        title: "Error",
-        description: "Please log in to purchase tickets.",
-        variant: "destructive",
-      });
+      toast.error("Error", { description: "Please log in to purchase tickets." });
       navigate("/auth");
       return;
     }
 
     if (quantity < 1 || quantity > 10) {
-      toast({
-        title: "Error",
-        description: "Please select between 1 and 10 tickets.",
-        variant: "destructive",
-      });
+      toast.error("Error", { description: "Please select between 1 and 10 tickets." });
       return;
     }
 
@@ -157,6 +147,11 @@ const PurchasePage = () => {
       // Use server-confirmed amount for the success screen
       setConfirmedTotal(result.payment?.amount ?? null);
 
+      // Fetch the first live QR immediately so the success screen isn't blank
+      getTicketQR(result.ticket.ticketId)
+        .then(qr => { if (qr) setLiveQr(qr); })
+        .catch(() => {});
+
       // If payment provider returns an authorization URL, redirect
       if (result.payment?.authorizationUrl) {
         window.location.href = result.payment.authorizationUrl;
@@ -165,15 +160,12 @@ const PurchasePage = () => {
 
       // For free events or pre-authorized payments, go straight to success
       setStep("success");
-      toast({
-        title: "Purchase Successful",
+      toast.success("Purchase Successful", {
         description: `You have purchased ${quantity} ticket(s) for ${event.title}!`,
       });
     } catch (error: any) {
-      toast({
-        title: "Purchase Failed",
+      toast.error("Purchase Failed", {
         description: error.message || "An error occurred while processing your purchase. Please try again.",
-        variant: "destructive",
       });
     } finally {
       setIsProcessing(false);
@@ -193,11 +185,11 @@ const PurchasePage = () => {
 
     if (navigator.share) {
       navigator.share(shareData).catch(() => {
-        toast({ title: "Share Failed", description: "Unable to share. Link copied instead.", variant: "destructive" });
+        toast.error("Share Failed", { description: "Unable to share. Link copied instead." });
       });
     } else {
       navigator.clipboard.writeText(shareUrl);
-      toast({ title: "Link Copied", description: "Event link copied to clipboard!" });
+      toast.success("Link Copied", { description: "Event link copied to clipboard!" });
     }
   };
 
@@ -221,11 +213,22 @@ const PurchasePage = () => {
       link.click();
     }
 
-    toast({
-      title: "Download Started",
+    toast.success("Download Started", {
       description: `Downloading ticket for ${event.title}`,
     });
   };
+
+  // Rotate the QR every 3s while the success screen is visible.
+  // Mirrors the same pattern used in TicketCard for the wallet view.
+  useEffect(() => {
+    if (step !== "success" || !ticketId) return;
+    const interval = setInterval(() => {
+      getTicketQR(ticketId)
+        .then(qr => { if (qr) setLiveQr(qr); })
+        .catch(() => {});
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [step, ticketId]);
 
   const renderStars = () => (
     <div className="flex justify-center gap-2 my-4">
@@ -507,12 +510,18 @@ const PurchasePage = () => {
                 <div className="py-6">
                   <div className="bg-glass/20 p-4 rounded-xl mb-4">
                     <div className="bg-white p-3 rounded-lg w-fit mx-auto mb-4">
-                      <QRCode
-                        value={JSON.stringify({ ticketId, eventKey: event.eventKey })}
-                        size={180}
-                        style={{ height: 'auto', maxWidth: '100%', width: '100%' }}
-                        viewBox="0 0 256 256"
-                      />
+                      {liveQr ? (
+                        <QRCode
+                          value={liveQr}
+                          size={180}
+                          style={{ height: 'auto', maxWidth: '100%', width: '100%' }}
+                          viewBox="0 0 256 256"
+                        />
+                      ) : (
+                        <div className="w-[180px] h-[180px] flex items-center justify-center">
+                          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                        </div>
+                      )}
                     </div>
                     <div className="text-center">
                       <p className="text-sm text-muted-foreground font-montserrat">Ticket ID</p>

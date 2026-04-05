@@ -9,7 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 const EventDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { events, fetchMyEvents, loading } = useEvent();
+  const { myEvents: events, fetchMyEvents, loading } = useEvent();
 
   useEffect(() => {
     if (user?.userType === 'organizer') fetchMyEvents();

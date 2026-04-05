@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Copy, Plus, Trash, Loader2, Tag } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 import { Slider } from '@/components/ui/slider';
 import { PromoCode } from '@/types';
 import { getEventPromos, createPromo, deletePromo, togglePromo } from '@/api/promos';
@@ -16,7 +16,6 @@ interface PromoCodeManagerProps {
 }
 
 const PromoCodeManager = ({ eventId, eventName }: PromoCodeManagerProps) => {
-  const { toast } = useToast();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
@@ -34,7 +33,7 @@ const PromoCodeManager = ({ eventId, eventName }: PromoCodeManagerProps) => {
       const data = await getEventPromos(eventId);
       setPromoCodes(data);
     } catch {
-      toast({ title: 'Failed to load promo codes', variant: 'destructive' });
+      toast.error('Failed to load promo codes');
     } finally {
       setLoading(false);
     }
@@ -49,12 +48,12 @@ const PromoCodeManager = ({ eventId, eventName }: PromoCodeManagerProps) => {
     setIsProcessing(true);
     try {
       await createPromo({ eventId, ...newPromoCode });
-      toast({ title: 'Promo code created', description: `${newPromoCode.code} is now active.` });
+      toast.success('Promo code created', { description: `${newPromoCode.code} is now active.` });
       setNewPromoCode({ code: '', discountPercentage: 10, ticketLimit: 20 });
       setIsAddDialogOpen(false);
       fetchPromos();
     } catch (err: any) {
-      toast({ title: 'Failed to create promo code', description: err.message, variant: 'destructive' });
+      toast.error('Failed to create promo code', { description: err.message });
     } finally {
       setIsProcessing(false);
     }
@@ -65,9 +64,9 @@ const PromoCodeManager = ({ eventId, eventName }: PromoCodeManagerProps) => {
       const updated = await togglePromo(id, eventId);
       setPromoCodes(prev => prev.map(c => c.id === id ? updated : c));
       const code = promoCodes.find(c => c.id === id);
-      toast({ title: code?.isActive ? 'Promo code deactivated' : 'Promo code activated' });
+      toast.success(code?.isActive ? 'Promo code deactivated' : 'Promo code activated');
     } catch (err: any) {
-      toast({ title: 'Failed to update promo code', description: err.message, variant: 'destructive' });
+      toast.error('Failed to update promo code', { description: err.message });
     }
   };
 
@@ -76,15 +75,15 @@ const PromoCodeManager = ({ eventId, eventName }: PromoCodeManagerProps) => {
     try {
       await deletePromo(id, eventId);
       setPromoCodes(prev => prev.filter(c => c.id !== id));
-      toast({ title: 'Promo code removed', description: `${code?.code} has been deleted.` });
+      toast.success('Promo code removed', { description: `${code?.code} has been deleted.` });
     } catch (err: any) {
-      toast({ title: 'Failed to remove promo code', description: err.message, variant: 'destructive' });
+      toast.error('Failed to remove promo code', { description: err.message });
     }
   };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast({ title: 'Copied to clipboard' });
+    toast.success('Copied to clipboard');
   };
 
   if (loading) {

@@ -7,7 +7,7 @@ export interface User {
   email: string;
   name: string;
   phone?: string;
-  userType: "user" | "organizer";
+  userType: "user" | "organizer" | "admin";
   orgName?: string;
   avatarUrl?: string;
   isActive?: boolean;
@@ -41,6 +41,7 @@ export interface Event {
   flierUrl?: string;
   isFeatured?: boolean;
   // NEW: Advanced ticketing
+  niche?: string;       // venue/event niche (gaming, food, music, etc.)
   nicheType?: string;
   isMultiUse?: boolean;
   maxUsage?: number;
