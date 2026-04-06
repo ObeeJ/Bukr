@@ -4,16 +4,22 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { listAdminEvents, updateAdminEvent } from "@/api/admin";
 import { eventStatusBadge } from "@/lib/badges";
+
+const EVENT_STATUSES = ["active", "draft", "completed", "cancelled"];
 
 export default function AdminEvents() {
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState("");
 
   const { data, isLoading } = useQuery({
-    queryKey: ["admin-events", page],
-    queryFn: () => listAdminEvents({ page, limit: 20 }),
+    queryKey: ["admin-events", page, statusFilter],
+    queryFn: () => listAdminEvents({ page, limit: 20, status: statusFilter || undefined }),
     staleTime: 30_000,
   });
 
@@ -29,7 +35,20 @@ export default function AdminEvents() {
   return (
     <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-5">
       <h1 className="text-2xl font-clash font-bold text-glow">Events</h1>
-      <p className="text-xs text-muted-foreground">{total} total events</p>
+
+      {/* Filters */}
+      <div className="flex gap-2 items-center">
+        <select
+          aria-label="Filter by status"
+          className="h-10 px-3 rounded-md border border-border bg-background text-sm"
+          value={statusFilter}
+          onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
+        >
+          <option value="">All statuses</option>
+          {EVENT_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+        <span className="text-xs text-muted-foreground">{total} total events</span>
+      </div>
 
       {isLoading && ["s1","s2","s3","s4","s5"].map(k => <div key={k} className="glass-card p-3 rounded-xl animate-pulse h-20" />)}
 
@@ -38,7 +57,7 @@ export default function AdminEvents() {
           <Card key={ev.id} className="glass-card">
             <CardContent className="p-4">
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="font-medium text-sm truncate">{ev.title}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {ev.organizerEmail ?? ev.organizerId?.slice(0, 8)} · {new Date(ev.date).toLocaleDateString()}
@@ -51,6 +70,22 @@ export default function AdminEvents() {
                 </div>
                 <div className="flex flex-col items-end gap-2 shrink-0">
                   <Badge variant="outline" className={`text-xs ${eventStatusBadge[ev.status] ?? ""}`}>{ev.status}</Badge>
+
+                  {/* Status change — backend supports active/draft/completed/cancelled */}
+                  <Select
+                    value={ev.status}
+                    onValueChange={val => updateMutation.mutate({ id: ev.id, updates: { status: val } })}
+                  >
+                    <SelectTrigger className="h-7 text-xs w-28">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {EVENT_STATUSES.map(s => (
+                        <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
                   <Button
                     size="sm"
                     variant="outline"

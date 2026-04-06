@@ -29,6 +29,8 @@ interface ListEventsParams {
   category?: string;
   status?: string;
   search?: string;
+  city?: string;       // filter by city — backend: ?city=
+  eventType?: string;  // filter by event type — backend: ?event_type=
 }
 
 /**
@@ -176,6 +178,18 @@ export const deleteEvent = async (id: string): Promise<void> => {
  */
 export const claimFreeTicket = async (eventId: string): Promise<any> => {
   const { data } = await api.post(`/tickets/claim-free`, mapToApi({ eventId }));
+  return mapFromApi(data);
+};
+
+/**
+ * enableScannerMode
+ * High-level: Generates a personal ORG-XXXXXX access code for the organizer
+ * so they can scan tickets without a separate scanner account.
+ * Low-level: POSTs to /events/:eventId/scanner-mode. Backend generates a
+ * cryptographically random 3-byte hex code and stores it in scanner_access_codes.
+ */
+export const enableScannerMode = async (eventId: string): Promise<{ code: string; eventId: string }> => {
+  const { data } = await api.post(`/events/${eventId}/scanner-mode`);
   return mapFromApi(data);
 };
 

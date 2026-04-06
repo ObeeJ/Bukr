@@ -81,7 +81,7 @@ const EventDetail = () => {
     };
 
     fetchData();
-  }, [id, user?.userType]);
+  }, [id, user?.userType, getEvent, getPromos, getEventTickets]);
 
   if (loading) {
     return (

@@ -470,7 +470,9 @@ const Auth = () => {
               {/* ── Sign Up form ── */}
               {tab === "signup" && (
                 <div className="auth-form-section animate-fade-in">
-                  {/* Role toggle */}
+                  {/* Role toggle — user and organizer only.
+                      Vendors register at /vendor/register after signing up as a user.
+                      Influencers are invited by organizers via a claim link. */}
                   <div className="auth-role-toggle">
                     <div className={`auth-role-highlight ${userType === "organizer" ? "translate-x-full" : ""}`} />
                     <button
@@ -544,6 +546,18 @@ const Auth = () => {
                       Sign in
                     </button>
                   </p>
+
+                  {/* Vendor/influencer onboarding paths */}
+                  <div className="border-t border-white/10 pt-3 space-y-1 text-center">
+                    <p className="text-xs text-white/30">
+                      Joining as a vendor?{" "}
+                      <a href="/#/vendor/register" className="text-primary/70 hover:text-primary transition-colors">Register your business</a>
+                      {" "}after signing up.
+                    </p>
+                    <p className="text-xs text-white/30">
+                      Influencer? Use the invite link your organizer sent you.
+                    </p>
+                  </div>
                 </div>
               )}
             </>

@@ -1,30 +1,25 @@
-import { useEffect, useState } from "react";
-import AnimatedLogo from "./AnimatedLogo";
+import { useEffect } from "react";
 
 const MobileGuard = ({ children }: { children: React.ReactNode }) => {
-  const [isMobile, setIsMobile] = useState(true);
-
-  // We're now making the app fully responsive for all devices
   useEffect(() => {
-    // Add viewport meta tag for better mobile experience
-    const meta = document.createElement('meta');
-    meta.name = 'viewport';
-    meta.content = 'width=device-width, initial-scale=1.0, viewport-fit=cover';
-    document.head.appendChild(meta);
-    
-    // Add CSS for safe area insets on iOS devices
+    // Update the existing viewport meta (already in index.html) rather than
+    // appending a second one. Browsers use the first tag; duplicates are ignored
+    // and accumulate on HMR. querySelector finds the existing tag and patches it.
+    const existing = document.querySelector<HTMLMetaElement>('meta[name="viewport"]');
+    if (existing) {
+      existing.content = 'width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no';
+    }
+
+    // Safe-area padding for iOS notch / home indicator.
+    // Injected once here so it applies globally without duplicating in index.css.
     const style = document.createElement('style');
-    style.innerHTML = `
-      body {
-        padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-      }
-    `;
-    document.head.appendChild(style);
-    
-    return () => {
-      document.head.removeChild(meta);
-      document.head.removeChild(style);
-    };
+    style.id = 'bukr-safe-area';
+    style.textContent = 'body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }';
+    if (!document.getElementById('bukr-safe-area')) {
+      document.head.appendChild(style);
+    }
+
+    return () => { document.getElementById('bukr-safe-area')?.remove(); };
   }, []);
 
   return <>{children}</>;

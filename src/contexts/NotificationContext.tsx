@@ -77,7 +77,7 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, refresh, load]);
 
   const markRead = useCallback(async (id: string) => {
     // Optimistic update

@@ -18,6 +18,7 @@ interface TokenStore {
   expiresAt: number; // unix ms
   userID: string;
   userType: string;
+  jti: string; // JWT ID — sent on logout so the backend can blacklist this specific token
 }
 
 interface AuthContextType {
@@ -41,6 +42,26 @@ export function getAccessToken(): string | null {
   if (!_tokenStore) return null;
   if (Date.now() > _tokenStore.expiresAt - 30_000) return null; // 30s buffer
   return _tokenStore.accessToken;
+}
+
+// Exported for test teardown — prevents module-level state from leaking between Vitest tests.
+// In production this is never called; the token lives in memory for the tab's lifetime.
+export function clearAuthStore(): void {
+  _tokenStore = null;
+  _refreshPromise = null;
+}
+
+// Decode the JWT payload (base64url) to extract the `jti` claim.
+// We never verify the signature here — that's the backend's job.
+// We only need the jti to tell the server which token to blacklist on logout.
+function extractJti(token: string): string {
+  try {
+    const payload = token.split('.')[1];
+    const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+    return decoded.jti ?? '';
+  } catch {
+    return '';
+  }
 }
 
 // ── API base ──────────────────────────────────────────────────────────────────
@@ -90,6 +111,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           expiresAt: Date.now() + data.expires_in * 1000,
           userID: data.user_id,
           userType: data.user_type,
+          jti: extractJti(data.access_token),
         };
         _tokenStore = store;
         scheduleRefresh(store);
@@ -145,17 +167,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         expiresAt: Date.now() + res.expires_in * 1000,
         userID: res.user_id,
         userType: res.user_type,
+        jti: extractJti(res.access_token),
       };
       _tokenStore = store;
       scheduleRefresh(store);
       const profile = await getProfile();
       setUser(profile);
-      
+
       const urlParams = new URLSearchParams(window.location.search);
       const redirectTo = urlParams.get("redirect");
 
       if (redirectTo) {
         navigate(redirectTo);
+      } else if (data.userType === "admin") {
+        navigate("/admin");
       } else if (data.userType === "organizer") {
         navigate("/dashboard");
       } else if (data.userType === "vendor") {
@@ -182,6 +207,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         expiresAt: Date.now() + res.expires_in * 1000,
         userID: res.user_id,
         userType: res.user_type,
+        jti: extractJti(res.access_token),
       };
       _tokenStore = store;
       scheduleRefresh(store);
@@ -193,6 +219,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (redirectTo) {
         navigate(redirectTo);
+      } else if (res.user_type === "admin") {
+        navigate("/admin");
       } else if (res.user_type === "organizer") {
         navigate("/dashboard");
       } else if (res.user_type === "vendor") {
@@ -214,7 +242,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       await apiFetch("/auth/logout", {
         method: "POST",
-        body: JSON.stringify({ user_id: store?.userID ?? "", jti: "" }),
+        body: JSON.stringify({ user_id: store?.userID ?? "", jti: store?.jti ?? "" }),
       });
     } catch { /* best-effort */ }
     setUser(null);

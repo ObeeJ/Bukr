@@ -18,8 +18,9 @@ export default function AdminVendors() {
     staleTime: 60_000,
   });
 
-  const vendors = data?.data?.vendors ?? [];
-  const total = data?.data?.total ?? 0;
+  // mapFromApi already unwraps axios data — shape is { vendors, total } not { data: { vendors, total } }
+  const vendors = data?.vendors ?? [];
+  const total = data?.total ?? 0;
 
   const updateMutation = useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: Record<string, unknown> }) => updateAdminVendor(id, updates),

@@ -59,7 +59,15 @@ const OrganizerEventView = ({ event, metrics, promos, isActive }: OrganizerEvent
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => { /* Toggle share logic */ }}>
+                    <Button variant="outline" onClick={async () => {
+                        if (navigator.share) {
+                            try {
+                                await navigator.share({ title: event.title, url: window.location.href });
+                            } catch { /* user cancelled */ }
+                        } else {
+                            await navigator.clipboard.writeText(window.location.href);
+                        }
+                    }}>
                         <Share2 className="w-4 h-4 mr-2" />
                         Share
                     </Button>

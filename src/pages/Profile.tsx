@@ -64,6 +64,23 @@ const Profile = () => {
     navigate('/');
   };
 
+  // Each user type has its own home dashboard
+  const homePath = {
+    organizer: '/dashboard',
+    vendor: '/vendor-dashboard',
+    influencer: '/influencer',
+    admin: '/admin',
+  }[user?.userType ?? ''] ?? '/app';
+
+  // Human-readable role label for every backend user type
+  const roleLabel = {
+    organizer: 'Event Organizer',
+    vendor: 'Vendor',
+    influencer: 'Influencer',
+    admin: 'Administrator',
+    user: 'Event Attendee',
+  }[user?.userType ?? 'user'] ?? 'Event Attendee';
+
   return (
     <div className="min-h-screen p-4 safe-area-pb">
       <div className="max-w-2xl mx-auto">
@@ -71,7 +88,7 @@ const Profile = () => {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate(user?.userType === 'organizer' ? '/dashboard' : '/app')}
+            onClick={() => navigate(homePath)}
             className="mr-3"
           >
             <ArrowLeft className="h-5 w-5" />
@@ -134,7 +151,7 @@ const Profile = () => {
             <div className="flex items-center space-x-2 pt-4">
               <div className="flex items-center px-3 py-1 bg-primary/20 text-primary rounded-full text-sm">
                 {user?.userType === 'organizer' ? <Building className="mr-1 h-4 w-4" /> : <User className="mr-1 h-4 w-4" />}
-                {user?.userType === 'organizer' ? 'Event Organizer' : 'Event Attendee'}
+                {roleLabel}
               </div>
             </div>
 

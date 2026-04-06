@@ -27,6 +27,11 @@ export interface Event {
   time: string;
   endDate?: string;
   location: string;
+  city?: string;
+  eventType?: 'physical' | 'online' | 'hybrid';
+  latitude?: number;
+  longitude?: number;
+  onlineLink?: string;
   price?: number;
   currency?: string;
   category?: string;
