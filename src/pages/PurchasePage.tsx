@@ -22,6 +22,7 @@ import { Event } from "@/types";
 import QRCode from "react-qr-code";
 import { computeFees, formatPrice as fmtPrice } from "@/lib/fees";
 import { getTicketQR } from "@/api/tickets";
+import RideHailingButtons from "@/components/events/RideHailingButtons";
 
 const PurchasePage = () => {
   const { eventKey } = useParams<{ eventKey: string }>();
@@ -546,6 +547,17 @@ const PurchasePage = () => {
                       <span>{currencySymbol}{(confirmedTotal ?? totalPrice).toLocaleString()}</span>
                     </div>
                   </div>
+                  {/* Ride-hailing shortcut — only for physical events with coordinates */}
+                  {event.latitude && event.longitude && event.eventType !== 'online' && (
+                    <div className="mb-4">
+                      <p className="text-xs text-muted-foreground mb-2 font-montserrat">Get a ride to the venue</p>
+                      <RideHailingButtons
+                        lat={event.latitude}
+                        lon={event.longitude}
+                        locationName={event.location}
+                      />
+                    </div>
+                  )}
                 </div>
                 <div className="flex flex-col sm:flex-row gap-3">
                   <Button

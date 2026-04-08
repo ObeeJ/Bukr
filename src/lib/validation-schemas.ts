@@ -24,6 +24,7 @@ export const createEventSchema = z.object({
   date: z.string().refine((date) => new Date(date) > new Date(), {
     message: 'Event date must be in the future',
   }),
+  endDate: z.string().optional(),
   time: z.string().regex(/^([0-1]?\d|2[0-3]):[0-5]\d$/),
   location: z.string().min(3).max(500),
   city: z.string().max(100).optional(),

@@ -8,6 +8,10 @@ import { Event } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import SeatingMap from './SeatingMap';
+import WeatherBadge from './WeatherBadge';
+import TravelEstimate from './TravelEstimate';
+import RideHailingButtons from './RideHailingButtons';
+import { useGeolocation } from '@/hooks/useGeolocation';
 
 import { claimFreeTicket } from '@/api/events';
 import { toast } from 'sonner';
@@ -19,6 +23,7 @@ interface PublicEventViewProps {
 const PublicEventView = ({ event }: PublicEventViewProps) => {
     const navigate = useNavigate();
     const { user } = useAuth();
+    const { position: userPosition } = useGeolocation();
     const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
     const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
     const [quantity, setQuantity] = useState(1);
@@ -121,6 +126,28 @@ const PublicEventView = ({ event }: PublicEventViewProps) => {
                                 <span className="text-lg">{event.location}</span>
                             </div>
                         </div>
+                        {/* Weather + travel info — only for physical events with coordinates */}
+                        {event.latitude && event.longitude && event.eventType !== 'online' && (
+                            <div className="flex flex-wrap gap-2 mb-4">
+                                <WeatherBadge lat={event.latitude} lon={event.longitude} />
+                                {userPosition && (
+                                    <TravelEstimate
+                                        userPosition={userPosition}
+                                        eventLat={event.latitude}
+                                        eventLon={event.longitude}
+                                    />
+                                )}
+                            </div>
+                        )}
+                        {event.latitude && event.longitude && event.eventType !== 'online' && (
+                            <div className="mb-4 max-w-xs">
+                                <RideHailingButtons
+                                    lat={event.latitude}
+                                    lon={event.longitude}
+                                    locationName={event.location}
+                                />
+                            </div>
+                        )}
                         <p className="text-lg text-gray-300 max-w-2xl">{event.description}</p>
                     </div>
                 </div>

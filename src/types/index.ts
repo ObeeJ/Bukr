@@ -26,6 +26,7 @@ export interface Event {
   date: string;
   time: string;
   endDate?: string;
+  endTime?: string;
   location: string;
   city?: string;
   eventType?: 'physical' | 'online' | 'hybrid';

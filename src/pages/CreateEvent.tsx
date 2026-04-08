@@ -12,6 +12,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useFeedback } from '@/hooks/useFeedback';
 import FeedbackModal from '@/components/FeedbackModal';
 import { createEventSchema } from '@/lib/validation-schemas';
+import FlierExtractButton from '@/components/events/FlierExtractButton';
+import { FlierExtractResult } from '@/api/flier';
 
 const CreateEvent = () => {
   const navigate = useNavigate();
@@ -26,6 +28,7 @@ const CreateEvent = () => {
     title: '',
     description: '',
     date: '',
+    endDate: '',
     time: '',
     location: '',
     city: '',
@@ -57,8 +60,14 @@ const CreateEvent = () => {
             title: event.title,
             description: event.description || '',
             date: event.date,
+            endDate: event.endDate || '',
             time: event.time || '',
             location: event.location,
+            city: event.city || '',
+            eventType: event.eventType || 'physical',
+            latitude: event.latitude?.toString() || '',
+            longitude: event.longitude?.toString() || '',
+            onlineLink: event.onlineLink || '',
             price: event.price?.toString() || '0',
             category: event.category,
             totalTickets: event.totalTickets?.toString() || '0',
@@ -96,6 +105,7 @@ const CreateEvent = () => {
       title: formData.title,
       description: formData.description,
       date: formData.date,
+      endDate: formData.endDate || undefined,
       time: formData.time,
       location: formData.location,
       price,
@@ -119,6 +129,11 @@ const CreateEvent = () => {
         date: formData.date,
         time: formData.time,
         location: formData.location,
+        city: formData.city || undefined,
+        eventType: formData.eventType,
+        latitude: formData.latitude ? parseFloat(formData.latitude) : undefined,
+        longitude: formData.longitude ? parseFloat(formData.longitude) : undefined,
+        onlineLink: formData.onlineLink || undefined,
         price,
         category: formData.category,
         totalTickets,
@@ -213,6 +228,16 @@ const CreateEvent = () => {
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="endDate">End Date (Optional)</Label>
+            <Input
+              id="endDate"
+              type="date"
+              value={formData.endDate}
+              onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+            />
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="location">Location</Label>
             <Input
               id="location"
@@ -276,6 +301,24 @@ const CreateEvent = () => {
               bucket="event-fliers"
               label="Upload event flier"
             />
+            {formData.flierUrl && (
+              <FlierExtractButton
+                flierUrl={formData.flierUrl}
+                onExtracted={(result: FlierExtractResult) =>
+                  setFormData(prev => ({
+                    ...prev,
+                    title:       result.title       || prev.title,
+                    description: result.description || prev.description,
+                    date:        result.date        || prev.date,
+                    time:        result.time        || prev.time,
+                    location:    result.location    || prev.location,
+                    city:        result.city        || prev.city,
+                    price:       result.price       || prev.price,
+                    category:    result.category    || prev.category,
+                  }))
+                }
+              />
+            )}
           </div>
 
           <div className="space-y-2">
