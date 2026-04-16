@@ -1,8 +1,8 @@
 import { NavLink, Outlet } from "react-router-dom";
 import {
   LayoutDashboard, Users, CalendarDays, Ticket, DollarSign,
-  Building2, Store, Users2, Settings, ChevronRight,
-  CreditCard, ClipboardList, Scale,
+  Building2, Store, Users2, Settings,
+  CreditCard, ClipboardList, Scale, MessageSquare, UserCheck, Tag, ScanLine,
 } from "lucide-react";
 
 const NAV = [
@@ -16,6 +16,10 @@ const NAV = [
   { to: "/admin/vendors",      icon: <Store className="h-4 w-4" />,          label: "Vendors" },
   { to: "/admin/influencers",  icon: <Users2 className="h-4 w-4" />,         label: "Influencers" },
   { to: "/admin/disputes",     icon: <Scale className="h-4 w-4" />,          label: "Disputes" },
+  { to: "/admin/promos",       icon: <Tag className="h-4 w-4" />,            label: "Promos" },
+  { to: "/admin/scan-logs",    icon: <ScanLine className="h-4 w-4" />,       label: "Scan Logs" },
+  { to: "/admin/feedback",     icon: <MessageSquare className="h-4 w-4" />,  label: "Feedback" },
+  { to: "/admin/waitlist",     icon: <UserCheck className="h-4 w-4" />,      label: "Waitlist" },
   { to: "/admin/audit-log",    icon: <ClipboardList className="h-4 w-4" />,  label: "Audit Log" },
   { to: "/admin/system",       icon: <Settings className="h-4 w-4" />,       label: "System" },
 ];

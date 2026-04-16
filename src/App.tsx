@@ -95,6 +95,10 @@ const AdminSystem          = lazy(() => import("@/pages/admin/sections/AdminSyst
 const AdminPayments        = lazy(() => import("@/pages/admin/sections/AdminPayments"));
 const AdminAuditLog        = lazy(() => import("@/pages/admin/sections/AdminAuditLog"));
 const AdminDisputes        = lazy(() => import("@/pages/admin/sections/AdminDisputes"));
+const AdminFeedback        = lazy(() => import("@/pages/admin/sections/AdminFeedback"));
+const AdminWaitlist        = lazy(() => import("@/pages/admin/sections/AdminWaitlist"));
+const AdminPromos          = lazy(() => import("@/pages/admin/sections/AdminPromos"));
+const AdminScanLogs        = lazy(() => import("@/pages/admin/sections/AdminScanLogs"));
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 2, staleTime: 5 * 60 * 1000 } },
@@ -221,6 +225,10 @@ const AppRoutes = () => (
       <Route path="payments" element={<Suspense fallback={null}><AdminPayments /></Suspense>} />
       <Route path="disputes" element={<Suspense fallback={null}><AdminDisputes /></Suspense>} />
       <Route path="audit-log" element={<Suspense fallback={null}><AdminAuditLog /></Suspense>} />
+      <Route path="feedback" element={<Suspense fallback={null}><AdminFeedback /></Suspense>} />
+      <Route path="waitlist" element={<Suspense fallback={null}><AdminWaitlist /></Suspense>} />
+      <Route path="promos" element={<Suspense fallback={null}><AdminPromos /></Suspense>} />
+      <Route path="scan-logs" element={<Suspense fallback={null}><AdminScanLogs /></Suspense>} />
       <Route path="system" element={<Suspense fallback={null}><AdminSystem /></Suspense>} />
     </Route>
 

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { DollarSign, Ticket, CalendarDays, Users, TrendingUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getAdminOverview, getRevenueStream, getFinanceSummary } from "@/api/admin";
+import { getAdminOverview, getRevenueStream, getFinanceSummary, getOverviewTimeseries } from "@/api/admin";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
   LineChart, Line, CartesianGrid,
@@ -47,7 +47,7 @@ export default function AdminOverview() {
 
   const { data: revenueData } = useQuery({
     queryKey: ["admin-revenue-stream", timeWindow],
-    queryFn: () => getRevenueStream({ limit: timeWindow }),
+    queryFn: () => getRevenueStream({ limit: 100 }),
     staleTime: 60_000,
   });
 
@@ -57,17 +57,21 @@ export default function AdminOverview() {
     staleTime: 60_000,
   });
 
-  const kpis         = overviewData ?? {};
-  const revenueBySource = (revenueData as any)?.bySource ?? [];
-  const entries: any[] = (revenueData as any)?.entries ?? [];
-  const trendMap: Record<string, number> = {};
-  entries.forEach((e: any) => {
-    const day = (e.createdAt ?? "").slice(0, 10);
-    if (day) trendMap[day] = (trendMap[day] ?? 0) + Number(e.amount ?? 0);
+  // Real timeseries — pre-aggregated daily totals from DB.
+  // Previously built client-side from paginated ledger entries (wrong — only covered last N rows).
+  const { data: timeseriesData } = useQuery({
+    queryKey: ["admin-overview-timeseries", timeWindow],
+    queryFn: () => getOverviewTimeseries(timeWindow),
+    staleTime: 60_000,
   });
-  const trendData = Object.entries(trendMap)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, total]) => ({ date: date.slice(5), total }));
+
+  const kpis = overviewData ?? {};
+  const revenueBySource = (revenueData as any)?.bySource ?? [];
+  const trendData = ((timeseriesData as any)?.days ?? []).map((d: any) => ({
+    date: (d.day ?? "").slice(5),
+    total: Number(d.revenue ?? 0),
+    tickets: Number(d.ticketCount ?? 0),
+  }));
 
   const summary = summaryData ?? {};
 

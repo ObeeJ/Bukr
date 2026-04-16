@@ -59,6 +59,14 @@ func (h *Handler) RegisterRoutes(router fiber.Router) {
 	router.Get("/disputes", h.ListDisputes)
 	router.Patch("/disputes/:id/resolve", h.ResolveDispute)
 	router.Get("/organizers", h.ListOrganizers)
+	// P2: full observability layer
+	router.Get("/overview/timeseries", h.OverviewTimeseries)
+	router.Get("/users/search", h.SearchUsers)
+	router.Get("/users/:id", h.GetUserDetail)
+	router.Get("/waitlist", h.ListWaitlist)
+	router.Get("/promos", h.ListPromos)
+	router.Get("/scan-logs", h.ListScanLogs)
+	router.Get("/feedback", h.ListFeedbackAdmin)
 }
 
 // ── audit helper ─────────────────────────────────────────────────────────────
@@ -110,14 +118,18 @@ func (h *Handler) Overview(c *fiber.Ctx) error {
 		return shared.Success(c, 200, fiber.Map{"revenue_today": 0, "revenue_month": 0, "tickets_today": 0, "active_events": 0, "new_users_today": 0, "by_source": []fiber.Map{}})
 	}
 
+	// Single round-trip: all KPI aggregates in one query using FILTER.
+	// Previously 5 separate QueryRow calls — each a full network round-trip to Postgres.
 	var revenueToday, revenueMonth float64
 	var ticketsToday, activeEvents, newUsersToday int
-
-	h.db.QueryRow(ctx(), `SELECT COALESCE(SUM(amount),0) FROM platform_revenue WHERE created_at >= CURRENT_DATE`).Scan(&revenueToday)
-	h.db.QueryRow(ctx(), `SELECT COALESCE(SUM(amount),0) FROM platform_revenue WHERE created_at >= DATE_TRUNC('month',NOW())`).Scan(&revenueMonth)
-	h.db.QueryRow(ctx(), `SELECT COUNT(*) FROM tickets WHERE created_at >= CURRENT_DATE`).Scan(&ticketsToday)
-	h.db.QueryRow(ctx(), `SELECT COUNT(*) FROM events WHERE status = 'active'`).Scan(&activeEvents)
-	h.db.QueryRow(ctx(), `SELECT COUNT(*) FROM users WHERE created_at >= CURRENT_DATE`).Scan(&newUsersToday)
+	h.db.QueryRow(ctx(), `
+		SELECT
+		  (SELECT COALESCE(SUM(amount),0) FROM platform_revenue WHERE created_at >= CURRENT_DATE),
+		  (SELECT COALESCE(SUM(amount),0) FROM platform_revenue WHERE created_at >= DATE_TRUNC('month',NOW())),
+		  (SELECT COUNT(*) FROM tickets WHERE created_at >= CURRENT_DATE),
+		  (SELECT COUNT(*) FROM events WHERE status = 'active'),
+		  (SELECT COUNT(*) FROM users WHERE created_at >= CURRENT_DATE)
+	`).Scan(&revenueToday, &revenueMonth, &ticketsToday, &activeEvents, &newUsersToday)
 
 	rows, _ := h.db.Query(ctx(), `SELECT source, SUM(amount) AS total FROM platform_revenue WHERE created_at >= NOW() - INTERVAL '30 days' GROUP BY source ORDER BY total DESC`)
 	defer rows.Close()
@@ -856,4 +868,453 @@ func (h *Handler) ListOrganizers(c *fiber.Ctx) error {
 		})
 	}
 	return shared.Success(c, 200, fiber.Map{"organizers": organizers, "total": total, "page": page, "limit": limit})
+}
+
+// ── OVERVIEW TIMESERIES ───────────────────────────────────────────────────────
+
+// OverviewTimeseries returns pre-aggregated daily revenue + ticket counts.
+// The frontend was previously building this client-side from paginated ledger
+// entries — which only covered the last 50 transactions, not all of them.
+// This endpoint returns complete daily aggregates directly from the DB.
+func (h *Handler) OverviewTimeseries(c *fiber.Ctx) error {
+	if h.db == nil {
+		return shared.Success(c, 200, fiber.Map{"days": []fiber.Map{}})
+	}
+	days, _ := strconv.Atoi(c.Query("days", "30"))
+	if days < 1 || days > 365 {
+		days = 30
+	}
+
+	rows, err := h.db.Query(ctx(), `
+		SELECT
+		  day::text,
+		  COALESCE(revenue, 0)      AS revenue,
+		  COALESCE(ticket_count, 0) AS ticket_count
+		FROM (
+		  SELECT
+		    DATE_TRUNC('day', d)::date AS day
+		  FROM generate_series(
+		    NOW() - ($1 || ' days')::INTERVAL,
+		    NOW(),
+		    '1 day'::INTERVAL
+		  ) AS d
+		) dates
+		LEFT JOIN (
+		  SELECT
+		    DATE_TRUNC('day', created_at)::date AS day,
+		    SUM(amount)                          AS revenue
+		  FROM platform_revenue
+		  WHERE created_at >= NOW() - ($1 || ' days')::INTERVAL
+		  GROUP BY 1
+		) rev USING (day)
+		LEFT JOIN (
+		  SELECT
+		    DATE_TRUNC('day', created_at)::date AS day,
+		    COUNT(*)                             AS ticket_count
+		  FROM tickets
+		  WHERE created_at >= NOW() - ($1 || ' days')::INTERVAL
+		  GROUP BY 1
+		) tix USING (day)
+		ORDER BY day ASC
+	`, days)
+	if err != nil {
+		return shared.Error(c, 500, shared.CodeInternalError, "Failed to load timeseries")
+	}
+	defer rows.Close()
+
+	result := []fiber.Map{}
+	for rows.Next() {
+		var day string
+		var revenue float64
+		var ticketCount int
+		rows.Scan(&day, &revenue, &ticketCount)
+		result = append(result, fiber.Map{
+			"day": day[:10], "revenue": revenue, "ticket_count": ticketCount,
+		})
+	}
+	return shared.Success(c, 200, fiber.Map{"days": result, "period": days})
+}
+
+// ── USER SEARCH + DETAIL ──────────────────────────────────────────────────────
+
+// SearchUsers does a server-side ILIKE search on email and name.
+// The previous ListUsers only filtered by user_type — admins had to page
+// through the entire user list to find a specific person.
+func (h *Handler) SearchUsers(c *fiber.Ctx) error {
+	if h.db == nil {
+		return shared.Success(c, 200, fiber.Map{"users": []fiber.Map{}, "total": 0})
+	}
+	q := "%" + c.Query("q") + "%"
+	_, limit := pageLimit(c)
+
+	rows, err := h.db.Query(ctx(), `
+		SELECT id::text, email, COALESCE(name,'') AS name, user_type,
+		       COALESCE(is_active, true), created_at::text
+		FROM users
+		WHERE email ILIKE $1 OR name ILIKE $1
+		ORDER BY created_at DESC
+		LIMIT $2
+	`, q, limit)
+	if err != nil {
+		return shared.Error(c, 500, shared.CodeInternalError, "Search failed")
+	}
+	defer rows.Close()
+
+	users := []fiber.Map{}
+	for rows.Next() {
+		var id, email, name, userType, createdAt string
+		var isActive bool
+		rows.Scan(&id, &email, &name, &userType, &isActive, &createdAt)
+		users = append(users, fiber.Map{
+			"id": id, "email": email, "name": name,
+			"user_type": userType, "is_active": isActive, "created_at": createdAt,
+		})
+	}
+	return shared.Success(c, 200, fiber.Map{"users": users, "total": len(users)})
+}
+
+// GetUserDetail returns a full user profile with their last 10 tickets
+// and last 5 payment transactions. Gives admin a complete picture of one user
+// without needing to cross-reference multiple sections.
+func (h *Handler) GetUserDetail(c *fiber.Ctx) error {
+	if h.db == nil {
+		return shared.Success(c, 200, fiber.Map{})
+	}
+	id := c.Params("id")
+
+	var userID, email, name, userType, createdAt string
+	var isActive bool
+	err := h.db.QueryRow(ctx(), `
+		SELECT id::text, email, COALESCE(name,'') AS name, user_type,
+		       COALESCE(is_active, true), created_at::text
+		FROM users WHERE id = $1
+	`, id).Scan(&userID, &email, &name, &userType, &isActive, &createdAt)
+	if err != nil {
+		return shared.Error(c, 404, shared.CodeNotFound, "User not found")
+	}
+
+	// Last 10 tickets
+	tRows, _ := h.db.Query(ctx(), `
+		SELECT t.id::text, t.ticket_id, COALESCE(e.title,'') AS event_title,
+		       t.total_price, t.status, t.created_at::text
+		FROM tickets t
+		LEFT JOIN events e ON e.id = t.event_id
+		WHERE t.user_id = $1
+		ORDER BY t.created_at DESC LIMIT 10
+	`, id)
+	defer tRows.Close()
+	tickets := []fiber.Map{}
+	for tRows.Next() {
+		var tid, ticketID, eventTitle, status, createdAt string
+		var amount float64
+		tRows.Scan(&tid, &ticketID, &eventTitle, &amount, &status, &createdAt)
+		tickets = append(tickets, fiber.Map{
+			"id": tid, "ticket_id": ticketID, "event_title": eventTitle,
+			"amount": amount, "status": status, "created_at": createdAt,
+		})
+	}
+
+	// Last 5 payments
+	pRows, _ := h.db.Query(ctx(), `
+		SELECT id::text, provider_ref, amount, status, provider, created_at::text
+		FROM payment_transactions
+		WHERE user_id = $1
+		ORDER BY created_at DESC LIMIT 5
+	`, id)
+	defer pRows.Close()
+	payments := []fiber.Map{}
+	for pRows.Next() {
+		var pid, ref, status, provider, createdAt string
+		var amount float64
+		pRows.Scan(&pid, &ref, &amount, &status, &provider, &createdAt)
+		payments = append(payments, fiber.Map{
+			"id": pid, "reference": ref, "amount": amount,
+			"status": status, "provider": provider, "created_at": createdAt,
+		})
+	}
+
+	return shared.Success(c, 200, fiber.Map{
+		"id": userID, "email": email, "name": name,
+		"user_type": userType, "is_active": isActive, "created_at": createdAt,
+		"tickets": tickets, "payments": payments,
+	})
+}
+
+// ── WAITLIST ──────────────────────────────────────────────────────────────────
+
+// ListWaitlist returns the global email waitlist (migration 020 schema).
+// Also returns per-event waitlist counts from migration 011 schema.
+// Both tables exist — they serve different purposes:
+//   - waitlist (020): global "notify me when Bukr launches" email capture
+//   - waitlist (011): per-event sold-out queue (dropped and recreated by 020)
+// Since 020 drops 011's table, only the global schema exists post-migration.
+func (h *Handler) ListWaitlist(c *fiber.Ctx) error {
+	if h.db == nil {
+		return shared.Success(c, 200, fiber.Map{"entries": []fiber.Map{}, "total": 0})
+	}
+	page, limit := pageLimit(c)
+
+	var total int
+	h.db.QueryRow(ctx(), `SELECT COUNT(*) FROM waitlist`).Scan(&total)
+
+	rows, err := h.db.Query(ctx(), `
+		SELECT id::text, email, created_at::text
+		FROM waitlist
+		ORDER BY created_at DESC
+		LIMIT $1 OFFSET $2
+	`, limit, pgOffset(page, limit))
+	if err != nil {
+		return shared.Error(c, 500, shared.CodeInternalError, "Failed to load waitlist")
+	}
+	defer rows.Close()
+
+	entries := []fiber.Map{}
+	for rows.Next() {
+		var id, email, createdAt string
+		rows.Scan(&id, &email, &createdAt)
+		entries = append(entries, fiber.Map{"id": id, "email": email, "created_at": createdAt})
+	}
+	return shared.Success(c, 200, fiber.Map{"entries": entries, "total": total, "page": page, "limit": limit})
+}
+
+// ── PROMOS ────────────────────────────────────────────────────────────────────
+
+// ListPromos gives admin visibility into all promo codes across all events.
+// Includes usage rate so admin can spot abuse (100% usage on a code with no limit).
+func (h *Handler) ListPromos(c *fiber.Ctx) error {
+	if h.db == nil {
+		return shared.Success(c, 200, fiber.Map{"promos": []fiber.Map{}, "total": 0})
+	}
+	page, limit := pageLimit(c)
+	eventID := c.Query("event_id")
+
+	where := whereBase
+	args := []any{}
+	idx := 1
+	if eventID != "" {
+		where += fmt.Sprintf(" AND p.event_id = $%d", idx)
+		args = append(args, eventID)
+		idx++
+	}
+
+	var total int
+	h.db.QueryRow(ctx(), "SELECT COUNT(*) FROM promo_codes p "+where, args...).Scan(&total)
+
+	args = append(args, limit, pgOffset(page, limit))
+	rows, err := h.db.Query(ctx(), `
+		SELECT p.id::text, p.code, COALESCE(e.title,'') AS event_title,
+		       p.discount_percentage, p.ticket_limit, p.used_count,
+		       p.is_active, COALESCE(p.expires_at::text,'') AS expires_at,
+		       p.created_at::text
+		FROM promo_codes p
+		LEFT JOIN events e ON e.id = p.event_id
+		`+where+`
+		ORDER BY p.created_at DESC
+		LIMIT $`+strconv.Itoa(idx)+` OFFSET $`+strconv.Itoa(idx+1),
+		args...,
+	)
+	if err != nil {
+		return shared.Error(c, 500, shared.CodeInternalError, "Failed to load promos")
+	}
+	defer rows.Close()
+
+	promos := []fiber.Map{}
+	for rows.Next() {
+		var id, code, eventTitle, expiresAt, createdAt string
+		var discount float64
+		var ticketLimit, usedCount int
+		var isActive bool
+		rows.Scan(&id, &code, &eventTitle, &discount, &ticketLimit, &usedCount, &isActive, &expiresAt, &createdAt)
+		// Usage rate: if ticket_limit = 0 it means unlimited
+		var usageRate *float64
+		if ticketLimit > 0 {
+			r := float64(usedCount) / float64(ticketLimit) * 100
+			usageRate = &r
+		}
+		promos = append(promos, fiber.Map{
+			"id": id, "code": code, "event_title": eventTitle,
+			"discount_percentage": discount, "ticket_limit": ticketLimit,
+			"used_count": usedCount, "usage_rate_pct": usageRate,
+			"is_active": isActive, "expires_at": expiresAt, "created_at": createdAt,
+		})
+	}
+	return shared.Success(c, 200, fiber.Map{"promos": promos, "total": total, "page": page, "limit": limit})
+}
+
+// ── SCAN LOGS ─────────────────────────────────────────────────────────────────
+
+// ListScanLogs returns the scan activity feed from scan_log.
+// Gives admin visibility into door scanning: valid scans, invalid attempts,
+// and already-used ticket re-scan attempts (fraud signal).
+func (h *Handler) ListScanLogs(c *fiber.Ctx) error {
+	if h.db == nil {
+		return shared.Success(c, 200, fiber.Map{"logs": []fiber.Map{}, "total": 0, "summary": fiber.Map{}})
+	}
+	page, limit := pageLimit(c)
+	eventID := c.Query("event_id")
+	result := c.Query("result") // valid | invalid | already_used
+
+	where := whereBase
+	args := []any{}
+	idx := 1
+	if eventID != "" {
+		where += fmt.Sprintf(" AND sl.event_id = $%d", idx)
+		args = append(args, eventID)
+		idx++
+	}
+	if result != "" {
+		where += fmt.Sprintf(" AND sl.result = $%d", idx)
+		args = append(args, result)
+		idx++
+	}
+
+	var total int
+	h.db.QueryRow(ctx(), "SELECT COUNT(*) FROM scan_log sl "+where, args...).Scan(&total)
+
+	// Summary counts — always across the filtered event (or all events)
+	var validCount, invalidCount, alreadyUsedCount int
+	summaryWhere := whereBase
+	summaryArgs := []any{}
+	if eventID != "" {
+		summaryWhere += " AND sl.event_id = $1"
+		summaryArgs = append(summaryArgs, eventID)
+	}
+	h.db.QueryRow(ctx(), `
+		SELECT
+		  COUNT(*) FILTER (WHERE sl.result = 'valid'),
+		  COUNT(*) FILTER (WHERE sl.result = 'invalid'),
+		  COUNT(*) FILTER (WHERE sl.result = 'already_used')
+		FROM scan_log sl `+summaryWhere, summaryArgs...,
+	).Scan(&validCount, &invalidCount, &alreadyUsedCount)
+
+	args = append(args, limit, pgOffset(page, limit))
+	rows, err := h.db.Query(ctx(), `
+		SELECT sl.id::text, sl.ticket_id::text, sl.event_id::text,
+		       COALESCE(e.title,'') AS event_title,
+		       sl.result, sl.scanned_at::text,
+		       COALESCE(sl.access_code,'') AS access_code
+		FROM scan_log sl
+		LEFT JOIN events e ON e.id = sl.event_id
+		`+where+`
+		ORDER BY sl.scanned_at DESC
+		LIMIT $`+strconv.Itoa(idx)+` OFFSET $`+strconv.Itoa(idx+1),
+		args...,
+	)
+	if err != nil {
+		return shared.Error(c, 500, shared.CodeInternalError, "Failed to load scan logs")
+	}
+	defer rows.Close()
+
+	logs := []fiber.Map{}
+	for rows.Next() {
+		var id, ticketID, eventID2, eventTitle, result2, scannedAt, accessCode string
+		rows.Scan(&id, &ticketID, &eventID2, &eventTitle, &result2, &scannedAt, &accessCode)
+		logs = append(logs, fiber.Map{
+			"id": id, "ticket_id": ticketID, "event_id": eventID2,
+			"event_title": eventTitle, "result": result2,
+			"scanned_at": scannedAt, "access_code": accessCode,
+		})
+	}
+	return shared.Success(c, 200, fiber.Map{
+		"logs": logs, "total": total, "page": page, "limit": limit,
+		"summary": fiber.Map{
+			"valid": validCount, "invalid": invalidCount, "already_used": alreadyUsedCount,
+		},
+	})
+}
+
+// ── FEEDBACK (admin read) ─────────────────────────────────────────────────────
+
+// ListFeedbackAdmin returns NPS aggregate + raw feedback entries.
+// The feedback/handler.go ListFeedback returns raw rows only.
+// This endpoint adds the aggregate intelligence the admin actually needs:
+// NPS score, avg rating, recommend rate, breakdown by journey and user_type.
+func (h *Handler) ListFeedbackAdmin(c *fiber.Ctx) error {
+	if h.db == nil {
+		return shared.Success(c, 200, fiber.Map{"entries": []fiber.Map{}, "aggregate": fiber.Map{}})
+	}
+	page, limit := pageLimit(c)
+
+	// Aggregate stats — single query
+	var totalCount int
+	var avgRating float64
+	var recommendCount int
+	h.db.QueryRow(ctx(), `
+		SELECT COUNT(*), COALESCE(AVG(rating),0), COUNT(*) FILTER (WHERE recommend = true)
+		FROM user_feedback
+	`).Scan(&totalCount, &avgRating, &recommendCount)
+
+	var npsScore float64
+	if totalCount > 0 {
+		npsScore = float64(recommendCount) / float64(totalCount) * 100
+	}
+
+	// Breakdown by journey
+	jRows, _ := h.db.Query(ctx(), `
+		SELECT journey, COUNT(*) AS cnt, ROUND(AVG(rating),2) AS avg_r
+		FROM user_feedback GROUP BY journey ORDER BY cnt DESC
+	`)
+	defer jRows.Close()
+	byJourney := []fiber.Map{}
+	for jRows.Next() {
+		var journey string
+		var cnt int
+		var avgR float64
+		jRows.Scan(&journey, &cnt, &avgR)
+		byJourney = append(byJourney, fiber.Map{"journey": journey, "count": cnt, "avg_rating": avgR})
+	}
+
+	// Breakdown by user_type
+	utRows, _ := h.db.Query(ctx(), `
+		SELECT user_type, COUNT(*) AS cnt, ROUND(AVG(rating),2) AS avg_r
+		FROM user_feedback GROUP BY user_type ORDER BY cnt DESC
+	`)
+	defer utRows.Close()
+	byUserType := []fiber.Map{}
+	for utRows.Next() {
+		var ut string
+		var cnt int
+		var avgR float64
+		utRows.Scan(&ut, &cnt, &avgR)
+		byUserType = append(byUserType, fiber.Map{"user_type": ut, "count": cnt, "avg_rating": avgR})
+	}
+
+	// Raw entries paginated
+	rows, err := h.db.Query(ctx(), `
+		SELECT id::text, COALESCE(user_id::text,'') AS user_id,
+		       user_type, journey, recommend, rating,
+		       COALESCE(comment,'') AS comment, created_at::text
+		FROM user_feedback
+		ORDER BY created_at DESC
+		LIMIT $1 OFFSET $2
+	`, limit, pgOffset(page, limit))
+	if err != nil {
+		return shared.Error(c, 500, shared.CodeInternalError, "Failed to load feedback")
+	}
+	defer rows.Close()
+
+	entries := []fiber.Map{}
+	for rows.Next() {
+		var id, userID, userType, journey, comment, createdAt string
+		var recommend bool
+		var rating int
+		rows.Scan(&id, &userID, &userType, &journey, &recommend, &rating, &comment, &createdAt)
+		entries = append(entries, fiber.Map{
+			"id": id, "user_id": userID, "user_type": userType,
+			"journey": journey, "recommend": recommend, "rating": rating,
+			"comment": comment, "created_at": createdAt,
+		})
+	}
+
+	return shared.Success(c, 200, fiber.Map{
+		"entries": entries,
+		"page":    page,
+		"aggregate": fiber.Map{
+			"total":          totalCount,
+			"avg_rating":     avgRating,
+			"recommend_rate": npsScore,
+			"by_journey":     byJourney,
+			"by_user_type":   byUserType,
+		},
+	})
 }

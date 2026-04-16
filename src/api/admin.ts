@@ -186,3 +186,50 @@ export const listOrganizers = async (params: { page?: number; limit?: number } =
   const { data } = await api.get('/admin/organizers', { params });
   return mapFromApi(data);
 };
+
+// ── TIMESERIES ────────────────────────────────────────────────────────────────
+
+export const getOverviewTimeseries = async (days = 30) => {
+  const { data } = await api.get('/admin/overview/timeseries', { params: { days } });
+  return mapFromApi(data);
+};
+
+// ── USER SEARCH + DETAIL ──────────────────────────────────────────────────────
+
+export const searchUsers = async (q: string, limit = 20) => {
+  const { data } = await api.get('/admin/users/search', { params: { q, limit } });
+  return mapFromApi(data);
+};
+
+export const getUserDetail = async (userId: string) => {
+  const { data } = await api.get(`/admin/users/${userId}`);
+  return mapFromApi(data);
+};
+
+// ── WAITLIST ──────────────────────────────────────────────────────────────────
+
+export const listWaitlist = async (params: { page?: number; limit?: number } = {}) => {
+  const { data } = await api.get('/admin/waitlist', { params });
+  return mapFromApi(data);
+};
+
+// ── PROMOS ────────────────────────────────────────────────────────────────────
+
+export const listAdminPromos = async (params: { eventId?: string; page?: number; limit?: number } = {}) => {
+  const { data } = await api.get('/admin/promos', { params: mapToApi(params) });
+  return mapFromApi(data);
+};
+
+// ── SCAN LOGS ─────────────────────────────────────────────────────────────────
+
+export const listScanLogs = async (params: { eventId?: string; result?: string; page?: number; limit?: number } = {}) => {
+  const { data } = await api.get('/admin/scan-logs', { params: mapToApi(params) });
+  return mapFromApi(data);
+};
+
+// ── FEEDBACK (admin) ──────────────────────────────────────────────────────────
+
+export const getAdminFeedback = async (params: { page?: number; limit?: number } = {}) => {
+  const { data } = await api.get('/admin/feedback', { params });
+  return mapFromApi(data);
+};
