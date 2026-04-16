@@ -16,6 +16,7 @@ import (
 	"github.com/bukr/gateway/internal/feedback"
 	"github.com/bukr/gateway/internal/influencer_portal"
 	"github.com/bukr/gateway/internal/influencers"
+	"github.com/bukr/gateway/internal/invites"
 	"github.com/bukr/gateway/internal/middleware"
 	"github.com/bukr/gateway/internal/notifications"
 	"github.com/bukr/gateway/internal/proxy"
@@ -44,7 +45,16 @@ func main() {
 
 	workerCtx, cancelWorker := context.WithCancel(context.Background())
 	defer cancelWorker()
-	notifications.NewWorker(db, rdb).Start(workerCtx)
+
+	// Invites service constructed early — needed by the notification worker
+	// and injected into the events booking gate below.
+	inviteRepo    := invites.NewRepository(db)
+	inviteMailer  := invites.NewMailer(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUser, cfg.SMTPPass, cfg.EmailFromName)
+	inviteService := invites.NewService(inviteRepo, inviteMailer, db)
+
+	notifWorker := notifications.NewWorker(db, rdb)
+	notifWorker.SetInviteExpirer(inviteService)
+	notifWorker.Start(workerCtx)
 
 	app := fiber.New(fiber.Config{
 		AppName:      "Bukr Gateway",
@@ -88,6 +98,7 @@ func main() {
 	mailer := auth.NewMailer(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUser, cfg.SMTPPass, cfg.EmailFromName)
 	authRepo := auth.NewRepository(db)
 	authSvc := auth.NewService(authRepo, mailer, rdb, cfg.AppJWTSecret, cfg.AdminJWTSecret)
+	authSvc.WithReferralGranter(inviteService)
 	authHandler := auth.NewHandler(authSvc)
 	authHandler.RegisterRoutes(v1.Group("/auth"))
 
@@ -123,6 +134,21 @@ func main() {
 
 	eventsProtected := v1.Group("/events", userAuth)
 	eventHandler.RegisterProtectedRoutes(eventsProtected)
+
+	// ── Invite management (organizer only) ────────────────────────────────────
+	inviteHandler := invites.NewHandler(inviteService)
+	inviteOrgGroup := v1.Group("/events", userAuth, middleware.RequireOrganizer())
+	inviteHandler.RegisterOrganizerRoutes(inviteOrgGroup)
+	// Guest redemption — any authenticated user
+	inviteGuestGroup := v1.Group("/invites", userAuth)
+	inviteHandler.RegisterGuestRoutes(inviteGuestGroup)
+
+	// Expose invite service to the free-ticket handler via context locals
+	// so the booking gate can check access_mode without a circular import.
+	app.Use(func(c *fiber.Ctx) error {
+		c.Locals("invite_svc", inviteService)
+		return c.Next()
+	})
 
 	favGroup := v1.Group("/favorites", userAuth)
 	favRepo := favorites.NewRepository(db)

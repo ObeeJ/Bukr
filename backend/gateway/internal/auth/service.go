@@ -15,13 +15,20 @@ import (
 
 const bcryptCost = 12
 
+// ReferralGranter is the minimal interface auth needs from the invites package.
+// Defined here to avoid a circular import.
+type ReferralGranter interface {
+	GrantReferralReward(ctx context.Context, sourceInviteID string)
+}
+
 // Service contains all auth business logic.
 type Service struct {
-	repo        *Repository
-	mailer      *Mailer
-	rdb         *redis.Client
-	appSecret   string
-	adminSecret string
+	repo           *Repository
+	mailer         *Mailer
+	rdb            *redis.Client
+	appSecret      string
+	adminSecret    string
+	referralGranter ReferralGranter // nil = referral rewards disabled
 }
 
 func NewService(repo *Repository, mailer *Mailer, rdb *redis.Client, appSecret, adminSecret string) *Service {
@@ -32,6 +39,11 @@ func NewService(repo *Repository, mailer *Mailer, rdb *redis.Client, appSecret, 
 		appSecret:   appSecret,
 		adminSecret: adminSecret,
 	}
+}
+
+// WithReferralGranter wires in the invite referral reward dependency.
+func (s *Service) WithReferralGranter(g ReferralGranter) {
+	s.referralGranter = g
 }
 
 // ParseAppToken parses a user access token using the app secret.
@@ -72,6 +84,13 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest, fp string) 
 
 	// Welcome email is fire-and-forget — a mail failure must never block registration.
 	go s.mailer.SendWelcome(req.Email, req.Name) //nolint:errcheck
+
+	// Referral reward: if the registration request carries an invite_id
+	// (set by the frontend after the guest redeems their token),
+	// grant the referrer their reward. Fire-and-forget — never blocks signup.
+	if req.SourceInviteID != "" && s.referralGranter != nil {
+		go s.referralGranter.GrantReferralReward(context.Background(), req.SourceInviteID)
+	}
 
 	return pair, refreshRaw, nil
 }

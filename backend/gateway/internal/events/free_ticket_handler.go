@@ -14,10 +14,18 @@
 package events
 
 import (
+	"context"
+
 	"github.com/bukr/gateway/internal/middleware"
 	"github.com/bukr/gateway/internal/shared"
 	"github.com/gofiber/fiber/v2"
 )
+
+// InviteGate is the minimal interface the free-ticket handler needs.
+// Defined here to avoid importing the invites package (circular dependency).
+type InviteGate interface {
+	CheckAccess(ctx context.Context, eventID, userEmail string) error
+}
 
 /**
  * ClaimFreeTicketRequest: Request to claim free ticket
@@ -49,6 +57,14 @@ func (h *Handler) ClaimFreeTicket(c *fiber.Ctx) error {
 	claims := middleware.GetUserClaims(c)
 	if claims == nil {
 		return shared.Error(c, fiber.StatusUnauthorized, shared.CodeUnauthorized, "Authentication required")
+	}
+
+	// Booking gate: check invite access before doing anything else.
+	// The gate is injected via context locals to avoid a circular import.
+	if gate, ok := c.Locals("invite_svc").(InviteGate); ok && gate != nil {
+		if err := gate.CheckAccess(c.Context(), eventID, claims.Email); err != nil {
+			return shared.Error(c, fiber.StatusForbidden, shared.CodeForbidden, err.Error())
+		}
 	}
 
 	// Parse request

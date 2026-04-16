@@ -76,9 +76,21 @@ type ReminderJob struct {
 
 // ── Worker ────────────────────────────────────────────────────────────────────
 
+// InviteExpirer is the minimal interface the worker needs from the invites package.
+// Using an interface avoids a circular import.
+type InviteExpirer interface {
+	ExpireStaleInvites(ctx context.Context) (int64, error)
+}
+
 type Worker struct {
-	db    *pgxpool.Pool
-	redis *redis.Client
+	db            *pgxpool.Pool
+	redis         *redis.Client
+	inviteExpirer InviteExpirer // nil = invite expiry disabled
+}
+
+// SetInviteExpirer wires in the invite expiry dependency after construction.
+func (w *Worker) SetInviteExpirer(e InviteExpirer) {
+	w.inviteExpirer = e
 }
 
 func NewWorker(db *pgxpool.Pool, rdb *redis.Client) *Worker {
@@ -104,6 +116,7 @@ func (w *Worker) Start(ctx context.Context) {
 	go w.runWorker(ctx)
 	go w.runTicketNotifications(ctx)
 	go w.runExpiryJob(ctx)
+	go w.runInviteExpiryJob(ctx)
 }
 
 // ── Scheduler ─────────────────────────────────────────────────────────────────
@@ -323,6 +336,28 @@ func (w *Worker) runExpiryJob(ctx context.Context) {
 			return
 		case <-ticker.C:
 			w.expireTickets(ctx)
+		}
+	}
+}
+
+// runInviteExpiryJob marks stale invites expired every 10 minutes.
+func (w *Worker) runInviteExpiryJob(ctx context.Context) {
+	if w.inviteExpirer == nil {
+		return
+	}
+	ticker := time.NewTicker(10 * time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			n, err := w.inviteExpirer.ExpireStaleInvites(ctx)
+			if err != nil {
+				log.Printf("invite_expiry: failed: %v", err)
+			} else if n > 0 {
+				log.Printf("invite_expiry: expired %d stale invites", n)
+			}
 		}
 	}
 }

@@ -2,11 +2,14 @@ package auth
 
 // RegisterRequest is the payload for POST /api/v1/auth/register.
 type RegisterRequest struct {
-	Name     string  `json:"name"`
-	Email    string  `json:"email"`
-	Password string  `json:"password"`
-	UserType string  `json:"user_type"` // "user" | "organizer"
-	OrgName  *string `json:"org_name"`
+	Name           string  `json:"name"`
+	Email          string  `json:"email"`
+	Password       string  `json:"password"`
+	UserType       string  `json:"user_type"`    // "user" | "organizer"
+	OrgName        *string `json:"org_name"`
+	// Optional: set by the frontend after a guest redeems an invite token.
+	// When present, the referrer receives their reward after registration completes.
+	SourceInviteID string  `json:"source_invite_id"`
 }
 
 // LoginRequest is the payload for POST /api/v1/auth/login.
