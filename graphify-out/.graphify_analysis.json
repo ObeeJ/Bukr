@@ -1,0 +1,2191 @@
+{
+  "communities": {
+    "0": [
+      "admin_handler",
+      "admin_handler_approvepayout",
+      "admin_handler_financesummary",
+      "admin_handler_getfeatureflags",
+      "admin_handler_getsystemlogs",
+      "admin_handler_getuserdetail",
+      "admin_handler_listauditlog",
+      "admin_handler_listdisputes",
+      "admin_handler_listevents",
+      "admin_handler_listfeedbackadmin",
+      "admin_handler_listinfluencers",
+      "admin_handler_listorganizers",
+      "admin_handler_listpayments",
+      "admin_handler_listpromos",
+      "admin_handler_listscanlogs",
+      "admin_handler_listtickets",
+      "admin_handler_listusers",
+      "admin_handler_listvendors",
+      "admin_handler_listwaitlist",
+      "admin_handler_overview",
+      "admin_handler_overviewtimeseries",
+      "admin_handler_registerroutes",
+      "admin_handler_rejectpayout",
+      "admin_handler_resolvedispute",
+      "admin_handler_revenuestream",
+      "admin_handler_searchusers",
+      "admin_handler_updateevent",
+      "admin_handler_updatefeatureflags",
+      "admin_handler_updateuser",
+      "admin_handler_updatevendor",
+      "admin_handler_writeaudit",
+      "auth_getuserclaims",
+      "auth_handler",
+      "auth_handler_adminlogin",
+      "auth_handler_adminlogout",
+      "auth_handler_adminrefresh",
+      "auth_handler_forgotpassword",
+      "auth_handler_login",
+      "auth_handler_logout",
+      "auth_handler_maperror",
+      "auth_handler_refresh",
+      "auth_handler_register",
+      "auth_handler_registerroutes",
+      "auth_handler_resetpassword",
+      "auth_requireorganizer",
+      "backend_gateway_internal_admin_handler_go",
+      "backend_gateway_internal_auth_handler_go",
+      "backend_gateway_internal_events_handler_go",
+      "createevent_handlesubmit",
+      "credits_handler_getmycredits",
+      "events_assignscanner",
+      "events_handler",
+      "events_handler_assignscanner",
+      "events_handler_claimfreeticket",
+      "events_handler_createevent",
+      "events_handler_deleteevent",
+      "events_handler_enablescannermode",
+      "events_handler_extractflier",
+      "events_handler_extractflierstatus",
+      "events_handler_getbyeventkey",
+      "events_handler_getbyid",
+      "events_handler_getcategories",
+      "events_handler_listevents",
+      "events_handler_listmyevents",
+      "events_handler_listscanners",
+      "events_handler_removescanner",
+      "events_handler_updateevent",
+      "events_listscanners",
+      "events_removescanner",
+      "favorites_handler",
+      "favorites_handler_add",
+      "favorites_handler_check",
+      "favorites_handler_list",
+      "favorites_handler_remove",
+      "feedback_handler",
+      "feedback_handler_joinwaitlist",
+      "feedback_handler_listfeedback",
+      "feedback_handler_registerroutes",
+      "feedback_handler_submitfeedback",
+      "flierextractbutton_handleextract",
+      "handler_clearcookie",
+      "handler_ctx",
+      "handler_pagelimit",
+      "handler_pgoffset",
+      "handler_queryint",
+      "handler_setrefreshcookie",
+      "imageupload_handleremove",
+      "imageupload_handleupload",
+      "influencer_portal_handler",
+      "influencer_portal_handler_claim",
+      "influencer_portal_handler_getlinks",
+      "influencer_portal_handler_getpayouthistory",
+      "influencer_portal_handler_getprofile",
+      "influencer_portal_handler_registerroutes",
+      "influencer_portal_handler_requestpayout",
+      "influencer_portal_repository_getprofilebyuserid",
+      "influencers_handler",
+      "influencers_handler_create",
+      "influencers_handler_delete",
+      "influencers_handler_getbyid",
+      "influencers_handler_getreferrallink",
+      "influencers_handler_list",
+      "influencers_handler_registerroutes",
+      "influencers_handler_update",
+      "influencers_handleremove",
+      "invites_handler",
+      "invites_handler_bulkuploadfile",
+      "invites_handler_bulkuploadjson",
+      "invites_handler_listinvites",
+      "invites_handler_maperr",
+      "invites_handler_redeemtoken",
+      "invites_handler_revokeinvite",
+      "invites_handler_setaccessmode",
+      "logger_logger_error",
+      "notificationpreferences_handlesave",
+      "notificationpreferences_toggle",
+      "notifications_handler",
+      "notifications_handler_getpreferences",
+      "notifications_handler_list",
+      "notifications_handler_markallread",
+      "notifications_handler_markread",
+      "notifications_handler_registerroutes",
+      "notifications_handler_updatepreferences",
+      "paymentverify_verifypayment",
+      "profile_handledeactivate",
+      "profile_handlesave",
+      "profile_handlesignout",
+      "promocodemanager_copytoclipboard",
+      "promocodemanager_handleaddpromocode",
+      "promocodemanager_handleremovepromocode",
+      "promocodemanager_handletogglepromocode",
+      "publiceventview_handlebooking",
+      "publiceventview_handleclaimfreeticket",
+      "publiceventview_handleshare",
+      "response_success",
+      "scannermanagement_copyscannercode",
+      "scannermanagement_fetchscanners",
+      "scannermanagement_handleadd",
+      "scannermanagement_handleremove",
+      "src_api_users_ts",
+      "src_components_events_flierextractbutton_tsx",
+      "src_components_events_publiceventview_tsx",
+      "src_components_imageupload_tsx",
+      "src_components_promocodemanager_tsx",
+      "src_pages_createevent_tsx",
+      "src_pages_notificationpreferences_tsx",
+      "src_pages_paymentverify_tsx",
+      "src_pages_profile_tsx",
+      "src_pages_scannermanagement_tsx",
+      "src_utils_validation_ts",
+      "ticketcard_handletransfer",
+      "ticketscanner_handleverifyaccess",
+      "unit_mockservice",
+      "unit_mockservice_create",
+      "unit_mockservice_getbyeventkey",
+      "unit_mockservice_getbyid",
+      "unit_mockservice_getcategories",
+      "unit_mockservice_list",
+      "unit_mockservice_listbyorganizer",
+      "unit_mockservice_update",
+      "users_deactivateaccount",
+      "users_getprofile",
+      "users_handler",
+      "users_handler_completeprofile",
+      "users_handler_deactivateaccount",
+      "users_handler_getprofile",
+      "users_handler_updateprofile",
+      "users_updateprofile",
+      "validation_validatephone"
+    ],
+    "1": [
+      "admin_test_ok",
+      "backend_core_src_analytics_handler_rs",
+      "backend_core_src_payments_handler_rs",
+      "backend_core_src_promos_handler_rs",
+      "backend_core_src_promos_repository_rs",
+      "backend_core_src_promos_service_rs",
+      "backend_core_src_scanner_handler_rs",
+      "backend_core_src_tickets_handler_rs",
+      "backend_core_src_tickets_repository_rs",
+      "backend_core_src_tickets_service_rs",
+      "backend_core_src_tickets_transfer_rs",
+      "backend_core_src_vendors_handler_rs",
+      "backend_core_src_vendors_repository_rs",
+      "backend_core_src_vendors_service_rs",
+      "dto_vendorresponse",
+      "dto_vendorresponse_from",
+      "fees_feemode",
+      "fees_feemode_default",
+      "fees_validate_min_price",
+      "handler_claim_free_ticket",
+      "handler_claim_invitation",
+      "handler_complete_hire",
+      "handler_create_promo",
+      "handler_delete_promo",
+      "handler_extract_user_id",
+      "handler_get_dynamic_qr",
+      "handler_get_event_analytics",
+      "handler_get_event_tickets",
+      "handler_get_my_hires",
+      "handler_get_my_tickets",
+      "handler_get_platform_metrics",
+      "handler_get_stats",
+      "handler_get_vendor",
+      "handler_initialize_payment",
+      "handler_list_promos",
+      "handler_manual_validate",
+      "handler_mark_used",
+      "handler_match_vendors",
+      "handler_matchqueryparams",
+      "handler_optional_user_id",
+      "handler_paystack_webhook",
+      "handler_purchase_ticket",
+      "handler_register_vendor",
+      "handler_renew_ticket",
+      "handler_request_hire",
+      "handler_require_user_type",
+      "handler_respond_hire",
+      "handler_search_vendors",
+      "handler_send_invitation",
+      "handler_set_availability",
+      "handler_submit_review",
+      "handler_toggle_promo",
+      "handler_validate_promo",
+      "handler_validate_ticket",
+      "handler_verify_access",
+      "handler_verify_payment",
+      "notfound_notfound",
+      "repository_eventdata",
+      "repository_promorepository",
+      "repository_promorepository_create",
+      "repository_promorepository_delete",
+      "repository_promorepository_list_by_event",
+      "repository_promorepository_new",
+      "repository_promorepository_toggle_active",
+      "repository_promorepository_validate",
+      "repository_row_to_hire",
+      "repository_row_to_promo",
+      "repository_row_to_ticket",
+      "repository_row_to_vendor",
+      "repository_ticketrepository",
+      "repository_ticketrepository_check_user_ticket",
+      "repository_ticketrepository_check_user_ticket_tx",
+      "repository_ticketrepository_create",
+      "repository_ticketrepository_create_free_with_tx",
+      "repository_ticketrepository_create_with_tx",
+      "repository_ticketrepository_get_by_ticket_id",
+      "repository_ticketrepository_get_event",
+      "repository_ticketrepository_get_event_for_update",
+      "repository_ticketrepository_get_event_tickets",
+      "repository_ticketrepository_get_user_tickets",
+      "repository_ticketrepository_mark_used",
+      "repository_ticketrepository_new",
+      "repository_ticketrepository_pool",
+      "repository_ticketrepository_update_payment_status",
+      "repository_vendorrepository",
+      "repository_vendorrepository_claim_invitation",
+      "repository_vendorrepository_create",
+      "repository_vendorrepository_create_hire",
+      "repository_vendorrepository_create_invitation",
+      "repository_vendorrepository_create_review",
+      "repository_vendorrepository_get_by_id",
+      "repository_vendorrepository_get_by_user_id",
+      "repository_vendorrepository_get_candidates_for_match",
+      "repository_vendorrepository_get_event_for_match",
+      "repository_vendorrepository_get_hire",
+      "repository_vendorrepository_get_invitation_by_token",
+      "repository_vendorrepository_get_organizer_hires",
+      "repository_vendorrepository_get_vendor_hires",
+      "repository_vendorrepository_get_vendor_reviews",
+      "repository_vendorrepository_increment_views",
+      "repository_vendorrepository_new",
+      "repository_vendorrepository_pool",
+      "repository_vendorrepository_search",
+      "repository_vendorrepository_set_availability",
+      "repository_vendorrepository_update_hire_status",
+      "repository_vendorrepository_upgrade_tier",
+      "service_category_affinity",
+      "service_location_score",
+      "service_new_vendor_bonus",
+      "service_paymentservice",
+      "service_paymentservice_handle_paystack_webhook",
+      "service_paymentservice_init_paystack",
+      "service_paymentservice_initialize",
+      "service_paymentservice_verify_payment",
+      "service_paymentservice_verify_paystack_signature",
+      "service_promoservice",
+      "service_promoservice_create",
+      "service_promoservice_delete",
+      "service_promoservice_list_by_event",
+      "service_promoservice_new",
+      "service_promoservice_toggle_active",
+      "service_promoservice_validate",
+      "service_quality_score",
+      "service_recency_score",
+      "service_relevant_categories_for_event",
+      "service_same_state_heuristic",
+      "service_test_test_price_calculation",
+      "service_ticketservice",
+      "service_ticketservice_claim_free",
+      "service_ticketservice_get_dynamic_qr",
+      "service_ticketservice_get_event_tickets",
+      "service_ticketservice_get_user_tickets",
+      "service_ticketservice_mark_used",
+      "service_ticketservice_new",
+      "service_ticketservice_purchase",
+      "service_ticketservice_verify_event_owner",
+      "service_tier_bonus",
+      "service_vendorservice",
+      "service_vendorservice_claim_invitation",
+      "service_vendorservice_complete_hire",
+      "service_vendorservice_get_my_hires_as_organizer",
+      "service_vendorservice_get_my_hires_as_vendor",
+      "service_vendorservice_get_my_profile",
+      "service_vendorservice_get_vendor",
+      "service_vendorservice_get_vendor_reviews",
+      "service_vendorservice_match_vendors_for_event",
+      "service_vendorservice_new",
+      "service_vendorservice_register",
+      "service_vendorservice_request_hire",
+      "service_vendorservice_respond_hire",
+      "service_vendorservice_search",
+      "service_vendorservice_send_invitation",
+      "service_vendorservice_set_availability",
+      "service_vendorservice_submit_review",
+      "src_api_admin_test_ts",
+      "src_pages_notfound_tsx",
+      "transfer_extract_user_id",
+      "transfer_transfer_ticket",
+      "transfer_transferrequest",
+      "transfer_transferresponse"
+    ],
+    "2": [
+      "admin_approvepayout",
+      "admin_getadminfeedback",
+      "admin_getadminoverview",
+      "admin_getauditlog",
+      "admin_getfeatureflags",
+      "admin_getfinancesummary",
+      "admin_getoverviewtimeseries",
+      "admin_getrevenuestream",
+      "admin_getsystemlogs",
+      "admin_getuserdetail",
+      "admin_listadminevents",
+      "admin_listadmininfluencers",
+      "admin_listadminpromos",
+      "admin_listadmintickets",
+      "admin_listadminvendors",
+      "admin_listdisputes",
+      "admin_listorganizers",
+      "admin_listpayments",
+      "admin_listscanlogs",
+      "admin_listusers",
+      "admin_listwaitlist",
+      "admin_rejectpayout",
+      "admin_resolvedispute",
+      "admin_searchusers",
+      "admin_updateadminevent",
+      "admin_updateadminvendor",
+      "admin_updatefeatureflags",
+      "admin_updateuser",
+      "analytics_getdashboardsummary",
+      "analytics_geteventanalytics",
+      "api_mapfromapi",
+      "api_maptoapi",
+      "api_registersilentrefresh",
+      "api_tocamelcase",
+      "api_tosnakecase",
+      "credits_applycredit",
+      "credits_getmycredits",
+      "credits_purchasecredits",
+      "credits_service_getmycredits",
+      "events_claimfreeticket",
+      "events_enablescannermode",
+      "events_getallevents",
+      "events_getcategories",
+      "events_geteventbyid",
+      "events_geteventbykey",
+      "events_geteventspaginated",
+      "events_getmyevents",
+      "events_searchevents",
+      "events_updateevent",
+      "explore_applycity",
+      "explore_applysearch",
+      "explore_clearfilters",
+      "explore_fetchevents",
+      "explore_formatprice",
+      "influencer_claiminfluencertoken",
+      "influencer_getinfluencerlinks",
+      "influencer_getinfluencerprofile",
+      "influencer_getpayouthistory",
+      "influencer_requestpayout",
+      "influencers_createinfluencer",
+      "influencers_deleteinfluencer",
+      "influencers_fetchinfluencers",
+      "influencers_getinfluencerbyid",
+      "influencers_getinfluencers",
+      "influencers_getreferrallink",
+      "influencers_handleaddinfluencer",
+      "influencers_handleclosedialog",
+      "influencers_handleedit",
+      "influencers_updateinfluencer",
+      "notifications_fetchnotifications",
+      "notifications_getnotificationpreferences",
+      "notifications_markallread",
+      "notifications_marknotificationread",
+      "notifications_updatenotificationpreferences",
+      "promos_createpromo",
+      "promos_deletepromo",
+      "promos_geteventpromos",
+      "promos_togglepromo",
+      "promos_validatepromo",
+      "src_api_admin_ts",
+      "src_api_analytics_ts",
+      "src_api_credits_ts",
+      "src_api_events_ts",
+      "src_api_influencer_ts",
+      "src_api_influencers_ts",
+      "src_api_notifications_ts",
+      "src_api_promos_ts",
+      "src_api_tickets_ts",
+      "src_api_vendors_ts",
+      "src_components_ticketcard_tsx",
+      "src_lib_api_ts",
+      "src_pages_explore_tsx",
+      "src_pages_influencers_tsx",
+      "ticketcard_handledownload",
+      "ticketcard_handlerenew",
+      "ticketcard_handleshare",
+      "ticketcard_refreshqr",
+      "tickets_geteventtickets",
+      "tickets_getmytickets",
+      "tickets_getticketqr",
+      "tickets_purchaseticket",
+      "tickets_renewticket",
+      "tickets_transferticket",
+      "users_completeprofile",
+      "vendors_claiminvitation",
+      "vendors_completehire",
+      "vendors_getmyvendorhires",
+      "vendors_getvendor",
+      "vendors_matchvendors",
+      "vendors_registervendor",
+      "vendors_requesthire",
+      "vendors_respondhire",
+      "vendors_searchvendors",
+      "vendors_sendvendorinvitation",
+      "vendors_setavailability",
+      "vendors_submitreview"
+    ],
+    "3": [
+      "backend_core_src_vendors_service_test_rs",
+      "backend_gateway_internal_credits_handler_go",
+      "backend_gateway_internal_favorites_handler_go",
+      "backend_gateway_internal_feedback_handler_go",
+      "backend_gateway_internal_influencer_portal_handler_go",
+      "backend_gateway_internal_influencers_handler_go",
+      "backend_gateway_internal_invites_handler_go",
+      "backend_gateway_internal_notifications_handler_go",
+      "backend_gateway_internal_proxy_handler_go",
+      "backend_gateway_internal_users_handler_go",
+      "credits_handler",
+      "credits_handler_registerroutes",
+      "credits_handler_registerwebhook",
+      "credits_handler_verifysignature",
+      "credits_handler_webhook",
+      "events_handler_test_testcreateevent",
+      "events_handler_test_testgetbyid",
+      "events_handler_test_testgetcategories",
+      "events_handler_test_testlistevents",
+      "feedback_feedbackrequest",
+      "feedback_waitlistrequest",
+      "handler_newhandler",
+      "notifications_notificationrow",
+      "notifications_prefsrow",
+      "service_paymentservice_new",
+      "service_test_category_affinity",
+      "service_test_composite_score",
+      "service_test_new_vendor_bonus",
+      "service_test_quality_score",
+      "service_test_recency_score",
+      "service_test_relevant_categories",
+      "service_test_test_affinity_all_values_in_range",
+      "service_test_test_affinity_fallback_is_low_but_not_zero",
+      "service_test_test_affinity_high_pairs",
+      "service_test_test_affinity_perfect_matches",
+      "service_test_test_affinity_pruning_threshold",
+      "service_test_test_all_event_types_return_nonempty_categories",
+      "service_test_test_bukrshield_fee_paid_event",
+      "service_test_test_bukrshield_zero_for_free_events",
+      "service_test_test_composite_irrelevant_vendor_low_score",
+      "service_test_test_composite_local_pro_outscores_distant_free",
+      "service_test_test_composite_new_vendor_boost_visible",
+      "service_test_test_composite_perfect_vendor_capped_at_100",
+      "service_test_test_established_vendor_no_boost",
+      "service_test_test_flat_fee_for_cheap_tickets",
+      "service_test_test_new_vendor_gets_boost",
+      "service_test_test_organizer_payout_formula",
+      "service_test_test_paid_tier_cheaper_than_free_tier",
+      "service_test_test_quality_clamped_above_max",
+      "service_test_test_quality_output_range",
+      "service_test_test_quality_perfect_vendor",
+      "service_test_test_quality_weights_sum_correctly",
+      "service_test_test_quality_zero_rating",
+      "service_test_test_recency_active_vendor",
+      "service_test_test_recency_dormant_vendor",
+      "service_test_test_recency_monotonically_decreasing",
+      "service_test_test_recency_recent_vendor",
+      "service_test_test_recency_stale_vendor",
+      "service_test_test_relevant_categories_concert",
+      "service_test_test_relevant_categories_fallback_non_empty",
+      "service_test_test_relevant_categories_wedding",
+      "service_test_test_tier_bonus_values",
+      "service_test_test_tier_pro_higher_than_verified",
+      "service_test_test_vendor_commission_free_tier",
+      "service_test_test_vendor_commission_paid_tier",
+      "service_test_tier_bonus",
+      "tests_unit_events_handler_test_go"
+    ],
+    "4": [
+      "auth_extractbearer",
+      "auth_fetchsupabasepublickey",
+      "auth_getadminclaims",
+      "auth_handler_registeradminroutes",
+      "auth_invalidateusercache",
+      "auth_isrevoked",
+      "auth_requireadmin",
+      "auth_requireauth",
+      "backend_core_src_config_rs",
+      "backend_core_src_db_rs",
+      "backend_core_src_main_rs",
+      "backend_gateway_cmd_main_go",
+      "backend_gateway_internal_middleware_auth_go",
+      "backend_gateway_internal_middleware_cors_go",
+      "backend_gateway_internal_middleware_logger_go",
+      "backend_gateway_internal_proxy_client_go",
+      "backend_gateway_internal_shared_database_go",
+      "backend_gateway_internal_shared_redis_go",
+      "client_newrustproxy",
+      "config_config",
+      "config_config_from_env",
+      "cors_setupcors",
+      "database_newdatabasepool",
+      "db_create_pool",
+      "events_deleteevent",
+      "events_handler_registerprotectedroutes",
+      "events_handler_registerpublicroutes",
+      "favorites_handler_registerroutes",
+      "influencer_portal_handler_registerclaimroute",
+      "integration_test_testdeleteevent_nonorganizer_returns403",
+      "invites_handler_registerguestroutes",
+      "invites_handler_registerorganizerroutes",
+      "logger_requestlogger",
+      "main_appstate",
+      "main_build_router",
+      "main_check_gateway_secret",
+      "main_globalerrorhandler",
+      "main_health",
+      "main_main",
+      "middleware_blacklistentry",
+      "middleware_userclaims",
+      "proxy_handler",
+      "proxy_handler_registeranalyticsroutes",
+      "proxy_handler_registerhireroutes",
+      "proxy_handler_registerpaymentroutes",
+      "proxy_handler_registerpaymentwebhooks",
+      "proxy_handler_registerpromoroutes",
+      "proxy_handler_registerscannerroutes",
+      "proxy_handler_registerticketroutes",
+      "proxy_handler_registervendorinvitationroutes",
+      "proxy_handler_registervendorprotectedroutes",
+      "proxy_handler_registervendorpublicroutes",
+      "proxy_handler_registervendorreviewroutes",
+      "proxy_handler_registervendorselfroutes",
+      "proxy_rustproxy",
+      "proxy_rustproxy_forward",
+      "redis_newredisclient",
+      "unit_mockservice_delete",
+      "users_handler_registerroutes"
+    ],
+    "5": [
+      "app_approutes",
+      "app_errorboundary",
+      "app_errorboundary_getderivedstatefromerror",
+      "app_errorboundary_render",
+      "app_protectedroute",
+      "app_scannerroute",
+      "auth_test_bad",
+      "auth_test_mockrefreshfail",
+      "auth_test_mockrefreshsuccess",
+      "auth_test_probe",
+      "auth_test_renderwithauth",
+      "auth_test_trigger",
+      "authcontext_apifetch",
+      "authcontext_authprovider",
+      "authcontext_clearauthstore",
+      "authcontext_extractjti",
+      "authcontext_getaccesstoken",
+      "authcontext_useauth",
+      "bottomnavigation_bottomnavigation",
+      "eventcontext_eventprovider",
+      "eventcontext_useevent",
+      "eventdashboard_eventdashboard",
+      "eventdetail_eventdetail",
+      "feedback_test_testcomponent",
+      "influencerclaim_influencerclaim",
+      "influencerpayouts_influencerpayouts",
+      "notificationcontext_notificationprovider",
+      "notificationcontext_usenotifications",
+      "renderwithproviders_renderwithproviders",
+      "src_app_tsx",
+      "src_components_bottomnavigation_tsx",
+      "src_contexts_authcontext_tsx",
+      "src_contexts_eventcontext_tsx",
+      "src_contexts_notificationcontext_tsx",
+      "src_contexts_ticketcontext_tsx",
+      "src_hooks_usefeedback_ts",
+      "src_hooks_useuser_ts",
+      "src_main_tsx",
+      "src_pages_eventdashboard_tsx",
+      "src_pages_eventdetail_tsx",
+      "src_pages_influencer_influencerclaim_tsx",
+      "src_pages_influencer_influencerpayouts_tsx",
+      "src_pages_userdashboard_tsx",
+      "src_test_auth_test_tsx",
+      "src_test_feedback_test_tsx",
+      "src_test_renderwithproviders_tsx",
+      "ticketcontext_ticketprovider",
+      "ticketcontext_useticket",
+      "usefeedback_gettodaykey",
+      "usefeedback_hasshowntoday",
+      "usefeedback_markshown",
+      "usefeedback_usefeedback",
+      "userdashboard_userdashboard",
+      "useuser_useuser"
+    ],
+    "6": [
+      "backend_gateway_internal_events_dto_go",
+      "backend_gateway_internal_events_service_go",
+      "backend_gateway_internal_favorites_service_go",
+      "backend_gateway_internal_influencers_service_go",
+      "backend_gateway_internal_users_service_go",
+      "credits_service_consumecredit",
+      "events_createeventrequest",
+      "events_creditconsumer",
+      "events_event",
+      "events_event_toresponse",
+      "events_eventlistresponse",
+      "events_eventresponse",
+      "events_listeventsquery",
+      "events_organizerinfo",
+      "events_paginationmeta",
+      "events_service",
+      "events_service_assignscanner",
+      "events_service_bustlistcache",
+      "events_service_claimfreeticket",
+      "events_service_create",
+      "events_service_delete",
+      "events_service_getbyeventkey",
+      "events_service_getbyid",
+      "events_service_getcachedevent",
+      "events_service_getcategories",
+      "events_service_list",
+      "events_service_listbyorganizer",
+      "events_service_listgeneration",
+      "events_service_listscanners",
+      "events_service_removescanner",
+      "events_service_setcachedevent",
+      "events_service_update",
+      "events_service_withcredits",
+      "events_updateeventrequest",
+      "favorites_service",
+      "favorites_service_isfavorited",
+      "favorites_service_list",
+      "favorites_service_remove",
+      "influencers_service",
+      "influencers_service_create",
+      "influencers_service_delete",
+      "influencers_service_getbyid",
+      "influencers_service_getreferrallink",
+      "influencers_service_list",
+      "influencers_service_update",
+      "repository_totalpages",
+      "service_newservice",
+      "users_service",
+      "users_service_completeprofile",
+      "users_service_getprofile",
+      "users_service_updateprofile"
+    ],
+    "7": [
+      "backend_gateway_internal_invites_service_go",
+      "influencer_portal_repository",
+      "influencer_portal_repository_claimbytoken",
+      "influencer_portal_repository_getpayouthistory",
+      "influencer_portal_repository_getreferrallinks",
+      "influencer_portal_repository_requestpayout",
+      "invites_repository",
+      "invites_repository_applyreward",
+      "invites_repository_bulkcreate",
+      "invites_repository_createreward",
+      "invites_repository_expirestale",
+      "invites_repository_getbytoken",
+      "invites_repository_geteventaccessmode",
+      "invites_repository_getpendingbyeventemail",
+      "invites_repository_getunsentbyevent",
+      "invites_repository_getunusedreward",
+      "invites_repository_listbyevent",
+      "invites_repository_marksent",
+      "invites_repository_redeem",
+      "invites_repository_revoke",
+      "invites_repository_seteventaccessmode",
+      "invites_service",
+      "invites_service_applyreward",
+      "invites_service_bulkuploadfile",
+      "invites_service_bulkuploadjson",
+      "invites_service_checkaccess",
+      "invites_service_dispatchinviteemails",
+      "invites_service_expirestaleinvites",
+      "invites_service_getunusedreward",
+      "invites_service_grantreferralreward",
+      "invites_service_listinvites",
+      "invites_service_processbulk",
+      "invites_service_redeemtoken",
+      "invites_service_revokeinvite",
+      "invites_service_setaccessmode",
+      "invites_service_verifyowner",
+      "main_string",
+      "main_string_from_ref",
+      "service_containsheader",
+      "service_extractpdftext",
+      "service_fileext",
+      "service_isvalidemail",
+      "service_parsecsv",
+      "service_parsedocx",
+      "service_parsejson",
+      "service_parsepdf",
+      "service_stripxmltags"
+    ],
+    "8": [
+      "backend_gateway_internal_admin_handler_test_go",
+      "backend_gateway_internal_events_flier_handler_go",
+      "backend_gateway_internal_events_integration_test_go",
+      "backend_gateway_internal_middleware_security_go",
+      "events_createevent",
+      "events_flierextractrequest",
+      "events_flierextractresponse",
+      "flier_handler_callopenaivision",
+      "flier_handler_stripmarkdownfences",
+      "handler_test_decodebody",
+      "handler_test_newapp",
+      "handler_test_safeatoi",
+      "handler_test_testapprovepayout_nildb",
+      "handler_test_testfinancesummary_nildb",
+      "handler_test_testgetfeatureflags_nildb",
+      "handler_test_testgetsystemlogs_nildb",
+      "handler_test_testlistevents_nildb",
+      "handler_test_testlistevents_paginationparams",
+      "handler_test_testlistinfluencers_nildb",
+      "handler_test_testlisttickets_nildb",
+      "handler_test_testlisttickets_withstatusfilter",
+      "handler_test_testlistusers_nildb",
+      "handler_test_testlistvendors_nildb",
+      "handler_test_testoverview_nildb",
+      "handler_test_testpagelimitdefaults",
+      "handler_test_testrejectpayout_invalidbody",
+      "handler_test_testrejectpayout_validbody",
+      "handler_test_testrevenuestream_nildb",
+      "handler_test_testupdatefeatureflags_invalidbody",
+      "handler_test_testupdateuser_missingbody",
+      "handler_test_testupdateuser_nildb",
+      "integration_test_newtestapp",
+      "integration_test_testcreateevent_missingtitle_returns400",
+      "integration_test_testcreateevent_negativetotaltickets_returns400",
+      "integration_test_testcreateevent_onlinewithoutlink_returns400",
+      "integration_test_testupdateevent_nonorganizer_returns403",
+      "security_securityheaders",
+      "src_components_events_weatherbadge_tsx",
+      "src_lib_weatherapi_ts",
+      "src_pages_vendors_vendorregister_tsx",
+      "vendorregister_set",
+      "weatherapi_describeweather",
+      "weatherapi_fetchweather",
+      "weatherbadge_weatherbadge"
+    ],
+    "9": [
+      "auth_adminauthrow",
+      "auth_otprow",
+      "auth_userauthrow",
+      "backend_gateway_internal_auth_repository_go",
+      "backend_gateway_internal_events_repository_go",
+      "backend_gateway_internal_favorites_repository_go",
+      "backend_gateway_internal_influencer_portal_repository_go",
+      "backend_gateway_internal_influencers_repository_go",
+      "backend_gateway_internal_invites_repository_go",
+      "backend_gateway_internal_users_repository_go",
+      "events_repository",
+      "events_repository_create",
+      "events_repository_delete",
+      "events_repository_getbyeventkey",
+      "events_repository_getbyid",
+      "events_repository_getcategories",
+      "events_repository_list",
+      "events_repository_listbyorganizer",
+      "events_repository_update",
+      "favorites_repository",
+      "favorites_repository_add",
+      "favorites_repository_isfavorited",
+      "favorites_repository_list",
+      "favorites_repository_remove",
+      "influencers_repository",
+      "influencers_repository_create",
+      "influencers_repository_delete",
+      "influencers_repository_getbyid",
+      "influencers_repository_list",
+      "influencers_repository_update",
+      "invites_rewardrow",
+      "repository_generateeventkey",
+      "repository_generatereferralcode",
+      "repository_newrepository",
+      "repository_scanevent",
+      "repository_scaninfluencer",
+      "users_repository",
+      "users_repository_completeprofile",
+      "users_repository_deactivate",
+      "users_repository_getbyid",
+      "users_repository_updateprofile",
+      "users_service_deactivateaccount"
+    ],
+    "10": [
+      "auth_referralgranter",
+      "auth_repository",
+      "auth_repository_clearadminrefreshtoken",
+      "auth_repository_clearrefreshtoken",
+      "auth_repository_createuser",
+      "auth_repository_getadminbyemail",
+      "auth_repository_getadminbyid",
+      "auth_repository_getadminrefreshtokenhash",
+      "auth_repository_getotprow",
+      "auth_repository_getrefreshtokenhash",
+      "auth_repository_getuserbyemail",
+      "auth_repository_getuserbyid",
+      "auth_repository_getuseridbyrefreshhash",
+      "auth_repository_incrementotpattempts",
+      "auth_repository_resetpassword",
+      "auth_repository_setadminrefreshtoken",
+      "auth_repository_setotp",
+      "auth_repository_setrefreshtoken",
+      "auth_service",
+      "auth_service_adminlogin",
+      "auth_service_adminlogout",
+      "auth_service_adminrefresh",
+      "auth_service_forgotpassword",
+      "auth_service_issueadminpair",
+      "auth_service_issuepair",
+      "auth_service_login",
+      "auth_service_logout",
+      "auth_service_parseadmintoken",
+      "auth_service_parseapptoken",
+      "auth_service_refresh",
+      "auth_service_register",
+      "auth_service_resetpassword",
+      "auth_service_resolveuserfromrefreshtoken",
+      "auth_service_withreferralgranter",
+      "backend_gateway_internal_auth_service_go",
+      "notificationbell_handleopen",
+      "notificationbell_handler",
+      "notificationbell_opengmail",
+      "service_generateotp",
+      "service_validatepassword",
+      "service_validateregister",
+      "src_components_notificationbell_tsx"
+    ],
+    "11": [
+      "test_api_e2e_bukrapitester",
+      "test_api_e2e_bukrapitester_assert_json_field",
+      "test_api_e2e_bukrapitester_assert_status",
+      "test_api_e2e_bukrapitester_init",
+      "test_api_e2e_bukrapitester_print_summary",
+      "test_api_e2e_bukrapitester_run_all_tests",
+      "test_api_e2e_bukrapitester_run_test",
+      "test_api_e2e_bukrapitester_test_cors_headers",
+      "test_api_e2e_bukrapitester_test_create_event_no_auth",
+      "test_api_e2e_bukrapitester_test_get_categories",
+      "test_api_e2e_bukrapitester_test_get_nonexistent_event",
+      "test_api_e2e_bukrapitester_test_health_check",
+      "test_api_e2e_bukrapitester_test_invalid_jwt",
+      "test_api_e2e_bukrapitester_test_invalid_request_body",
+      "test_api_e2e_bukrapitester_test_list_events_public",
+      "test_api_e2e_bukrapitester_test_pagination",
+      "test_api_e2e_bukrapitester_test_protected_without_auth",
+      "test_api_e2e_bukrapitester_test_response_time",
+      "test_api_e2e_bukrapitester_test_search_events",
+      "test_api_e2e_main",
+      "test_api_e2e_rationale_106",
+      "test_api_e2e_rationale_122",
+      "test_api_e2e_rationale_137",
+      "test_api_e2e_rationale_149",
+      "test_api_e2e_rationale_161",
+      "test_api_e2e_rationale_172",
+      "test_api_e2e_rationale_184",
+      "test_api_e2e_rationale_203",
+      "test_api_e2e_rationale_224",
+      "test_api_e2e_rationale_242",
+      "test_api_e2e_rationale_260",
+      "test_api_e2e_rationale_40",
+      "test_api_e2e_rationale_48",
+      "test_api_e2e_rationale_58",
+      "test_api_e2e_rationale_77",
+      "test_api_e2e_rationale_86",
+      "test_api_e2e_rationale_94",
+      "test_api_e2e_testresult",
+      "tests_e2e_test_api_e2e_py"
+    ],
+    "12": [
+      "backend_core_src_notifications_rs",
+      "backend_core_src_scanner_service_rs",
+      "notifications_queue",
+      "service_accessverifyresponse",
+      "service_eventsummary",
+      "service_manualvalidaterequest",
+      "service_renewresult",
+      "service_renewticketrequest",
+      "service_scannerservice",
+      "service_scannerservice_acquire_scan_lock",
+      "service_scannerservice_build_qr_payload",
+      "service_scannerservice_get_cached_usage",
+      "service_scannerservice_get_stats",
+      "service_scannerservice_invalidate_usage_cache",
+      "service_scannerservice_log_scan",
+      "service_scannerservice_manual_validate",
+      "service_scannerservice_mark_used",
+      "service_scannerservice_new",
+      "service_scannerservice_new_with_redis",
+      "service_scannerservice_record_fraud_signal",
+      "service_scannerservice_renew_ticket",
+      "service_scannerservice_resolve_event_id",
+      "service_scannerservice_set_cached_usage",
+      "service_scannerservice_sign_qr",
+      "service_scannerservice_validate_and_mark",
+      "service_scannerservice_validate_ticket",
+      "service_scannerservice_verify_access",
+      "service_scannerservice_verify_qr_sig",
+      "service_scanresult",
+      "service_scanstats",
+      "service_scanticketinfo",
+      "service_validateticketrequest",
+      "service_verifyaccessrequest",
+      "usage_engine_usageengine_a",
+      "usage_engine_usageengine_a_apply",
+      "usage_engine_usageengine_a_evaluate",
+      "usage_engine_usageengine_a_new",
+      "usage_engine_usageengine_a_write_scan_log"
+    ],
+    "13": [
+      "favorites_service_add",
+      "test_api_clients_create_event",
+      "test_api_clients_get_all_events",
+      "test_api_clients_get_event_by_id",
+      "test_api_clients_get_user_profile",
+      "test_api_clients_rationale_1",
+      "test_api_clients_rationale_223",
+      "test_api_clients_rationale_269",
+      "test_api_clients_rationale_315",
+      "test_api_clients_rationale_318",
+      "test_api_clients_rationale_326",
+      "test_api_clients_rationale_36",
+      "test_api_clients_rationale_82",
+      "test_api_clients_test_500_internal_server_error",
+      "test_api_clients_test_create_event_success",
+      "test_api_clients_test_create_event_unauthorized",
+      "test_api_clients_test_get_all_events_success",
+      "test_api_clients_test_get_all_events_with_pagination",
+      "test_api_clients_test_get_event_by_id_not_found",
+      "test_api_clients_test_get_event_by_id_success",
+      "test_api_clients_test_get_user_profile_success",
+      "test_api_clients_test_get_user_profile_unauthorized",
+      "test_api_clients_test_invalid_json_response",
+      "test_api_clients_test_network_error",
+      "test_api_clients_testerrorhandling",
+      "test_api_clients_testeventsapi",
+      "test_api_clients_testusersapi",
+      "test_api_clients_testvalidation",
+      "test_api_clients_testvalidation_test_event_data_validation",
+      "test_api_clients_testvalidation_test_pagination_limits",
+      "tests_unit_test_api_clients_py"
+    ],
+    "14": [
+      "backend_gateway_internal_notifications_smtp_go",
+      "backend_gateway_internal_notifications_worker_go",
+      "backend_gateway_internal_shared_config_go",
+      "backend_gateway_test_db_connection_go",
+      "backend_gateway_test_db_go",
+      "config_getenv",
+      "config_loadconfig",
+      "notifications_inviteexpirer",
+      "notifications_reminderjob",
+      "notifications_worker",
+      "notifications_worker_drain",
+      "notifications_worker_drainticketnotifications",
+      "notifications_worker_expiretickets",
+      "notifications_worker_runexpiryjob",
+      "notifications_worker_runinviteexpiryjob",
+      "notifications_worker_runscheduler",
+      "notifications_worker_runticketnotifications",
+      "notifications_worker_runworker",
+      "notifications_worker_schedule",
+      "notifications_worker_setinviteexpirer",
+      "notifications_worker_start",
+      "shared_config",
+      "smtp_buildemailcontent",
+      "smtp_dispatchticketnotification",
+      "test_db_connection_main",
+      "test_db_main",
+      "worker_dispatch",
+      "worker_newworker"
+    ],
+    "15": [
+      "backend_gateway_internal_credits_dto_go",
+      "backend_gateway_internal_credits_repository_go",
+      "backend_gateway_internal_credits_service_go",
+      "credits_creditpackresponse",
+      "credits_handler_purchase",
+      "credits_mycreditsresponse",
+      "credits_packdef",
+      "credits_purchaseinitresponse",
+      "credits_purchaserequest",
+      "credits_repository",
+      "credits_repository_activatepack",
+      "credits_repository_consumecredit",
+      "credits_repository_createpack",
+      "credits_repository_getmycredits",
+      "credits_service",
+      "credits_service_confirmpayment",
+      "credits_service_initiatepurchase",
+      "credits_service_initpaystack",
+      "dto_getpackdef",
+      "repository_scanpack",
+      "service_pseudorand"
+    ],
+    "16": [
+      "backend_core_src_vendors_dto_rs",
+      "dto_availabilitysetrequest",
+      "dto_completehirerequest",
+      "dto_createvendorrequest",
+      "dto_eventformatch",
+      "dto_hirerequest",
+      "dto_hirerespondrequest",
+      "dto_hireresponse",
+      "dto_inviteresponse",
+      "dto_invitevendorrequest",
+      "dto_reviewrequest",
+      "dto_reviewresponse",
+      "dto_scoredvendor",
+      "dto_updatevendorrequest",
+      "dto_vendorlistresponse",
+      "dto_vendormatchresult",
+      "dto_vendorrow",
+      "dto_vendorsearchparams"
+    ],
+    "17": [
+      "favorites_addfavorite",
+      "favorites_checkfavorite",
+      "favorites_fetchfavorites",
+      "favorites_formatprice",
+      "favorites_getfavorites",
+      "favorites_handlebooknow",
+      "favorites_openmodal",
+      "favorites_removefavorite",
+      "favorites_removefromfavorites",
+      "src_api_favorites_ts",
+      "src_hooks_use_toast_ts",
+      "src_pages_favorites_tsx",
+      "use_toast_addtoremovequeue",
+      "use_toast_dispatch",
+      "use_toast_genid",
+      "use_toast_reducer",
+      "use_toast_toast",
+      "use_toast_usetoast"
+    ],
+    "18": [
+      "scanner_getscannerstats",
+      "scanner_manualvalidateticket",
+      "scanner_markticketused",
+      "scanner_normalizeresult",
+      "scanner_validateticket",
+      "scanner_verifyaccess",
+      "src_api_scanner_ts",
+      "src_components_ticketscanner_tsx",
+      "ticketscanner_getpendingscans",
+      "ticketscanner_handlemanualentry",
+      "ticketscanner_handlesync",
+      "ticketscanner_marksynced",
+      "ticketscanner_onoffline",
+      "ticketscanner_ononline",
+      "ticketscanner_opendb",
+      "ticketscanner_processqrcode",
+      "ticketscanner_queuescan",
+      "ticketscanner_validateandrecord"
+    ],
+    "19": [
+      "backend_core_src_tickets_service_test_rs",
+      "service_test_is_transfer_locked",
+      "service_test_lock_error_message",
+      "service_test_test_excitement_rating_validation",
+      "service_test_test_lock_constant_is_reasonable",
+      "service_test_test_lock_error_message_after_start",
+      "service_test_test_lock_error_message_before_start_shows_lock_window",
+      "service_test_test_payment_provider_validation",
+      "service_test_test_payment_reference_generation",
+      "service_test_test_ticket_id_generation",
+      "service_test_test_ticket_quantity_validation",
+      "service_test_test_transfer_allowed_just_outside_lock_window",
+      "service_test_test_transfer_allowed_well_before_event",
+      "service_test_test_transfer_blocked_30_minutes_before",
+      "service_test_test_transfer_blocked_after_event_started",
+      "service_test_test_transfer_blocked_day_after_event",
+      "service_test_test_transfer_blocked_inside_lock_window"
+    ],
+    "20": [
+      "auth_mailer",
+      "auth_mailer_send",
+      "auth_mailer_sendadminwelcome",
+      "auth_mailer_sendotp",
+      "auth_mailer_sendwelcome",
+      "backend_gateway_internal_auth_mailer_go",
+      "backend_gateway_internal_invites_mailer_go",
+      "invites_mailer",
+      "invites_mailer_send",
+      "invites_mailer_sendinvite",
+      "mailer_adminwelcomehtml",
+      "mailer_appurl",
+      "mailer_emailshell",
+      "mailer_invitehtml",
+      "mailer_newmailer",
+      "mailer_otphtml",
+      "mailer_welcomehtml"
+    ],
+    "21": [
+      "logger_logger",
+      "logger_logger_debug",
+      "logger_logger_info",
+      "logger_logger_log",
+      "logger_logger_warn",
+      "serviceworker_checkvalidserviceworker",
+      "serviceworker_register",
+      "serviceworker_registervalidsw",
+      "serviceworker_unregister",
+      "src_lib_logger_ts",
+      "src_serviceworker_ts"
+    ],
+    "22": [
+      "backend_core_src_fees_rs",
+      "fees_absorb_mode_buyer_pays_listed_price",
+      "fees_compute_fees",
+      "fees_feebreakdown",
+      "fees_free_event_zero_fees",
+      "fees_min_price_validation_rejects_below_500",
+      "fees_pass_to_buyer_20000_rounds_to_100",
+      "fees_pass_to_buyer_5000_rounds_to_5300",
+      "fees_pass_to_buyer_500_rounds_to_600",
+      "fees_quantity_scales_correctly"
+    ],
+    "23": [
+      "backend_gateway_internal_invites_dto_go",
+      "invites_bulkinviterequest",
+      "invites_bulkinviteresult",
+      "invites_guestentry",
+      "invites_invite",
+      "invites_invite_toresponse",
+      "invites_inviteresponse",
+      "invites_redeemrequest",
+      "invites_redeemresponse"
+    ],
+    "24": [
+      "authmodal_clearfeedback",
+      "authmodal_feedbackbanner",
+      "authmodal_geterrormessage",
+      "authmodal_getpasswordstrength",
+      "authmodal_goback",
+      "authmodal_handleforgotpassword",
+      "authmodal_handleotpverify",
+      "authmodal_handlesubmit",
+      "src_components_authmodal_tsx"
+    ],
+    "25": [
+      "backend_core_src_tickets_dto_rs",
+      "dto_paymentinitresponse",
+      "dto_purchaseresponse",
+      "dto_purchaseticketrequest",
+      "dto_ticket",
+      "dto_ticketeventinfo",
+      "dto_ticketresponse",
+      "dto_ticketwitheventresponse"
+    ],
+    "26": [
+      "backend_gateway_internal_influencer_portal_dto_go",
+      "influencer_portal_claimrequest",
+      "influencer_portal_linksresponse",
+      "influencer_portal_payoutaccount",
+      "influencer_portal_payouthistoryitem",
+      "influencer_portal_payoutrequest",
+      "influencer_portal_portalprofile",
+      "influencer_portal_referrallink"
+    ],
+    "27": [
+      "backend_core_src_promos_dto_rs",
+      "dto_createpromorequest",
+      "dto_promocode",
+      "dto_promoresponse",
+      "dto_updatepromorequest",
+      "dto_validatepromorequest",
+      "dto_validatepromoresponse"
+    ],
+    "28": [
+      "backend_gateway_internal_shared_response_go",
+      "response_error",
+      "response_validationerror",
+      "shared_apierror",
+      "shared_apiresponse",
+      "shared_fielderror",
+      "shared_paginationmeta"
+    ],
+    "29": [
+      "auth_adminloginrequest",
+      "auth_forgotpasswordrequest",
+      "auth_loginrequest",
+      "auth_registerrequest",
+      "auth_resetpasswordrequest",
+      "auth_tokenpair",
+      "backend_gateway_internal_auth_dto_go"
+    ],
+    "30": [
+      "backend_gateway_internal_influencers_dto_go",
+      "influencers_createinfluencerrequest",
+      "influencers_influencer",
+      "influencers_influencer_toresponse",
+      "influencers_influencerresponse",
+      "influencers_referrallinkresponse",
+      "influencers_updateinfluencerrequest"
+    ],
+    "31": [
+      "backend_gateway_internal_users_dto_go",
+      "users_completeprofilerequest",
+      "users_updateprofilerequest",
+      "users_user",
+      "users_user_toresponse",
+      "users_userresponse"
+    ],
+    "32": [
+      "pagination_pagination",
+      "pagination_paginationellipsis",
+      "pagination_paginationlink",
+      "pagination_paginationnext",
+      "pagination_paginationprevious",
+      "src_components_ui_pagination_tsx"
+    ],
+    "33": [
+      "backend_core_src_error_rs",
+      "error_apperror",
+      "error_apperror_into_response",
+      "error_errorbody",
+      "error_errordetail"
+    ],
+    "34": [
+      "backend_core_src_payments_service_rs",
+      "service_initializepaymentrequest",
+      "service_paymentinitresponse",
+      "service_paystackwebhookdata",
+      "service_paystackwebhookpayload"
+    ],
+    "35": [
+      "landing_draw",
+      "landing_onmouseleave",
+      "landing_onmousemove",
+      "landing_resize",
+      "src_pages_landing_tsx"
+    ],
+    "36": [
+      "events_fetchevents",
+      "events_handlecreate",
+      "events_handleedit",
+      "events_handlesuccess",
+      "src_pages_events_tsx"
+    ],
+    "37": [
+      "sidebar_cn",
+      "sidebar_handlekeydown",
+      "sidebar_usesidebar",
+      "src_components_ui_sidebar_tsx"
+    ],
+    "38": [
+      "fees_ceilto",
+      "fees_computefees",
+      "fees_formatprice",
+      "src_lib_fees_ts"
+    ],
+    "39": [
+      "auth_feedback",
+      "auth_geterrormessage",
+      "auth_getpasswordstrength",
+      "src_pages_auth_tsx"
+    ],
+    "40": [
+      "backend_core_src_scanner_usage_engine_rs",
+      "usage_engine_usagedecision",
+      "usage_engine_usageengine"
+    ],
+    "41": [
+      "backend_gateway_internal_favorites_dto_go",
+      "favorites_favoriteeventresponse",
+      "favorites_favoriteresponse"
+    ],
+    "42": [
+      "backend_gateway_internal_events_free_ticket_handler_go",
+      "events_claimfreeticketrequest",
+      "events_invitegate"
+    ],
+    "43": [
+      "backend_gateway_internal_events_scanner_handler_go",
+      "events_assignscannerrequest",
+      "events_scannerassignment"
+    ],
+    "44": [
+      "feedbackmodal_handleclose",
+      "feedbackmodal_handlesubmit",
+      "src_components_feedbackmodal_tsx"
+    ],
+    "45": [
+      "src_components_waitlistsection_tsx",
+      "waitlistsection_handlesubmit",
+      "waitlistsection_joinwaitlist"
+    ],
+    "46": [
+      "chart_cn",
+      "chart_usechart",
+      "src_components_ui_chart_tsx"
+    ],
+    "47": [
+      "src_pages_tickets_tsx",
+      "tickets_handletransferred",
+      "tickets_viewticket"
+    ],
+    "48": [
+      "src_pages_vendors_vendormarketplace_tsx",
+      "vendormarketplace_applycategory",
+      "vendormarketplace_applycity"
+    ],
+    "49": [
+      "flier_extractflier",
+      "flier_isflierextractionenabled",
+      "src_api_flier_ts"
+    ],
+    "50": [
+      "main_arc_tickets_service_ticketservice",
+      "main_arc_tickets_service_ticketservice_from_ref"
+    ],
+    "51": [
+      "main_arc_scanner_service_scannerservice",
+      "main_arc_scanner_service_scannerservice_from_ref"
+    ],
+    "52": [
+      "main_arc_promos_service_promoservice",
+      "main_arc_promos_service_promoservice_from_ref"
+    ],
+    "53": [
+      "main_arc_payments_service_paymentservice",
+      "main_arc_payments_service_paymentservice_from_ref"
+    ],
+    "54": [
+      "main_arc_vendors_service_vendorservice",
+      "main_arc_vendors_service_vendorservice_from_ref"
+    ],
+    "55": [
+      "main_pgpool",
+      "main_pgpool_from_ref"
+    ],
+    "56": [
+      "main_arc_pgpool",
+      "main_arc_pgpool_from_ref"
+    ],
+    "57": [
+      "backend_gateway_internal_events_scanner_service_go",
+      "events_freeticketresponse"
+    ],
+    "58": [
+      "mobileguard_mobileguard",
+      "src_components_mobileguard_tsx"
+    ],
+    "59": [
+      "emptystate_floatingicon",
+      "src_components_emptystate_tsx"
+    ],
+    "60": [
+      "bookingmodal_bookingmodal",
+      "src_components_bookingmodal_tsx"
+    ],
+    "61": [
+      "empty_empty",
+      "src_components_empty_tsx"
+    ],
+    "62": [
+      "greeting_greeting",
+      "src_components_greeting_tsx"
+    ],
+    "63": [
+      "favoritebutton_favoritebutton",
+      "src_components_favoritebutton_tsx"
+    ],
+    "64": [
+      "eventselector_eventselector",
+      "src_components_shared_eventselector_tsx"
+    ],
+    "65": [
+      "eventmodal_eventmodal",
+      "src_components_modals_eventmodal_tsx"
+    ],
+    "66": [
+      "sonner_toaster",
+      "src_components_ui_sonner_tsx"
+    ],
+    "67": [
+      "calendar_calendar",
+      "src_components_ui_calendar_tsx"
+    ],
+    "68": [
+      "skeleton_skeleton",
+      "src_components_ui_skeleton_tsx"
+    ],
+    "69": [
+      "carousel_usecarousel",
+      "src_components_ui_carousel_tsx"
+    ],
+    "70": [
+      "badge_badge",
+      "src_components_ui_badge_tsx"
+    ],
+    "71": [
+      "particlebackground_particlefield",
+      "src_components_three_particlebackground_tsx"
+    ],
+    "72": [
+      "floatingelements_floatingshape",
+      "src_components_three_floatingelements_tsx"
+    ],
+    "73": [
+      "seatingmap_handleseatclick",
+      "src_components_events_seatingmap_tsx"
+    ],
+    "74": [
+      "src_components_events_travelestimate_tsx",
+      "travelestimate_travelestimate"
+    ],
+    "75": [
+      "osrmapi_fetchroute",
+      "src_lib_osrmapi_ts"
+    ],
+    "76": [
+      "src_lib_utils_ts",
+      "utils_cn"
+    ],
+    "77": [
+      "privacypolicy_privacypolicy",
+      "src_pages_privacypolicy_tsx"
+    ],
+    "78": [
+      "myevents_geteventstatus",
+      "src_pages_myevents_tsx"
+    ],
+    "79": [
+      "promo_promo",
+      "src_pages_promo_promo_tsx"
+    ],
+    "80": [
+      "overview_overview",
+      "src_pages_overview_overview_tsx"
+    ],
+    "81": [
+      "influencerdashboard_copylink",
+      "src_pages_influencer_influencerdashboard_tsx"
+    ],
+    "82": [
+      "eventvendors_statusbadge",
+      "src_pages_vendors_eventvendors_tsx"
+    ],
+    "83": [
+      "eventscanner_eventscanner",
+      "src_pages_scanner_eventscanner_tsx"
+    ],
+    "84": [
+      "src_hooks_use_mobile_tsx",
+      "use_mobile_useismobile"
+    ],
+    "85": [
+      "src_hooks_usegeolocation_ts",
+      "usegeolocation_usegeolocation"
+    ],
+    "86": [
+      "vite_config_ts"
+    ],
+    "87": [
+      "eslint_config_js"
+    ],
+    "88": [
+      "vitest_config_ts"
+    ],
+    "89": [
+      "postcss_config_js"
+    ],
+    "90": [
+      "tailwind_config_ts"
+    ],
+    "91": [
+      "backend_core_src_tickets_mod_rs"
+    ],
+    "92": [
+      "backend_core_src_analytics_mod_rs"
+    ],
+    "93": [
+      "backend_core_src_vendors_mod_rs"
+    ],
+    "94": [
+      "backend_core_src_scanner_mod_rs"
+    ],
+    "95": [
+      "backend_core_src_promos_mod_rs"
+    ],
+    "96": [
+      "backend_core_src_payments_mod_rs"
+    ],
+    "97": [
+      "backend_gateway_internal_shared_errors_go"
+    ],
+    "98": [
+      "backend_gateway_internal_auth_errors_go"
+    ],
+    "99": [
+      "src_vite_env_d_ts"
+    ],
+    "100": [
+      "src_fonts_d_ts"
+    ],
+    "101": [
+      "src_components_animatedlogo_tsx"
+    ],
+    "102": [
+      "src_components_greeting_test_tsx"
+    ],
+    "103": [
+      "src_components_ui_label_tsx"
+    ],
+    "104": [
+      "src_components_ui_scroll_area_tsx"
+    ],
+    "105": [
+      "src_components_ui_aspect_ratio_tsx"
+    ],
+    "106": [
+      "src_components_ui_popover_tsx"
+    ],
+    "107": [
+      "src_components_ui_command_tsx"
+    ],
+    "108": [
+      "src_components_ui_toaster_tsx"
+    ],
+    "109": [
+      "src_components_ui_slider_tsx"
+    ],
+    "110": [
+      "src_components_ui_dialog_tsx"
+    ],
+    "111": [
+      "src_components_ui_table_tsx"
+    ],
+    "112": [
+      "src_components_ui_use_toast_ts"
+    ],
+    "113": [
+      "src_components_ui_checkbox_tsx"
+    ],
+    "114": [
+      "src_components_ui_tooltip_tsx"
+    ],
+    "115": [
+      "src_components_ui_toggle_tsx"
+    ],
+    "116": [
+      "src_components_ui_navigation_menu_tsx"
+    ],
+    "117": [
+      "src_components_ui_alert_dialog_tsx"
+    ],
+    "118": [
+      "src_components_ui_alert_tsx"
+    ],
+    "119": [
+      "src_components_ui_dropdown_menu_tsx"
+    ],
+    "120": [
+      "src_components_ui_breadcrumb_tsx"
+    ],
+    "121": [
+      "src_components_ui_switch_tsx"
+    ],
+    "122": [
+      "src_components_ui_select_tsx"
+    ],
+    "123": [
+      "src_components_ui_toast_tsx"
+    ],
+    "124": [
+      "src_components_ui_form_tsx"
+    ],
+    "125": [
+      "src_components_ui_button_tsx"
+    ],
+    "126": [
+      "src_components_ui_input_tsx"
+    ],
+    "127": [
+      "src_components_ui_hover_card_tsx"
+    ],
+    "128": [
+      "src_components_ui_radio_group_tsx"
+    ],
+    "129": [
+      "src_components_ui_toggle_group_tsx"
+    ],
+    "130": [
+      "src_components_ui_sheet_tsx"
+    ],
+    "131": [
+      "src_components_ui_accordion_tsx"
+    ],
+    "132": [
+      "src_components_ui_menubar_tsx"
+    ],
+    "133": [
+      "src_components_ui_input_otp_tsx"
+    ],
+    "134": [
+      "src_components_ui_progress_tsx"
+    ],
+    "135": [
+      "src_components_ui_card_tsx"
+    ],
+    "136": [
+      "src_components_ui_textarea_tsx"
+    ],
+    "137": [
+      "src_components_ui_collapsible_tsx"
+    ],
+    "138": [
+      "src_components_ui_resizable_tsx"
+    ],
+    "139": [
+      "src_components_ui_separator_tsx"
+    ],
+    "140": [
+      "src_components_ui_avatar_tsx"
+    ],
+    "141": [
+      "src_components_ui_tabs_tsx"
+    ],
+    "142": [
+      "src_components_ui_context_menu_tsx"
+    ],
+    "143": [
+      "src_components_ui_drawer_tsx"
+    ],
+    "144": [
+      "src_components_cards_eventcard_tsx"
+    ],
+    "145": [
+      "src_components_events_organizereventview_tsx"
+    ],
+    "146": [
+      "src_components_events_ridehailingbuttons_tsx"
+    ],
+    "147": [
+      "src_types_index_ts"
+    ],
+    "148": [
+      "src_lib_validation_schemas_ts"
+    ],
+    "149": [
+      "src_lib_api_test_ts"
+    ],
+    "150": [
+      "src_lib_supabase_ts"
+    ],
+    "151": [
+      "src_lib_logger_test_ts"
+    ],
+    "152": [
+      "src_lib_badges_test_ts"
+    ],
+    "153": [
+      "src_lib_validation_schemas_test_ts"
+    ],
+    "154": [
+      "src_lib_badges_ts"
+    ],
+    "155": [
+      "src_pages_purchasepage_tsx"
+    ],
+    "156": [
+      "src_pages_scannerpage_tsx"
+    ],
+    "157": [
+      "src_pages_organizer_creditspage_tsx"
+    ],
+    "158": [
+      "src_pages_influencer_influencerdashboard_test_tsx"
+    ],
+    "159": [
+      "src_pages_admin_adminlayout_tsx"
+    ],
+    "160": [
+      "src_pages_admin_sections_admintickets_tsx"
+    ],
+    "161": [
+      "src_pages_admin_sections_adminoverview_tsx"
+    ],
+    "162": [
+      "src_pages_admin_sections_adminevents_tsx"
+    ],
+    "163": [
+      "src_pages_admin_sections_admintickets_test_tsx"
+    ],
+    "164": [
+      "src_pages_admin_sections_adminauditlog_tsx"
+    ],
+    "165": [
+      "src_pages_admin_sections_adminevents_test_tsx"
+    ],
+    "166": [
+      "src_pages_admin_sections_adminusers_tsx"
+    ],
+    "167": [
+      "src_pages_admin_sections_adminvendors_tsx"
+    ],
+    "168": [
+      "src_pages_admin_sections_admininfluencers_tsx"
+    ],
+    "169": [
+      "src_pages_admin_sections_admininfluencers_test_tsx"
+    ],
+    "170": [
+      "src_pages_admin_sections_adminpayments_tsx"
+    ],
+    "171": [
+      "src_pages_admin_sections_adminfinance_tsx"
+    ],
+    "172": [
+      "src_pages_admin_sections_adminorganizers_tsx"
+    ],
+    "173": [
+      "src_pages_admin_sections_adminfinance_test_tsx"
+    ],
+    "174": [
+      "src_pages_admin_sections_adminvendors_test_tsx"
+    ],
+    "175": [
+      "src_pages_admin_sections_admindisputes_tsx"
+    ],
+    "176": [
+      "src_pages_admin_sections_adminsystem_tsx"
+    ],
+    "177": [
+      "src_pages_admin_sections_adminusers_test_tsx"
+    ],
+    "178": [
+      "src_pages_vendors_vendorprofile_tsx"
+    ],
+    "179": [
+      "src_pages_vendors_vendormarketplace_test_tsx"
+    ],
+    "180": [
+      "src_pages_vendors_vendordashboard_test_tsx"
+    ],
+    "181": [
+      "src_pages_vendors_vendordashboard_tsx"
+    ],
+    "182": [
+      "src_api_credits_test_ts"
+    ],
+    "183": [
+      "src_api_vendors_test_ts"
+    ],
+    "184": [
+      "src_api_influencer_test_ts"
+    ],
+    "185": [
+      "src_test_setup_ts"
+    ],
+    "186": [
+      "src_test_e2e_test_ts"
+    ],
+    "187": [
+      "src_test_phase1_contracts_test_ts"
+    ],
+    "188": [
+      "test_api_clients_rationale_86"
+    ],
+    "189": [
+      "test_api_clients_rationale_118"
+    ],
+    "190": [
+      "test_api_clients_rationale_135"
+    ],
+    "191": [
+      "test_api_clients_rationale_161"
+    ],
+    "192": [
+      "test_api_clients_rationale_174"
+    ],
+    "193": [
+      "test_api_clients_rationale_206"
+    ],
+    "194": [
+      "test_api_clients_rationale_227"
+    ],
+    "195": [
+      "test_api_clients_rationale_252"
+    ],
+    "196": [
+      "test_api_clients_rationale_273"
+    ],
+    "197": [
+      "test_api_clients_rationale_285"
+    ],
+    "198": [
+      "test_api_clients_rationale_298"
+    ],
+    "199": [
+      "tests_e2e_critical_flows_test_ts"
+    ]
+  },
+  "cohesion": {
+    "0": 0.04,
+    "1": 0.03,
+    "2": 0.03,
+    "3": 0.04,
+    "4": 0.05,
+    "5": 0.04,
+    "6": 0.06,
+    "7": 0.07,
+    "8": 0.08,
+    "9": 0.06,
+    "10": 0.07,
+    "11": 0.08,
+    "12": 0.08,
+    "13": 0.11,
+    "14": 0.11,
+    "15": 0.12,
+    "16": 0.11,
+    "17": 0.14,
+    "18": 0.18,
+    "19": 0.13,
+    "20": 0.25,
+    "21": 0.25,
+    "22": 0.33,
+    "23": 0.22,
+    "24": 0.33,
+    "25": 0.25,
+    "26": 0.25,
+    "27": 0.29,
+    "28": 0.29,
+    "29": 0.29,
+    "30": 0.29,
+    "31": 0.33,
+    "32": 0.33,
+    "33": 0.4,
+    "34": 0.4,
+    "35": 0.4,
+    "36": 0.5,
+    "37": 0.5,
+    "38": 0.67,
+    "39": 0.5,
+    "40": 0.67,
+    "41": 0.67,
+    "42": 0.67,
+    "43": 0.67,
+    "44": 0.67,
+    "45": 1.0,
+    "46": 0.67,
+    "47": 0.67,
+    "48": 0.67,
+    "49": 0.67,
+    "50": 1.0,
+    "51": 1.0,
+    "52": 1.0,
+    "53": 1.0,
+    "54": 1.0,
+    "55": 1.0,
+    "56": 1.0,
+    "57": 1.0,
+    "58": 1.0,
+    "59": 1.0,
+    "60": 1.0,
+    "61": 1.0,
+    "62": 1.0,
+    "63": 1.0,
+    "64": 1.0,
+    "65": 1.0,
+    "66": 1.0,
+    "67": 1.0,
+    "68": 1.0,
+    "69": 1.0,
+    "70": 1.0,
+    "71": 1.0,
+    "72": 1.0,
+    "73": 1.0,
+    "74": 1.0,
+    "75": 1.0,
+    "76": 1.0,
+    "77": 1.0,
+    "78": 1.0,
+    "79": 1.0,
+    "80": 1.0,
+    "81": 1.0,
+    "82": 1.0,
+    "83": 1.0,
+    "84": 1.0,
+    "85": 1.0,
+    "86": 1.0,
+    "87": 1.0,
+    "88": 1.0,
+    "89": 1.0,
+    "90": 1.0,
+    "91": 1.0,
+    "92": 1.0,
+    "93": 1.0,
+    "94": 1.0,
+    "95": 1.0,
+    "96": 1.0,
+    "97": 1.0,
+    "98": 1.0,
+    "99": 1.0,
+    "100": 1.0,
+    "101": 1.0,
+    "102": 1.0,
+    "103": 1.0,
+    "104": 1.0,
+    "105": 1.0,
+    "106": 1.0,
+    "107": 1.0,
+    "108": 1.0,
+    "109": 1.0,
+    "110": 1.0,
+    "111": 1.0,
+    "112": 1.0,
+    "113": 1.0,
+    "114": 1.0,
+    "115": 1.0,
+    "116": 1.0,
+    "117": 1.0,
+    "118": 1.0,
+    "119": 1.0,
+    "120": 1.0,
+    "121": 1.0,
+    "122": 1.0,
+    "123": 1.0,
+    "124": 1.0,
+    "125": 1.0,
+    "126": 1.0,
+    "127": 1.0,
+    "128": 1.0,
+    "129": 1.0,
+    "130": 1.0,
+    "131": 1.0,
+    "132": 1.0,
+    "133": 1.0,
+    "134": 1.0,
+    "135": 1.0,
+    "136": 1.0,
+    "137": 1.0,
+    "138": 1.0,
+    "139": 1.0,
+    "140": 1.0,
+    "141": 1.0,
+    "142": 1.0,
+    "143": 1.0,
+    "144": 1.0,
+    "145": 1.0,
+    "146": 1.0,
+    "147": 1.0,
+    "148": 1.0,
+    "149": 1.0,
+    "150": 1.0,
+    "151": 1.0,
+    "152": 1.0,
+    "153": 1.0,
+    "154": 1.0,
+    "155": 1.0,
+    "156": 1.0,
+    "157": 1.0,
+    "158": 1.0,
+    "159": 1.0,
+    "160": 1.0,
+    "161": 1.0,
+    "162": 1.0,
+    "163": 1.0,
+    "164": 1.0,
+    "165": 1.0,
+    "166": 1.0,
+    "167": 1.0,
+    "168": 1.0,
+    "169": 1.0,
+    "170": 1.0,
+    "171": 1.0,
+    "172": 1.0,
+    "173": 1.0,
+    "174": 1.0,
+    "175": 1.0,
+    "176": 1.0,
+    "177": 1.0,
+    "178": 1.0,
+    "179": 1.0,
+    "180": 1.0,
+    "181": 1.0,
+    "182": 1.0,
+    "183": 1.0,
+    "184": 1.0,
+    "185": 1.0,
+    "186": 1.0,
+    "187": 1.0,
+    "188": 1.0,
+    "189": 1.0,
+    "190": 1.0,
+    "191": 1.0,
+    "192": 1.0,
+    "193": 1.0,
+    "194": 1.0,
+    "195": 1.0,
+    "196": 1.0,
+    "197": 1.0,
+    "198": 1.0,
+    "199": 1.0
+  },
+  "gods": [
+    {
+      "id": "admin_test_ok",
+      "label": "ok()",
+      "degree": 108
+    },
+    {
+      "id": "response_success",
+      "label": "Success()",
+      "degree": 105
+    },
+    {
+      "id": "api_mapfromapi",
+      "label": "mapFromApi()",
+      "degree": 85
+    },
+    {
+      "id": "main_main",
+      "label": "main()",
+      "degree": 47
+    },
+    {
+      "id": "auth_getuserclaims",
+      "label": "GetUserClaims()",
+      "degree": 45
+    },
+    {
+      "id": "api_maptoapi",
+      "label": "mapToApi()",
+      "degree": 35
+    },
+    {
+      "id": "admin_handler",
+      "label": "Handler",
+      "degree": 31
+    },
+    {
+      "id": "handler_ctx",
+      "label": "ctx()",
+      "degree": 30
+    },
+    {
+      "id": "notfound_notfound",
+      "label": "NotFound()",
+      "degree": 25
+    },
+    {
+      "id": "handler_test_newapp",
+      "label": "newApp()",
+      "degree": 23
+    }
+  ],
+  "surprises": [
+    {
+      "source": "check_gateway_secret()",
+      "target": "ok()",
+      "source_files": [
+        "backend/core/src/main.rs",
+        "src/api/admin.test.ts"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities; peripheral node `check_gateway_secret()` unexpectedly reaches hub `ok()`"
+    },
+    {
+      "source": "handleDownload()",
+      "target": "Success()",
+      "source_files": [
+        "src/components/TicketCard.tsx",
+        "backend/gateway/internal/shared/response.go"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities; peripheral node `handleDownload()` unexpectedly reaches hub `Success()`"
+    },
+    {
+      "source": "handleShare()",
+      "target": "Success()",
+      "source_files": [
+        "src/components/TicketCard.tsx",
+        "backend/gateway/internal/shared/response.go"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities; peripheral node `handleShare()` unexpectedly reaches hub `Success()`"
+    },
+    {
+      "source": "fetchWeather()",
+      "target": "String",
+      "source_files": [
+        "src/lib/weatherApi.ts",
+        "backend/core/src/main.rs"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities"
+    },
+    {
+      "source": "main()",
+      "target": "ok()",
+      "source_files": [
+        "backend/gateway/cmd/main.go",
+        "src/api/admin.test.ts"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities"
+    }
+  ],
+  "questions": [
+    {
+      "type": "bridge_node",
+      "question": "Why does `ok()` connect `Community 1` to `Community 4`, `Community 12`?",
+      "why": "High betweenness centrality (0.161) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `main()` connect `Community 4` to `Community 0`, `Community 1`, `Community 3`, `Community 6`, `Community 8`, `Community 9`, `Community 10`, `Community 14`, `Community 20`?",
+      "why": "High betweenness centrality (0.151) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `mapFromApi()` connect `Community 2` to `Community 0`, `Community 8`, `Community 18`, `Community 17`?",
+      "why": "High betweenness centrality (0.065) - this node is a cross-community bridge."
+    },
+    {
+      "type": "verify_inferred",
+      "question": "Are the 107 inferred relationships involving `ok()` (e.g. with `main()` and `build_router()`) actually correct?",
+      "why": "`ok()` has 107 INFERRED edges - model-reasoned connections that need verification."
+    },
+    {
+      "type": "verify_inferred",
+      "question": "Are the 104 inferred relationships involving `Success()` (e.g. with `.List()` and `.MarkRead()`) actually correct?",
+      "why": "`Success()` has 104 INFERRED edges - model-reasoned connections that need verification."
+    },
+    {
+      "type": "verify_inferred",
+      "question": "Are the 83 inferred relationships involving `mapFromApi()` (e.g. with `getMyCredits()` and `purchaseCredits()`) actually correct?",
+      "why": "`mapFromApi()` has 83 INFERRED edges - model-reasoned connections that need verification."
+    },
+    {
+      "type": "verify_inferred",
+      "question": "Are the 44 inferred relationships involving `main()` (e.g. with `ok()` and `.from_env()`) actually correct?",
+      "why": "`main()` has 44 INFERRED edges - model-reasoned connections that need verification."
+    }
+  ]
+}
