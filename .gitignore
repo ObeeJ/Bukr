@@ -1,3 +1,6 @@
+# Analysis tool output
+graphify-out/
+
 # Logs
 logs
 *.log
