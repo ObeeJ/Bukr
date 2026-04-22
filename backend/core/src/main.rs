@@ -302,13 +302,14 @@ async fn check_gateway_secret(
     req: Request<Body>,
     next: middleware::Next,
 ) -> Result<Response> {
-    let provided = req.headers()
+    let headers = req.headers();
+    let provided = headers
         .get("x-gateway-secret")
         .and_then(|v| v.to_str().ok())
         .unwrap_or("");
 
     if provided != secret {
-        tracing::warn!("UNAUTHORIZED: Invalid or missing X-Gateway-Secret");
+        tracing::warn!("UNAUTHORIZED: Invalid or missing X-Gateway-Secret. Received: '{}'. Headers: {:?}", provided, headers);
         return Err(AppError::Unauthorized);
     }
 
