@@ -166,76 +166,60 @@ const ScannerRoute = ({ children }: { children: JSX.Element }) => {
 const AppRoutes = () => (
   <Routes>
     <Route path="/" element={<Suspense fallback={null}><Landing /></Suspense>} />
-
     <Route path="/auth" element={<Suspense fallback={null}><Auth /></Suspense>} />
     <Route path="/signin" element={<Navigate to="/auth" replace />} />
     <Route path="/signup" element={<Navigate to="/auth?tab=signup" replace />} />
-
     <Route path="/reset-password" element={<Suspense fallback={null}><ResetPassword /></Suspense>} />
-
-    <Route path="/app" element={<ProtectedRoute><Suspense fallback={null}><UserDashboard /></Suspense></ProtectedRoute>} />
-    <Route path="/explore" element={<ProtectedRoute><Suspense fallback={null}><Explore /></Suspense></ProtectedRoute>} />
-    <Route path="/favorites" element={<ProtectedRoute><Suspense fallback={null}><Favorites /></Suspense></ProtectedRoute>} />
-    <Route path="/tickets" element={<ProtectedRoute><Suspense fallback={null}><Tickets /></Suspense></ProtectedRoute>} />
-    <Route path="/profile" element={<ProtectedRoute><Suspense fallback={null}><Profile /></Suspense></ProtectedRoute>} />
-    <Route path="/notification-preferences" element={<ProtectedRoute><Suspense fallback={null}><NotificationPreferences /></Suspense></ProtectedRoute>} />
-
-    <Route path="/events" element={<ProtectedRoute requiredUserType="organizer"><Suspense fallback={null}><Events /></Suspense></ProtectedRoute>} />
-    <Route path="/myevents" element={<ProtectedRoute requiredUserType="organizer"><Suspense fallback={null}><MyEvents /></Suspense></ProtectedRoute>} />
-    <Route path="/influencers" element={<ProtectedRoute requiredUserType="organizer"><Suspense fallback={null}><Influencers /></Suspense></ProtectedRoute>} />
-    <Route path="/create-event" element={<ProtectedRoute requiredUserType="organizer"><Suspense fallback={null}><CreateEvent /></Suspense></ProtectedRoute>} />
-    <Route path="/create-event/:id" element={<ProtectedRoute requiredUserType="organizer"><Suspense fallback={null}><CreateEvent /></Suspense></ProtectedRoute>} />
-    <Route path="/events/:id/edit" element={<ProtectedRoute requiredUserType="organizer"><Suspense fallback={null}><CreateEvent /></Suspense></ProtectedRoute>} />
-    <Route path="/dashboard" element={<ProtectedRoute requiredUserType="organizer"><Suspense fallback={null}><EventDashboard /></Suspense></ProtectedRoute>} />
-    <Route path="/events/:eventId/scanners" element={<ProtectedRoute requiredUserType="organizer"><Suspense fallback={null}><ScannerManagement /></Suspense></ProtectedRoute>} />
-
-    <Route path="/events/:id" element={<ProtectedRoute><Suspense fallback={null}><EventDetail /></Suspense></ProtectedRoute>} />
-    <Route path="/payment/verify/:reference" element={<ProtectedRoute><Suspense fallback={null}><PaymentVerify /></Suspense></ProtectedRoute>} />
-    <Route path="/purchase/:eventKey" element={<ProtectedRoute><Suspense fallback={null}><PurchasePage /></Suspense></ProtectedRoute>} />
-
-    <Route path="/scan/:eventId" element={<ScannerRoute><Suspense fallback={null}><ScannerPage /></Suspense></ScannerRoute>} />
-    <Route path="/scan/key/:eventKey" element={<ScannerRoute><Suspense fallback={null}><ScannerPage /></Suspense></ScannerRoute>} />
-
     <Route path="/privacy-policy" element={<Suspense fallback={null}><PrivacyPolicy /></Suspense>} />
-
-    {/* Invite deep-link — /#/invite?token=... — auth handled inside the page */}
     <Route path="/invite" element={<Suspense fallback={null}><InviteRedeemPage /></Suspense>} />
-
-    {/* Vendor marketplace */}
     <Route path="/vendors" element={<Suspense fallback={null}><VendorMarketplace /></Suspense>} />
     <Route path="/vendors/:id" element={<Suspense fallback={null}><VendorProfile /></Suspense>} />
-    <Route path="/vendor/register" element={<ProtectedRoute><Suspense fallback={null}><VendorRegister /></Suspense></ProtectedRoute>} />
-    {/* vendor/influencer have userType="user" in the JWT — the pages themselves
-        call the backend and redirect if no profile exists. Auth-only guard here. */}
-    <Route path="/vendor-dashboard" element={<ProtectedRoute><Suspense fallback={null}><VendorDashboard /></Suspense></ProtectedRoute>} />
-    <Route path="/events/:eventId/vendors" element={<ProtectedRoute requiredUserType="organizer"><Suspense fallback={null}><EventVendors /></Suspense></ProtectedRoute>} />
-
-    {/* Influencer portal */}
-    <Route path="/influencer" element={<ProtectedRoute><Suspense fallback={null}><InfluencerDashboard /></Suspense></ProtectedRoute>} />
-    <Route path="/influencer/payouts" element={<ProtectedRoute><Suspense fallback={null}><InfluencerPayouts /></Suspense></ProtectedRoute>} />
     <Route path="/influencer/claim/:token" element={<Suspense fallback={null}><InfluencerClaim /></Suspense>} />
 
-    {/* Organizer credits */}
-    <Route path="/credits" element={<ProtectedRoute requiredUserType="organizer"><Suspense fallback={null}><CreditsPage /></Suspense></ProtectedRoute>} />
-
-    {/* Admin dashboard — protected by admin token via ProtectedRoute userType check */}
-    <Route path="/admin" element={<ProtectedRoute requiredUserType="admin"><Suspense fallback={null}><AdminLayout /></Suspense></ProtectedRoute>}>
-      <Route index element={<Suspense fallback={null}><AdminOverview /></Suspense>} />
-      <Route path="users" element={<Suspense fallback={null}><AdminUsers /></Suspense>} />
-      <Route path="events" element={<Suspense fallback={null}><AdminEvents /></Suspense>} />
-      <Route path="tickets" element={<Suspense fallback={null}><AdminTickets /></Suspense>} />
-      <Route path="finance" element={<Suspense fallback={null}><AdminFinance /></Suspense>} />
-      <Route path="organizers" element={<Suspense fallback={null}><AdminOrganizers /></Suspense>} />
-      <Route path="vendors" element={<Suspense fallback={null}><AdminVendors /></Suspense>} />
-      <Route path="influencers" element={<Suspense fallback={null}><AdminInfluencers /></Suspense>} />
-      <Route path="payments" element={<Suspense fallback={null}><AdminPayments /></Suspense>} />
-      <Route path="disputes" element={<Suspense fallback={null}><AdminDisputes /></Suspense>} />
-      <Route path="audit-log" element={<Suspense fallback={null}><AdminAuditLog /></Suspense>} />
-      <Route path="feedback" element={<Suspense fallback={null}><AdminFeedback /></Suspense>} />
-      <Route path="waitlist" element={<Suspense fallback={null}><AdminWaitlist /></Suspense>} />
-      <Route path="promos" element={<Suspense fallback={null}><AdminPromos /></Suspense>} />
-      <Route path="scan-logs" element={<Suspense fallback={null}><AdminScanLogs /></Suspense>} />
-      <Route path="system" element={<Suspense fallback={null}><AdminSystem /></Suspense>} />
+    <Route element={<AppLayout />}>
+        <Route path="/app" element={<ProtectedRoute><Suspense fallback={null}><UserDashboard /></Suspense></ProtectedRoute>} />
+        <Route path="/explore" element={<ProtectedRoute><Suspense fallback={null}><Explore /></Suspense></ProtectedRoute>} />
+        <Route path="/favorites" element={<ProtectedRoute><Suspense fallback={null}><Favorites /></Suspense></ProtectedRoute>} />
+        <Route path="/tickets" element={<ProtectedRoute><Suspense fallback={null}><Tickets /></Suspense></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute><Suspense fallback={null}><Profile /></Suspense></ProtectedRoute>} />
+        <Route path="/notification-preferences" element={<ProtectedRoute><Suspense fallback={null}><NotificationPreferences /></Suspense></ProtectedRoute>} />
+        <Route path="/events" element={<ProtectedRoute requiredUserType="organizer"><Suspense fallback={null}><Events /></Suspense></ProtectedRoute>} />
+        <Route path="/myevents" element={<ProtectedRoute requiredUserType="organizer"><Suspense fallback={null}><MyEvents /></Suspense></ProtectedRoute>} />
+        <Route path="/influencers" element={<ProtectedRoute requiredUserType="organizer"><Suspense fallback={null}><Influencers /></Suspense></ProtectedRoute>} />
+        <Route path="/create-event" element={<ProtectedRoute requiredUserType="organizer"><Suspense fallback={null}><CreateEvent /></Suspense></ProtectedRoute>} />
+        <Route path="/create-event/:id" element={<ProtectedRoute requiredUserType="organizer"><Suspense fallback={null}><CreateEvent /></Suspense></ProtectedRoute>} />
+        <Route path="/events/:id/edit" element={<ProtectedRoute requiredUserType="organizer"><Suspense fallback={null}><CreateEvent /></Suspense></ProtectedRoute>} />
+        <Route path="/dashboard" element={<ProtectedRoute requiredUserType="organizer"><Suspense fallback={null}><EventDashboard /></Suspense></ProtectedRoute>} />
+        <Route path="/events/:eventId/scanners" element={<ProtectedRoute requiredUserType="organizer"><Suspense fallback={null}><ScannerManagement /></Suspense></ProtectedRoute>} />
+        <Route path="/events/:id" element={<ProtectedRoute><Suspense fallback={null}><EventDetail /></Suspense></ProtectedRoute>} />
+        <Route path="/payment/verify/:reference" element={<ProtectedRoute><Suspense fallback={null}><PaymentVerify /></Suspense></ProtectedRoute>} />
+        <Route path="/purchase/:eventKey" element={<ProtectedRoute><Suspense fallback={null}><PurchasePage /></Suspense></ProtectedRoute>} />
+        <Route path="/scan/:eventId" element={<ScannerRoute><Suspense fallback={null}><ScannerPage /></Suspense></ScannerRoute>} />
+        <Route path="/scan/key/:eventKey" element={<ScannerRoute><Suspense fallback={null}><ScannerPage /></Suspense></ScannerRoute>} />
+        <Route path="/vendor/register" element={<ProtectedRoute><Suspense fallback={null}><VendorRegister /></Suspense></ProtectedRoute>} />
+        <Route path="/vendor-dashboard" element={<ProtectedRoute><Suspense fallback={null}><VendorDashboard /></Suspense></ProtectedRoute>} />
+        <Route path="/events/:eventId/vendors" element={<ProtectedRoute requiredUserType="organizer"><Suspense fallback={null}><EventVendors /></Suspense></ProtectedRoute>} />
+        <Route path="/influencer" element={<ProtectedRoute><Suspense fallback={null}><InfluencerDashboard /></Suspense></ProtectedRoute>} />
+        <Route path="/influencer/payouts" element={<ProtectedRoute><Suspense fallback={null}><InfluencerPayouts /></Suspense></ProtectedRoute>} />
+        <Route path="/credits" element={<ProtectedRoute requiredUserType="organizer"><Suspense fallback={null}><CreditsPage /></Suspense></ProtectedRoute>} />
+        <Route path="/admin" element={<ProtectedRoute requiredUserType="admin"><Suspense fallback={null}><AdminLayout /></Suspense></ProtectedRoute>}>
+          <Route index element={<Suspense fallback={null}><AdminOverview /></Suspense>} />
+          <Route path="users" element={<Suspense fallback={null}><AdminUsers /></Suspense>} />
+          <Route path="events" element={<Suspense fallback={null}><AdminEvents /></Suspense>} />
+          <Route path="tickets" element={<Suspense fallback={null}><AdminTickets /></Suspense>} />
+          <Route path="finance" element={<Suspense fallback={null}><AdminFinance /></Suspense>} />
+          <Route path="organizers" element={<Suspense fallback={null}><AdminOrganizers /></Suspense>} />
+          <Route path="vendors" element={<Suspense fallback={null}><AdminVendors /></Suspense>} />
+          <Route path="influencers" element={<Suspense fallback={null}><AdminInfluencers /></Suspense>} />
+          <Route path="payments" element={<Suspense fallback={null}><AdminPayments /></Suspense>} />
+          <Route path="disputes" element={<Suspense fallback={null}><AdminDisputes /></Suspense>} />
+          <Route path="audit-log" element={<Suspense fallback={null}><AdminAuditLog /></Suspense>} />
+          <Route path="feedback" element={<Suspense fallback={null}><AdminFeedback /></Suspense>} />
+          <Route path="waitlist" element={<Suspense fallback={null}><AdminWaitlist /></Suspense>} />
+          <Route path="promos" element={<Suspense fallback={null}><AdminPromos /></Suspense>} />
+          <Route path="scan-logs" element={<Suspense fallback={null}><AdminScanLogs /></Suspense>} />
+          <Route path="system" element={<Suspense fallback={null}><AdminSystem /></Suspense>} />
+        </Route>
     </Route>
 
     <Route path="*" element={<NotFound />} />
