@@ -216,7 +216,6 @@ const Auth = () => {
 
   const { signIn, signUp, isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
 
   // After login/register: if a pending invite token exists in session storage,
   // redirect back to the invite redemption page instead of /app.
