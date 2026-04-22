@@ -104,12 +104,18 @@ impl PaymentService {
      */
     pub async fn initialize(&self, user_id: Uuid, req: InitializePaymentRequest) -> Result<PaymentInitResponse> {
         // Fetch ticket with user email (needed for payment gateway).
-        // Also fetch unit_price + quantity so we can compute the Bukr fee breakdown.
+        // Also fetch unit_price, quantity, discount_applied, and fee_mode so the
+        // fee breakdown matches exactly what was computed at purchase time.
+        // fee_mode is stored on the event at purchase; we read it from the ticket's
+        // joined event row so Absorb-mode events compute correctly on retry.
         let ticket = sqlx::query(
-            r#"SELECT t.id, t.total_price, t.unit_price, t.quantity, t.currency, t.payment_ref, u.email
-            FROM tickets t
-            JOIN users u ON t.user_id = u.id
-            WHERE t.id = $1 AND t.user_id = $2"#,
+            r#"SELECT t.id, t.total_price, t.unit_price, t.quantity, t.currency,
+                      t.payment_ref, t.discount_applied, u.email,
+                      COALESCE(e.fee_mode, 'pass_to_buyer') as fee_mode
+               FROM tickets t
+               JOIN users u ON t.user_id = u.id
+               JOIN events e ON t.event_id = e.id
+               WHERE t.id = $1 AND t.user_id = $2"#,
         )
         .bind(req.ticket_id)
         .bind(user_id)
@@ -118,27 +124,31 @@ impl PaymentService {
         .map_err(AppError::Database)?
         .ok_or_else(|| AppError::NotFound("Ticket not found".into()))?;
 
-        // Extract ticket data
         let total_price: Decimal  = ticket.get("total_price");
         let unit_price: Decimal   = ticket.get("unit_price");
         let quantity: i32         = ticket.get("quantity");
         let currency: String      = ticket.get("currency");
         let email: String         = ticket.get("email");
         let payment_ref: Option<String> = ticket.get("payment_ref");
+        let discount_applied: Decimal = ticket.get("discount_applied");
+        let fee_mode_str: String  = ticket.get("fee_mode");
 
-        // Generate unique payment reference if not exists
-        // Format: BUKR-PAY-{timestamp}-{random}
         let reference = payment_ref.unwrap_or_else(|| {
             format!("BUKR-PAY-{}-{:06x}", chrono::Utc::now().timestamp(), rand::random::<u32>())
         });
 
-        // ─── FEE COMPUTATION (delegates to unified fees engine) ───────────
-        let fee_mode = FeeMode::default(); // reads event.fee_mode in future
-        let fees = compute_fees(unit_price, quantity, &fee_mode);
+        // ─── FEE COMPUTATION — mirrors purchase path exactly ─────────────────
+        // Use the same fee_mode the event had at purchase time.
+        // PassToBuyer: unit_price is organizer desired payout — apply discount first.
+        // Absorb: unit_price is the buyer-facing price — pass directly.
+        let fee_mode = if fee_mode_str == "absorb" { FeeMode::Absorb } else { FeeMode::PassToBuyer };
+        let discount_multiplier = (Decimal::from(100) - discount_applied) / Decimal::from(100);
+        let desired_payout = unit_price * discount_multiplier;
+        let fees = compute_fees(desired_payout, quantity, &fee_mode);
         let platform_fee   = fees.platform_fee;
         let bukrshield_fee = fees.bukrshield_fee;
         let organizer_payout = fees.organizer_payout;
-        // ─────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────────
 
         match req.provider.as_str() {
             "paystack" => {

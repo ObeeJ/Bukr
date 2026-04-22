@@ -138,11 +138,14 @@ func (r *Repository) List(ctx context.Context, q ListEventsQuery) ([]Event, int,
 		argIdx++
 	}
 	if q.Search != "" {
+		// Full-text search via tsvector — O(log n) index scan vs O(n) ILIKE table scan.
+		// Requires: CREATE INDEX ON events USING GIN(to_tsvector('english', title || ' ' || description || ' ' || location))
+		// plainto_tsquery handles multi-word queries and strips stop words automatically.
 		conditions = append(conditions, fmt.Sprintf(
-			"(e.title ILIKE $%d OR e.description ILIKE $%d OR e.location ILIKE $%d)",
-			argIdx, argIdx, argIdx,
+			"to_tsvector('english', COALESCE(e.title,'') || ' ' || COALESCE(e.description,'') || ' ' || COALESCE(e.location,'')) @@ plainto_tsquery('english', $%d)",
+			argIdx,
 		))
-		args = append(args, "%"+q.Search+"%")
+		args = append(args, q.Search)
 		argIdx++
 	}
 

@@ -33,6 +33,7 @@ pub struct PurchaseTicketRequest {
     pub excitement_rating: Option<i32>,
     pub payment_provider: String,
     pub referral_code: Option<String>,
+    pub idempotency_key: Option<String>,  // NEW: Prevent duplicate purchases
     // Advanced ticket model fields — all optional, default to single-use
     pub usage_model: Option<String>,   // "single"|"multi"|"consumable"|"time_bound"|"renewable"
     pub usage_total: Option<i32>,      // e.g. 4 for "4 PS5 sessions"
@@ -177,6 +178,7 @@ pub struct Ticket {
     pub valid_until: Option<DateTime<Utc>>,  // NEW
     pub payment_ref: Option<String>,         // Payment reference
     pub payment_provider: Option<String>,    // Which provider
+    pub idempotency_key: Option<String>,     // NEW: Prevent duplicates
     pub excitement_rating: Option<i32>,      // User's hype level
     pub scanned_at: Option<DateTime<Utc>>,   // When was it scanned?
     pub purchase_date: DateTime<Utc>,        // When was it bought?

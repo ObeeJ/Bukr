@@ -37,9 +37,11 @@ func (h *Handler) RegisterOrganizerRoutes(router fiber.Router) {
 // RegisterGuestRoutes mounts the guest-facing redemption endpoint.
 // Requires auth (any user type).
 //
-//	POST /invites/redeem — guest redeems their token
+//	POST /invites/redeem    — guest redeems their token
+//	GET  /invites/my-reward — get current user's unused referral reward
 func (h *Handler) RegisterGuestRoutes(router fiber.Router) {
 	router.Post("/redeem", h.RedeemToken)
+	router.Get("/my-reward", h.GetMyReward)
 }
 
 // ── Organizer handlers ────────────────────────────────────────────────────────
@@ -191,6 +193,26 @@ func (h *Handler) RedeemToken(c *fiber.Ctx) error {
 	}
 
 	return shared.Success(c, fiber.StatusOK, resp)
+}
+
+// GetMyReward returns the current user's first unapplied referral reward.
+// GET /api/v1/invites/my-reward
+func (h *Handler) GetMyReward(c *fiber.Ctx) error {
+	claims := middleware.GetUserClaims(c)
+	if claims == nil {
+		return shared.Error(c, fiber.StatusUnauthorized, shared.CodeUnauthorized, "Authentication required")
+	}
+	reward, err := h.svc.GetUnusedReward(c.Context(), claims.UserID)
+	if err != nil {
+		// No reward — return empty 200, not 404, so the frontend doesn't need error handling
+		return shared.Success(c, fiber.StatusOK, nil)
+	}
+	return shared.Success(c, fiber.StatusOK, fiber.Map{
+		"id":          reward.ID,
+		"reward_type": reward.RewardType,
+		"discount_pct": reward.DiscountPct,
+		"expires_at":  reward.ExpiresAt,
+	})
 }
 
 // ── Error mapper ──────────────────────────────────────────────────────────────

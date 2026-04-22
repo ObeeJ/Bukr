@@ -90,7 +90,7 @@ impl TicketRepository {
                       unit_price, total_price, discount_applied, promo_code_id,
                       currency, status, qr_code_data, valid_from, valid_until,
                       payment_ref, payment_provider, excitement_rating, scanned_at,
-                      purchase_date, created_at"#,
+                      purchase_date, created_at, idempotency_key"#,
         )
         .bind(event_id)
         .bind(user_id)
@@ -137,6 +137,7 @@ impl TicketRepository {
         excitement_rating: Option<i32>,
         valid_from: Option<chrono::DateTime<chrono::Utc>>,
         valid_until: Option<chrono::DateTime<chrono::Utc>>,
+        idempotency_key: Option<&str>,
     ) -> Result<Ticket, sqlx::Error> {
         let row = sqlx::query(
             r#"INSERT INTO tickets
@@ -144,15 +145,15 @@ impl TicketRepository {
                  usage_limit, usage_count, usage_model, usage_total, usage_left, is_renewable,
                  unit_price, total_price, discount_applied, promo_code_id, currency,
                  qr_code_data, payment_ref, payment_provider, excitement_rating, status,
-                 valid_from, valid_until)
+                 valid_from, valid_until, idempotency_key)
             VALUES ($1, $2, $3, $4, $5, $6, 0, $7, $6, $6, $8,
-                    $9, $10, $11, $12, $13, $14, $15, $16, $17, 'valid', $18, $19)
+                    $9, $10, $11, $12, $13, $14, $15, $16, $17, 'valid', $18, $19, $20)
             RETURNING id, ticket_id, event_id, user_id, ticket_type, quantity,
                       usage_limit, usage_count, unit_price, total_price,
                       discount_applied, promo_code_id, currency, status,
                       qr_code_data, valid_from, valid_until, payment_ref,
                       payment_provider, excitement_rating, scanned_at,
-                      purchase_date, created_at"#,
+                      purchase_date, created_at, idempotency_key"#,
         )
         .bind(event_id)
         .bind(user_id)
@@ -173,10 +174,36 @@ impl TicketRepository {
         .bind(excitement_rating)
         .bind(valid_from)
         .bind(valid_until)
+        .bind(idempotency_key)
         .fetch_one(&mut **tx)
         .await?;
 
         Ok(row_to_ticket(&row))
+    }
+
+    pub async fn get_by_idempotency_key(
+        &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        user_id: Uuid,
+        event_id: Uuid,
+        idempotency_key: &str,
+    ) -> Result<Option<Ticket>, sqlx::Error> {
+        let row = sqlx::query(
+            r#"SELECT id, ticket_id, event_id, user_id, ticket_type, quantity, usage_limit, usage_count,
+                      unit_price, total_price, discount_applied, promo_code_id,
+                      currency, status, qr_code_data, valid_from, valid_until,
+                      payment_ref, payment_provider, excitement_rating, scanned_at,
+                      purchase_date, created_at, idempotency_key
+            FROM tickets 
+            WHERE user_id = $1 AND event_id = $2 AND idempotency_key = $3 AND status IN ('valid', 'used')"#,
+        )
+        .bind(user_id)
+        .bind(event_id)
+        .bind(idempotency_key)
+        .fetch_optional(&mut **tx)
+        .await?;
+
+        Ok(row.as_ref().map(row_to_ticket))
     }
 
     pub async fn get_by_ticket_id(&self, ticket_id: &str) -> Result<Option<Ticket>, sqlx::Error> {
@@ -185,7 +212,7 @@ impl TicketRepository {
                       unit_price, total_price, discount_applied, promo_code_id,
                       currency, status, qr_code_data, valid_from, valid_until,
                       payment_ref, payment_provider, excitement_rating, scanned_at,
-                      purchase_date, created_at
+                      purchase_date, created_at, idempotency_key
             FROM tickets WHERE ticket_id = $1"#,
         )
         .bind(ticket_id)
@@ -201,7 +228,7 @@ impl TicketRepository {
                       unit_price, total_price, discount_applied, promo_code_id,
                       currency, status, qr_code_data, valid_from, valid_until,
                       payment_ref, payment_provider, excitement_rating, scanned_at,
-                      purchase_date, created_at
+                      purchase_date, created_at, idempotency_key
             FROM tickets WHERE user_id = $1 ORDER BY purchase_date DESC"#,
         )
         .bind(user_id)
@@ -217,7 +244,7 @@ impl TicketRepository {
                       unit_price, total_price, discount_applied, promo_code_id,
                       currency, status, qr_code_data, valid_from, valid_until,
                       payment_ref, payment_provider, excitement_rating, scanned_at,
-                      purchase_date, created_at
+                      purchase_date, created_at, idempotency_key
             FROM tickets WHERE event_id = $1 ORDER BY purchase_date DESC"#,
         )
         .bind(event_id)
@@ -304,6 +331,7 @@ fn row_to_ticket(row: &sqlx::postgres::PgRow) -> Ticket {
         valid_until: row.get("valid_until"),
         payment_ref: row.get("payment_ref"),
         payment_provider: row.get("payment_provider"),
+        idempotency_key: row.get("idempotency_key"),
         excitement_rating: row.get("excitement_rating"),
         scanned_at: row.get("scanned_at"),
         purchase_date: row.get("purchase_date"),
@@ -408,7 +436,7 @@ impl TicketRepository {
                       unit_price, total_price, discount_applied, promo_code_id,
                       currency, status, qr_code_data, valid_from, valid_until,
                       payment_ref, payment_provider, excitement_rating, scanned_at,
-                      purchase_date, created_at"#,
+                      purchase_date, created_at, idempotency_key"#,
         )
         .bind(event_id)
         .bind(user_id)

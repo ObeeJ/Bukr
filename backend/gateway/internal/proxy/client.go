@@ -146,14 +146,24 @@ func (p *RustProxy) Forward(c *fiber.Ctx, rustPath string) error {
 	// Execute proxied request
 	resp, err := p.client.Do(req)
 	if err != nil {
-		return shared.Error(c, fiber.StatusBadGateway, shared.CodeInternalError, "Rust service unavailable")
+		return shared.Error(c, fiber.StatusBadGateway, shared.CodeInternalError, "Core service unreachable")
 	}
 	defer resp.Body.Close()
 
 	// Read response body
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return shared.Error(c, fiber.StatusBadGateway, shared.CodeInternalError, "Failed to read response from core service")
+		return shared.Error(c, fiber.StatusBadGateway, shared.CodeInternalError, "Failed to read core response")
+	}
+
+	// If response is not 2xx, ensure we return a clean JSON error
+	if resp.StatusCode >= 400 {
+		// Check if it's already JSON
+		if resp.Header.Get("Content-Type") == "application/json" {
+			return c.Status(resp.StatusCode).Send(respBody)
+		}
+		// Mask raw errors (e.g., panics, 502s) with a clean envelope
+		return shared.Error(c, resp.StatusCode, shared.CodeInternalError, "Internal service error")
 	}
 
 	// Copy response Content-Type header

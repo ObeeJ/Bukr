@@ -29,10 +29,19 @@
 package proxy
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/bukr/gateway/internal/middleware"
+	"github.com/bukr/gateway/internal/shared"
 	"github.com/gofiber/fiber/v2"
 )
+
+// InviteGate is the minimal interface the proxy needs to check event access.
+// Defined here to avoid importing the invites package (circular dependency).
+type InviteGate interface {
+	CheckAccess(ctx context.Context, eventID, userEmail string) error
+}
 
 /**
  * Handler: Proxy controller
@@ -59,7 +68,24 @@ func NewHandler(proxy *RustProxy) *Handler {
  * - POST /claim-free: Claim free ticket
  */
 func (h *Handler) RegisterTicketRoutes(router fiber.Router) {
+	// Paid ticket purchase — invite gate runs before forwarding to Rust.
+	// The gate is O(1): indexed lookup on (event_id, email).
+	// If the event is public, CheckAccess returns immediately (fast path).
 	router.Post("/purchase", func(c *fiber.Ctx) error {
+		if gate, ok := c.Locals("invite_svc").(InviteGate); ok && gate != nil {
+			// Parse event_id from body without consuming it — Fiber buffers the body.
+			var body struct {
+				EventID string `json:"event_id"`
+			}
+			if err := c.BodyParser(&body); err == nil && body.EventID != "" {
+				claims := middleware.GetUserClaims(c)
+				if claims != nil {
+					if err := gate.CheckAccess(c.Context(), body.EventID, claims.Email); err != nil {
+						return shared.Error(c, fiber.StatusForbidden, shared.CodeForbidden, err.Error())
+					}
+				}
+			}
+		}
 		return h.proxy.Forward(c, "/api/v1/tickets/purchase")
 	})
 	router.Get("/me", func(c *fiber.Ctx) error {

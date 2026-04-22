@@ -46,6 +46,20 @@ func main() {
 	workerCtx, cancelWorker := context.WithCancel(context.Background())
 	defer cancelWorker()
 
+	// ── Dependency construction order (topological sort) ────────────────────────
+	// Each service is listed after all its dependencies.
+	// If you add a new service, insert it AFTER all services it depends on.
+	//
+	// Dependency graph:
+	//   inviteService ← inviteRepo, inviteMailer, db
+	//   notifWorker   ← db, rdb, inviteService (SetInviteExpirer)
+	//   authSvc       ← authRepo, mailer, rdb, inviteService (WithReferralGranter)
+	//   eventService  ← eventRepo, rdb, creditsService (WithCredits)
+	//   creditsService ← creditsRepo, paystackSecret
+	//
+	// Rule: never reference a service before it appears in this block.
+	// ─────────────────────────────────────────────────────────────────────────────
+
 	// Invites service constructed early — needed by the notification worker
 	// and injected into the events booking gate below.
 	inviteRepo    := invites.NewRepository(db)
@@ -189,10 +203,16 @@ func main() {
 	proxyHandler.RegisterScannerRoutes(scannerGroup)
 
 	// ── Payment webhooks (public — no auth) ──────────────────────────────────
-	// MUST be registered before any v1.Group("/payments", userAuth) call.
-	// Fiber's Group(prefix, middleware) creates a USE handler for the prefix;
-	// routes registered BEFORE the USE call bypass it, routes registered AFTER do not.
-	// All /payments/webhook/* routes go here — Paystack calls them with no bearer token.
+	// ORDERING INVARIANT: webhook routes MUST be registered on a no-auth group
+	// BEFORE the userAuth payment group is created below.
+	// Fiber's Group(prefix, middleware) installs a USE handler scoped to that
+	// prefix. Routes registered after the USE call are caught by it; routes
+	// registered before bypass it. Paystack calls webhooks with no bearer token
+	// — if they hit the auth middleware they get 401 and stop sending events,
+	// which means tickets never activate and revenue stops silently.
+	//
+	// DO NOT move these registrations below the paymentGroup line.
+	// If you need to add a new public payment route, add it to paymentsWebhookGroup.
 	paymentsWebhookGroup := v1.Group("/payments")
 	proxyHandler.RegisterPaymentWebhooks(paymentsWebhookGroup)
 

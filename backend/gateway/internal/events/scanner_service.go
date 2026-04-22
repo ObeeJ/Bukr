@@ -12,7 +12,6 @@ package events
 
 import (
 	"context"
-	cryptoRand "crypto/rand"
 	"fmt"
 )
 
@@ -117,91 +116,3 @@ func (s *Service) RemoveScanner(ctx context.Context, eventID, scannerID string) 
 	return nil
 }
 
-/**
- * ClaimFreeTicket: Claim free ticket without payment
- * 
- * Flow:
- * 1. Verify event allows free tickets (requires_payment = false)
- * 2. Check ticket availability
- * 3. Generate ticket ID and QR code
- * 4. Create ticket record with is_free = true
- * 5. Decrement available tickets
- */
-func (s *Service) ClaimFreeTicket(ctx context.Context, eventID, userID string, quantity int) (*FreeTicketResponse, error) {
-	tx, err := s.repo.db.Begin(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback(ctx)
-
-	// FOR UPDATE locks the event row — prevents concurrent claims both passing
-	// the availability check before either inserts.
-	var requiresPayment bool
-	var availableTickets int
-	var eventStatus string
-	err = tx.QueryRow(ctx,
-		`SELECT requires_payment, available_tickets, status
-		 FROM events WHERE id = $1 FOR UPDATE`,
-		eventID,
-	).Scan(&requiresPayment, &availableTickets, &eventStatus)
-	if err != nil {
-		return nil, fmt.Errorf("event not found")
-	}
-	if eventStatus != "active" {
-		return nil, fmt.Errorf("event is not active")
-	}
-	if requiresPayment {
-		return nil, fmt.Errorf("this event requires payment")
-	}
-	if availableTickets < quantity {
-		return nil, fmt.Errorf("insufficient tickets available")
-	}
-
-	// Duplicate check inside the transaction — consistent read under the lock.
-	var existing int
-	tx.QueryRow(ctx,
-		`SELECT COUNT(*) FROM tickets
-		 WHERE user_id = $1 AND event_id = $2 AND status != 'cancelled'`,
-		userID, eventID,
-	).Scan(&existing)
-	if existing > 0 {
-		return nil, fmt.Errorf("already claimed a ticket for this event")
-	}
-
-	// crypto/rand suffix — time.Now() alone collides under concurrent load.
-	var b [4]byte
-	if _, err := cryptoRand.Read(b[:]); err != nil {
-		return nil, err
-	}
-	ticketID := fmt.Sprintf("BUKR-%X-%s", b, eventID[:8])
-	qrData := fmt.Sprintf(`{"ticketId":"%s","eventId":"%s"}`, ticketID, eventID)
-
-	var ticket FreeTicketResponse
-	err = tx.QueryRow(ctx,
-		`INSERT INTO tickets
-		 (ticket_id, event_id, user_id, ticket_type, quantity,
-		  unit_price, total_price, currency, qr_code_data, status)
-		 VALUES ($1, $2, $3, 'General Admission', $4, 0, 0, 'NGN', $5, 'valid')
-		 RETURNING ticket_id, event_id::text, user_id::text, quantity, qr_code_data, created_at::text`,
-		ticketID, eventID, userID, quantity, qrData,
-	).Scan(&ticket.TicketID, &ticket.EventID, &ticket.UserID, &ticket.Quantity, &ticket.QRCodeData, &ticket.CreatedAt)
-	if err != nil {
-		return nil, err
-	}
-
-	// DB trigger handles available_tickets decrement — no manual UPDATE needed.
-
-	return &ticket, tx.Commit(ctx)
-}
-
-/**
- * FreeTicketResponse: Response for claimed free ticket
- */
-type FreeTicketResponse struct {
-	TicketID   string `json:"ticket_id"`
-	EventID    string `json:"event_id"`
-	UserID     string `json:"user_id"`
-	Quantity   int    `json:"quantity"`
-	QRCodeData string `json:"qr_code_data"`
-	CreatedAt  string `json:"created_at"`
-}

@@ -280,11 +280,9 @@ func (s *Service) RevokeInvite(ctx context.Context, inviteID, eventID, organizer
 // ── Referral rewards ──────────────────────────────────────────────────────────
 
 // GrantReferralReward is called after a new user registers via an invite link.
-// Finds the referrer and issues the appropriate reward based on their user type:
-//   - regular user  → ticket_discount (10% off next ticket)
-//   - organizer     → both (ticket_discount + event_credit)
+// BFS cycle guard: walks the referral ancestry chain before granting to ensure
+// the referrer is not already in the new user's chain (prevents reward loops).
 func (s *Service) GrantReferralReward(ctx context.Context, sourceInviteID string) {
-	// Find who originally redeemed the invite that led to this new signup
 	var referrerUserID, referrerType string
 	err := s.db.QueryRow(ctx,
 		`SELECT ei.redeemed_by::text, u.user_type
@@ -294,14 +292,40 @@ func (s *Service) GrantReferralReward(ctx context.Context, sourceInviteID string
 		sourceInviteID,
 	).Scan(&referrerUserID, &referrerType)
 	if err != nil {
-		return // no referrer found — silent, not an error
+		return
+	}
+
+	// BFS: walk up the referral chain from the referrer.
+	// If we encounter the referrer again (cycle), abort — no reward granted.
+	// Max depth 10 prevents runaway queries on deep legitimate chains.
+	const maxDepth = 10
+	visited := map[string]struct{}{referrerUserID: {}}
+	current := referrerUserID
+	for depth := 0; depth < maxDepth; depth++ {
+		var parentID string
+		err := s.db.QueryRow(ctx,
+			`SELECT ei.redeemed_by::text
+			 FROM event_invites ei
+			 WHERE ei.redeemed_by = $1::uuid
+			   AND ei.referred_by_invite_id IS NOT NULL
+			 LIMIT 1`,
+			current,
+		).Scan(&parentID)
+		if err != nil || parentID == "" {
+			break // reached root of chain
+		}
+		if _, seen := visited[parentID]; seen {
+			// Cycle detected — abort reward grant
+			return
+		}
+		visited[parentID] = struct{}{}
+		current = parentID
 	}
 
 	rewardType := "ticket_discount"
 	if referrerType == "organizer" {
 		rewardType = "both"
 	}
-
 	_ = s.repo.CreateReward(ctx, referrerUserID, sourceInviteID, rewardType, rewardDiscountPct)
 }
 

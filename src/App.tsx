@@ -81,6 +81,9 @@ const InfluencerClaim      = lazy(() => import("@/pages/influencer/InfluencerCla
 // Organizer credits
 const CreditsPage          = lazy(() => import("@/pages/organizer/CreditsPage"));
 
+// Invite redemption (public deep-link — auth handled inside the page)
+const InviteRedeemPage     = lazy(() => import("@/pages/InviteRedeemPage"));
+
 // Admin dashboard
 const AdminLayout          = lazy(() => import("@/pages/admin/AdminLayout"));
 const AdminOverview        = lazy(() => import("@/pages/admin/sections/AdminOverview"));
@@ -194,6 +197,9 @@ const AppRoutes = () => (
     <Route path="/scan/key/:eventKey" element={<ScannerRoute><Suspense fallback={null}><ScannerPage /></Suspense></ScannerRoute>} />
 
     <Route path="/privacy-policy" element={<Suspense fallback={null}><PrivacyPolicy /></Suspense>} />
+
+    {/* Invite deep-link — /#/invite?token=... — auth handled inside the page */}
+    <Route path="/invite" element={<Suspense fallback={null}><InviteRedeemPage /></Suspense>} />
 
     {/* Vendor marketplace */}
     <Route path="/vendors" element={<Suspense fallback={null}><VendorMarketplace /></Suspense>} />

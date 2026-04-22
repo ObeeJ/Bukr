@@ -128,7 +128,7 @@ func (r *Repository) ConsumeCredit(ctx context.Context, organizerID string) erro
 		   AND is_active = true
 		   AND expires_at > NOW()
 		   AND (credits_total = -1 OR credits_used < credits_total)
-		 ORDER BY purchased_at ASC
+		 ORDER BY expires_at ASC
 		 LIMIT 1
 		 FOR UPDATE`,
 		organizerID,

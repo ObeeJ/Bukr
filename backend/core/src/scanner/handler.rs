@@ -40,9 +40,13 @@ pub async fn validate_ticket(
 
 pub async fn manual_validate(
     State(service): State<Arc<ScannerService>>,
+    headers: HeaderMap,
     Json(req): Json<ManualValidateRequest>,
 ) -> Result<Json<Value>> {
-    let result = service.manual_validate(req).await?;
+    let scanned_by = extract_user_id(&headers)
+        .ok_or(AppError::Unauthorized)?;
+    
+    let result = service.manual_validate(req, scanned_by).await?;
     Ok(Json(json!({ "status": "success", "data": result })))
 }
 

@@ -216,10 +216,20 @@ const Auth = () => {
 
   const { signIn, signUp, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
-  // Redirect if already authenticated
+  // After login/register: if a pending invite token exists in session storage,
+  // redirect back to the invite redemption page instead of /app.
+  // This preserves the invite flow across the auth redirect.
   useEffect(() => {
-    if (isAuthenticated) navigate("/app", { replace: true });
+    if (!isAuthenticated) return;
+    const pendingToken = sessionStorage.getItem('bukr_pending_invite_token');
+    if (pendingToken) {
+      sessionStorage.removeItem('bukr_pending_invite_token');
+      navigate(`/invite?token=${pendingToken}`, { replace: true });
+    } else {
+      navigate('/app', { replace: true });
+    }
   }, [isAuthenticated, navigate]);
 
   const clearFeedback = useCallback(() => setFeedback(null), []);

@@ -111,16 +111,14 @@ pub struct ScannerService {
 }
 
 impl ScannerService {
-    pub fn new(pool: PgPool) -> Self {
-        let qr_secret = std::env::var("QR_HMAC_SECRET")
-            .unwrap_or_else(|_| "bukr-qr-secret-change-in-production".to_string());
+    pub fn new(pool: PgPool, qr_secret: String) -> Self {
         Self { pool, redis: None, qr_secret }
     }
 
-    pub async fn new_with_redis(pool: PgPool) -> Self {
+    // qr_secret is injected from Config — never read from env directly here.
+    // This ensures the startup validation in config.rs is the single enforcement point.
+    pub async fn new_with_redis(pool: PgPool, qr_secret: String) -> Self {
         let redis_url = std::env::var("REDIS_URL").unwrap_or_default();
-        let qr_secret = std::env::var("QR_HMAC_SECRET")
-            .unwrap_or_else(|_| "bukr-qr-secret-change-in-production".to_string());
 
         let redis = if !redis_url.is_empty() {
             match redis::Client::open(redis_url.as_str()) {
@@ -325,7 +323,23 @@ impl ScannerService {
         self.validate_and_mark(&req.ticket_id, event_id, None).await
     }
 
-    pub async fn manual_validate(&self, req: ManualValidateRequest) -> Result<ScanResult> {
+    async fn authorize_scanner_for_event(&self, scanned_by: Uuid, event_id: Uuid) -> Result<()> {
+        let exists: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM scanner_access_codes WHERE event_id = $1 AND scanner_id = $2 AND is_active = true)"
+        )
+        .bind(event_id)
+        .bind(scanned_by)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(AppError::Database)?;
+
+        if !exists {
+            return Err(AppError::Forbidden);
+        }
+        Ok(())
+    }
+
+    pub async fn manual_validate(&self, req: ManualValidateRequest, scanned_by: Uuid) -> Result<ScanResult> {
         let event_id = match req.event_id {
             Some(id) => id,
             None => match &req.event_key {
@@ -333,7 +347,9 @@ impl ScannerService {
                 None => return Err(AppError::Validation("event_id or event_key required".into())),
             },
         };
-        self.validate_and_mark(&req.ticket_id, event_id, None).await
+        
+        self.authorize_scanner_for_event(scanned_by, event_id).await?;
+        self.validate_and_mark(&req.ticket_id, event_id, Some(scanned_by)).await
     }
 
     /// Core validation + usage engine dispatch.

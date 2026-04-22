@@ -46,9 +46,11 @@ import (
 const (
 	pendingKey        = "bukr:reminders:pending"
 	doneKey           = "bukr:reminders:done"
-	SchedulerInterval = 15 * time.Minute // How often the scheduler scans the DB
-	WorkerInterval    = 30 * time.Second // How often the worker drains the queue
+	deadKey           = "bukr:reminders:dead"  // jobs that exceeded maxRetries
+	SchedulerInterval = 15 * time.Minute
+	WorkerInterval    = 30 * time.Second
 	doneTTL           = 7 * 24 * time.Hour
+	maxRetries        = 5 // dead-letter after this many consecutive failures
 )
 
 // reminderWindows defines when before an event each reminder fires.
@@ -65,13 +67,16 @@ var reminderWindows = []struct {
 // ── Job payload ───────────────────────────────────────────────────────────────
 
 type ReminderJob struct {
-	JobID          string    `json:"job_id"`           // Unique: eventID:userID:reminderType
+	JobID          string    `json:"job_id"`
 	EventID        string    `json:"event_id"`
 	EventTitle     string    `json:"event_title"`
 	EventStartsAt  time.Time `json:"event_starts_at"`
 	UserID         string    `json:"user_id"`
 	UserEmail      string    `json:"user_email"`
-	ReminderType   string    `json:"reminder_type"`    // "24h" | "1h" | "10min"
+	ReminderType   string    `json:"reminder_type"`
+	// RetryCount tracks how many times dispatch has failed for this job.
+	// Used for exponential backoff — job is dead-lettered after maxRetries.
+	RetryCount     int       `json:"retry_count,omitempty"`
 }
 
 // ── Worker ────────────────────────────────────────────────────────────────────
@@ -255,12 +260,30 @@ func (w *Worker) drain(ctx context.Context) {
 		}
 
 		if err := dispatch(ctx, job); err != nil {
-			log.Printf("notifications: dispatch failed for job %s: %v", job.JobID, err)
-			// Re-enqueue so it retries on next drain cycle
-			w.redis.ZAdd(ctx, pendingKey, redis.Z{
-				Score:  float64(job.EventStartsAt.Add(-time.Minute).Unix()),
-				Member: payload,
-			})
+			log.Printf("notifications: dispatch failed for job %s (attempt %d): %v", job.JobID, job.RetryCount+1, err)
+			job.RetryCount++
+			if job.RetryCount >= maxRetries {
+				// Dead-letter: stop retrying, record for manual inspection
+				log.Printf("notifications: dead-lettering job %s after %d failures", job.JobID, job.RetryCount)
+				if updated, err := json.Marshal(job); err == nil {
+					w.redis.ZAdd(ctx, deadKey, redis.Z{
+						Score:  float64(time.Now().Unix()),
+						Member: string(updated),
+					})
+				}
+				continue
+			}
+			// Exponential backoff: 1m, 2m, 4m, 8m, 16m (capped at 30m)
+			backoff := time.Duration(1<<uint(job.RetryCount)) * time.Minute
+			if backoff > 30*time.Minute {
+				backoff = 30 * time.Minute
+			}
+			if updated, err := json.Marshal(job); err == nil {
+				w.redis.ZAdd(ctx, pendingKey, redis.Z{
+					Score:  float64(time.Now().Add(backoff).Unix()),
+					Member: string(updated),
+				})
+			}
 			continue
 		}
 
@@ -305,6 +328,16 @@ func (w *Worker) drainTicketNotifications(ctx context.Context) {
 		JOIN users u ON u.id = tn.user_id
 		JOIN events e ON e.id = tn.event_id
 		WHERE tn.sent_at IS NULL
+		ORDER BY
+			CASE tn.type
+				WHEN 'usage_depleted'  THEN 1
+				WHEN 'expired'         THEN 2
+				WHEN 'expiry_warning'  THEN 3
+				WHEN 'scan_confirmed'  THEN 4
+				WHEN 'renewal_prompt'  THEN 5
+				ELSE 6
+			END,
+			tn.created_at ASC
 		LIMIT 50
 	`)
 	if err != nil {

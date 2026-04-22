@@ -1,6 +1,6 @@
 // src/pages/PurchasePage.tsx
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useEvent } from "@/contexts/EventContext";
 import { useTicket } from "@/contexts/TicketContext";
@@ -262,9 +262,15 @@ const PurchasePage = () => {
 
   const currencySymbol = event.currency === 'NGN' ? '₦' : '$';
   const basePrice = event.price || 0;
-  const discountAmount = basePrice * (discount / 100);
-  const finalPrice = basePrice - discountAmount;
-  const totalPrice = finalPrice * quantity;
+
+  // Memoized — only recomputes when price, discount, or quantity changes.
+  // Previously ran inside JSX on every render (every keystroke, every state update).
+  const fees = useMemo(() => {
+    const discountedPayout = basePrice * (1 - discount / 100);
+    return computeFees(discountedPayout, quantity, 'pass_to_buyer');
+  }, [basePrice, discount, quantity]);
+
+  const totalPrice = fees.buyerTotal;
 
   return (
     <div className="min-h-screen pt-8 pb-24 px-4 responsive-spacing">
@@ -401,8 +407,6 @@ const PurchasePage = () => {
                   </div>
 
                   {(() => {
-                    const discountedPayout = basePrice * (1 - discount / 100);
-                    const fees = computeFees(discountedPayout, quantity, 'pass_to_buyer');
                     return (
                       <div className="mb-6 rounded-xl border border-border/40 overflow-hidden">
                         <div className="p-4 bg-primary/5">

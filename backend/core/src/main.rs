@@ -171,9 +171,11 @@ async fn build_router(pool: PgPool, cfg: config::Config) -> Router {
     let ticket_repo = tickets::repository::TicketRepository::new(pool.clone());
 
     // SERVICE LAYER
-    let ticket_service  = Arc::new(tickets::service::TicketService::new(ticket_repo, promo_repo.clone()));
+    // qr_hmac_secret is passed explicitly — services must not read env vars directly.
+    // Config.from_env() is the single validation point; if it's empty in production, we never reach here.
+    let ticket_service  = Arc::new(tickets::service::TicketService::new(ticket_repo, promo_repo.clone(), cfg.qr_hmac_secret.clone()));
     let promo_service   = Arc::new(promos::service::PromoService::new(promo_repo));
-    let scanner_service = Arc::new(scanner::service::ScannerService::new_with_redis(pool.clone()).await);
+    let scanner_service = Arc::new(scanner::service::ScannerService::new_with_redis(pool.clone(), cfg.qr_hmac_secret.clone()).await);
     let payment_service = Arc::new(payments::service::PaymentService::new(
         pool.clone(),
         cfg.paystack_secret_key,

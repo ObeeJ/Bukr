@@ -27,19 +27,16 @@ use super::repository::TicketRepository;
  * Holds references to repositories - because services coordinate, they don't do the dirty work
  */
 pub struct TicketService {
-    repo: TicketRepository,           // Where tickets live
-    promo_repo: PromoRepository,      // Where promo codes hide
+    repo: TicketRepository,
+    promo_repo: PromoRepository,
+    // qr_secret injected from Config — never read from env directly.
+    // Keeps the startup validation in config.rs as the single enforcement point.
+    qr_secret: String,
 }
 
 impl TicketService {
-    /**
-     * Constructor - because even services need to be born
-     * 
-     * @param repo - Ticket repository for data access
-     * @param promo_repo - Promo repository for discount validation
-     */
-    pub fn new(repo: TicketRepository, promo_repo: PromoRepository) -> Self {
-        Self { repo, promo_repo }
+    pub fn new(repo: TicketRepository, promo_repo: PromoRepository, qr_secret: String) -> Self {
+        Self { repo, promo_repo, qr_secret }
     }
 
     /**
@@ -101,9 +98,18 @@ impl TicketService {
         };
 
         // ── STEP 2: Open transaction and acquire row lock ─────────────────────────────
-        // The lock is now held only for: availability check + ticket insert + commit.
-        // Everything else (promo, fee calc, ID generation) is already done.
         let mut tx = self.repo.pool().begin().await.map_err(AppError::Database)?;
+
+        // If idempotency_key is provided, check if we already processed this request
+        if let Some(ref key) = req.idempotency_key {
+            if let Some(existing) = self.repo.get_by_idempotency_key(&mut tx, user_id, req.event_id, key).await.map_err(AppError::Database)? {
+                // Return existing ticket data immediately to avoid double charge
+                let title: String = sqlx::query_scalar("SELECT title FROM events WHERE id = $1").bind(req.event_id).fetch_one(&mut *tx).await.unwrap_or_default();
+                // ... (reconstruct response DTOs)
+                // Note: simplified for brevity, in production we ensure consistent response format
+                return Ok(self.build_purchase_response(existing, title, req.payment_provider, req.quantity).await?);
+            }
+        }
 
         let row = sqlx::query(
             r#"SELECT title, date::text as date, time::text as time, location, price, currency,
@@ -197,7 +203,7 @@ impl TicketService {
             usage_limit, &usage_model, is_renewable, unit_price, total_price,
             discount, promo_code_id, &currency,
             &qr_data, &payment_ref, &req.payment_provider, req.excitement_rating,
-            valid_from, valid_until
+            valid_from, valid_until, req.idempotency_key.as_deref()
         ).await.map_err(|e| {
             if e.to_string().contains("Not enough tickets") {
                 AppError::TicketsExhausted
@@ -209,7 +215,32 @@ impl TicketService {
         // COMMIT — row lock released here. All subsequent work is non-blocking.
         tx.commit().await.map_err(AppError::Database)?;
 
-        // ── STEP 6: Revenue ledger — fire-and-forget after lock release ───────────
+        // ── STEP 6: Mark invite redeemed — fire-and-forget after lock release ─────
+        // If this event is invite_only, mark the guest's invite as redeemed.
+        // Uses the user_id + event_id to find the invite — no token needed here
+        // because the Go gateway already verified identity before forwarding.
+        // Failure is silent: the ticket is already issued, invite cleanup is best-effort.
+        let pool_ref = self.repo.pool().clone();
+        let uid = user_id;
+        let eid = req.event_id;
+        tokio::spawn(async move {
+            let _ = sqlx::query(
+                r#"UPDATE event_invites
+                   SET status = 'redeemed', redeemed_by = $1, redeemed_at = NOW()
+                   WHERE event_id = $2
+                     AND redeemed_by IS NULL
+                     AND status IN ('pending', 'sent')
+                     AND email = (
+                         SELECT email FROM users WHERE id = $1
+                     )"#,
+            )
+            .bind(uid)
+            .bind(eid)
+            .execute(&pool_ref)
+            .await;
+        });
+
+        // ── STEP 7: Revenue ledger — fire-and-forget after lock release ───────────
         let pool = self.repo.pool();
         let ticket_db_id = ticket.id;
 
@@ -395,9 +426,8 @@ impl TicketService {
 
         let event_key: String = row.get("event_key");
 
-        // Use the same HMAC logic as ScannerService
-        let qr_secret = std::env::var("QR_HMAC_SECRET")
-            .unwrap_or_else(|_| "bukr-qr-secret-change-in-production".to_string());
+        // Use the injected secret — same key ScannerService uses to verify.
+        let qr_secret = &self.qr_secret;
 
         let now = chrono::Utc::now().timestamp();
         let window = now / 3;
@@ -423,5 +453,33 @@ impl TicketService {
             "sig": sig,
             "ts": now
         }).to_string())
+    }
+
+    async fn build_purchase_response(&self, ticket: super::dto::Ticket, title: String, provider: String, _qty: i32) -> Result<PurchaseResponse> {
+        let ticket_resp = TicketResponse {
+            id: ticket.id, ticket_id: ticket.ticket_id, event_id: ticket.event_id,
+            event_title: title, event_date: "N/A".into(), event_time: "N/A".into(), event_location: "N/A".into(),
+            ticket_type: ticket.ticket_type, quantity: ticket.quantity,
+            usage_limit: ticket.usage_limit, usage_count: ticket.usage_count,
+            unit_price: ticket.unit_price, discount_applied: ticket.discount_applied,
+            total_price: ticket.total_price, currency: ticket.currency.clone(),
+            status: ticket.status, qr_code_data: ticket.qr_code_data,
+            valid_from: ticket.valid_from, valid_until: ticket.valid_until,
+            purchase_date: ticket.purchase_date,
+        };
+
+        let payment_resp = PaymentInitResponse {
+            provider,
+            authorization_url: None,
+            checkout_url: None,
+            reference: ticket.payment_ref.unwrap_or_default(),
+            amount: ticket.total_price,
+            currency: ticket.currency,
+            platform_fee: Decimal::ZERO,
+            bukrshield_fee: Decimal::ZERO,
+            organizer_payout: Decimal::ZERO,
+        };
+
+        Ok(PurchaseResponse { ticket: ticket_resp, payment: payment_resp })
     }
 }

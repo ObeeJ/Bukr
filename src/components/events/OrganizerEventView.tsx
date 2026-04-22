@@ -1,11 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Edit, Users, Tag, Calendar, MapPin, DollarSign, Share2 } from 'lucide-react';
+import { ArrowLeft, Edit, Users, Tag, Calendar, MapPin, DollarSign, Share2, Lock, Unlock, Upload, Trash2, Mail, CheckCircle, Clock, XCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import AnimatedLogo from '@/components/AnimatedLogo';
 import { Event, PromoCode } from '@/types';
+import { toast } from 'sonner';
+import {
+    setAccessMode, bulkUploadFile, bulkUploadGuests,
+    listInvites, revokeInvite, InviteResponse, GuestEntry,
+} from '@/api/invites';
 
 interface EventMetrics {
     totalTickets: number;
@@ -26,6 +32,82 @@ interface OrganizerEventViewProps {
 
 const OrganizerEventView = ({ event, metrics, promos, isActive }: OrganizerEventViewProps) => {
     const navigate = useNavigate();
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Invite management state
+    const [accessMode, setMode] = useState<'public' | 'invite_only'>(
+        (event as any).accessMode ?? 'public'
+    );
+    const [invites, setInvites] = useState<InviteResponse[]>([]);
+    const [invitesLoading, setInvitesLoading] = useState(false);
+    const [rsvpDeadline, setRsvpDeadline] = useState('');
+    const [uploading, setUploading] = useState(false);
+
+    // Load invites when panel is first opened
+    useEffect(() => {
+        if (accessMode !== 'invite_only') return;
+        setInvitesLoading(true);
+        listInvites(event.id)
+            .then(setInvites)
+            .catch(() => toast.error('Failed to load guest list'))
+            .finally(() => setInvitesLoading(false));
+    }, [accessMode, event.id]);
+
+    const toggleAccessMode = async () => {
+        const next = accessMode === 'public' ? 'invite_only' : 'public';
+        try {
+            await setAccessMode(event.id, next, rsvpDeadline || undefined);
+            setMode(next);
+            toast.success(next === 'invite_only' ? 'Event set to invite only' : 'Event set to public');
+        } catch {
+            toast.error('Failed to update access mode');
+        }
+    };
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setUploading(true);
+        try {
+            const result = await bulkUploadFile(event.id, file, rsvpDeadline || undefined);
+            toast.success(`${result.created} guests added`, {
+                description: result.skipped > 0 ? `${result.skipped} duplicates skipped` : undefined,
+            });
+            if (result.errors.length > 0) {
+                toast.warning(`${result.invalid} rows had errors`, { description: result.errors[0] });
+            }
+            // Refresh invite list
+            const updated = await listInvites(event.id);
+            setInvites(updated);
+            // Auto-enable invite_only if not already
+            if (accessMode === 'public' && result.created > 0) {
+                await setAccessMode(event.id, 'invite_only', rsvpDeadline || undefined);
+                setMode('invite_only');
+            }
+        } catch (err: any) {
+            toast.error('Upload failed', { description: err?.response?.data?.error?.message || err.message });
+        } finally {
+            setUploading(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+
+    const handleRevoke = async (inviteId: string) => {
+        try {
+            await revokeInvite(event.id, inviteId);
+            setInvites(prev => prev.map(i => i.id === inviteId ? { ...i, status: 'revoked' as const } : i));
+            toast.success('Invite revoked');
+        } catch {
+            toast.error('Failed to revoke invite');
+        }
+    };
+
+    const statusIcon = (s: InviteResponse['status']) => {
+        if (s === 'redeemed') return <CheckCircle className="w-3.5 h-3.5 text-green-500" />;
+        if (s === 'sent')     return <Mail className="w-3.5 h-3.5 text-blue-400" />;
+        if (s === 'revoked' || s === 'expired') return <XCircle className="w-3.5 h-3.5 text-destructive" />;
+        return <Clock className="w-3.5 h-3.5 text-muted-foreground" />;
+    };
 
     return (
         <div className="container mx-auto px-4 py-8 pb-24">
@@ -139,6 +221,108 @@ const OrganizerEventView = ({ event, metrics, promos, isActive }: OrganizerEvent
                     </CardContent>
                 </Card>
             )}
+
+            {/* Invite Management Panel */}
+            <Card className="glass-card mb-8">
+                <CardHeader>
+                    <CardTitle className="flex items-center justify-between text-lg">
+                        <span className="flex items-center gap-2">
+                            {accessMode === 'invite_only'
+                                ? <Lock className="w-5 h-5 text-primary" />
+                                : <Unlock className="w-5 h-5" />}
+                            Guest Access
+                        </span>
+                        <Button
+                            variant={accessMode === 'invite_only' ? 'outline' : 'default'}
+                            size="sm"
+                            onClick={toggleAccessMode}
+                        >
+                            {accessMode === 'invite_only' ? 'Make Public' : 'Invite Only'}
+                        </Button>
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {/* RSVP Deadline */}
+                    <div className="flex items-center gap-3">
+                        <label className="text-sm text-muted-foreground w-32 shrink-0">RSVP Deadline</label>
+                        <Input
+                            type="datetime-local"
+                            value={rsvpDeadline}
+                            onChange={e => setRsvpDeadline(e.target.value)}
+                            className="text-sm"
+                        />
+                    </div>
+
+                    {/* File upload */}
+                    <div>
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept=".csv,.json,.docx,.pdf"
+                            className="hidden"
+                            onChange={handleFileUpload}
+                        />
+                        <Button
+                            variant="outline"
+                            className="w-full"
+                            disabled={uploading}
+                            onClick={() => fileInputRef.current?.click()}
+                        >
+                            <Upload className="w-4 h-4 mr-2" />
+                            {uploading ? 'Uploading…' : 'Upload Guest List (CSV / JSON / DOCX / PDF)'}
+                        </Button>
+                        <p className="text-xs text-muted-foreground mt-1">
+                            Columns: name, email, ticket_type — header row optional
+                        </p>
+                    </div>
+
+                    {/* Invite list */}
+                    {accessMode === 'invite_only' && (
+                        <div className="space-y-2 max-h-72 overflow-y-auto">
+                            {invitesLoading && (
+                                <p className="text-sm text-muted-foreground text-center py-4">Loading guest list…</p>
+                            )}
+                            {!invitesLoading && invites.length === 0 && (
+                                <p className="text-sm text-muted-foreground text-center py-4">No guests added yet</p>
+                            )}
+                            {invites.map(inv => (
+                                <div key={inv.id} className="flex items-center justify-between p-2.5 bg-primary/5 rounded-lg">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        {statusIcon(inv.status)}
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-medium truncate">{inv.name || inv.email}</p>
+                                            {inv.name && <p className="text-xs text-muted-foreground truncate">{inv.email}</p>}
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        <Badge variant="outline" className="text-xs capitalize">{inv.status}</Badge>
+                                        {(inv.status === 'pending' || inv.status === 'sent') && (
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-7 w-7 text-destructive hover:text-destructive"
+                                                onClick={() => handleRevoke(inv.id)}
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                            </Button>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Stats row */}
+                    {invites.length > 0 && (
+                        <div className="flex gap-4 text-xs text-muted-foreground pt-1">
+                            <span>{invites.filter(i => i.status === 'redeemed').length} confirmed</span>
+                            <span>{invites.filter(i => i.status === 'sent').length} sent</span>
+                            <span>{invites.filter(i => i.status === 'pending').length} pending</span>
+                            <span>{invites.filter(i => i.status === 'revoked').length} revoked</span>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
 
             {/* Collaborator Performance */}
             <Card className="glass-card">
