@@ -128,7 +128,8 @@ func (p *RustProxy) Forward(c *fiber.Ctx, rustPath string) error {
 	}
 
 	// Inject gateway secret for Rust trust boundary
-	req.Header.Set("X-Gateway-Secret", p.gatewaySecret)
+	fmt.Printf("DEBUG: Injecting secret: %s\n", p.gatewaySecret)
+	req.Header.Set("X-Bukr-Internal-Token", p.gatewaySecret)
 
 	// Inject user claims from Go Gateway auth
 	// Rust trusts these headers (no JWT re-validation)

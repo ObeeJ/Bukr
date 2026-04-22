@@ -304,12 +304,12 @@ async fn check_gateway_secret(
 ) -> Result<Response> {
     let headers = req.headers();
     let provided = headers
-        .get("x-gateway-secret")
+        .get("x-bukr-internal-token")
         .and_then(|v| v.to_str().ok())
         .unwrap_or("");
 
     if provided != secret {
-        tracing::warn!("UNAUTHORIZED: Invalid or missing X-Gateway-Secret. Received: '{}'. Headers: {:?}", provided, headers);
+        tracing::warn!("UNAUTHORIZED: Invalid or missing X-Bukr-Internal-Token. Received: '{}'. Headers: {:?}", provided, headers);
         return Err(AppError::Unauthorized);
     }
 
